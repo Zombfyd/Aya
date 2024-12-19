@@ -1,12 +1,14 @@
 [package]
 name = "aya"
 version = "0.0.1"
-published-at = "0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b"
-
-[dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "mainnet" }
-SuiSystem = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "mainnet" }
+authors = ["YourNameHere"]
+license = "Apache-2.0"
 
 [addresses]
-aya = "0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b"
-sui = "0x2"
+# Define named addresses; these must match the compiled module
+default = "8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b"
+
+[dependencies]
+# Core frameworks used in the module
+MoveStdlib = { git = "https://github.com/move-language/move", rev = "main" }
+Sui = { git = "https://github.com/MystenLabs/sui", rev = "main" }
