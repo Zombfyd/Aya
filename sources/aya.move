@@ -6,7 +6,9 @@ module aya::aya {
     use sui::url;
 
     /// The type identifier of AYA coin
-    struct AYA has drop {}
+    struct AYA has drop {
+        dummy_field: bool
+    }
 
     #[allow(unused_function)]
     /// Module initializer is called once on module publish
@@ -28,6 +30,6 @@ module aya::aya {
     #[test_only]
     /// Wrapper of module initializer for testing
     public fun test_init(ctx: &mut TxContext) {
-        init(AYA {}, ctx)
+        init(AYA { dummy_field: false }, ctx)
     }
 }
