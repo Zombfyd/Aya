@@ -5,10 +5,8 @@ authors = ["YourNameHere"]
 license = "Apache-2.0"
 
 [addresses]
-# Define named addresses; these must match the compiled module
-default = "8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b"
+aya = "0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b"
+default = "0x2"
 
 [dependencies]
-# Core frameworks used in the module
-MoveStdlib = { git = "https://github.com/move-language/move", rev = "main" }
 Sui = { git = "https://github.com/MystenLabs/sui", rev = "main" }
