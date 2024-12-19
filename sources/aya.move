@@ -26,4 +26,3 @@ module 0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b::aya {
         transfer::public_share_object(coin_metadata);
     }
 }
-
