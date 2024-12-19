@@ -2,7 +2,7 @@ module aya::aya {
     use sui::coin::{Self, TreasuryCap, CoinMetadata};
     use sui::tx_context::{Self, TxContext};
     use sui::transfer;
-    use std::option;
+    use sui::option;
     use sui::url;
 
     struct AYA has drop {
