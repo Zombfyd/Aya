@@ -1,8 +1,8 @@
 # Move.toml
 [package]
-name = "aya_token"
+name = "aya"
 version = "0.0.1"
-published-at = "0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b"
+published-at = "8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet" }
