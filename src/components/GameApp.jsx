@@ -319,7 +319,7 @@ useEffect(() => {
     console.log('Starting leaderboard fetch...');
     setIsLeaderboardLoading(true);
     
-    const baseUrl = 'https://ayagame.onrender.com/api/scores/leaderboard';
+    const baseUrl = `${config.apiBaseUrl}/api/scores/leaderboard`;
     
     try {
       // Function to validate leaderboard data
@@ -345,9 +345,10 @@ useEffect(() => {
           const timestamp = Date.now();
           const response = await fetch(`${baseUrl}/${endpoint}?t=${timestamp}`, {
             headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
+              'Accept': 'application/json',
+            },
+            credentials: 'include',
+            mode: 'cors'
           });
 
           if (!response.ok) {
