@@ -165,27 +165,25 @@ useEffect(() => {
     updateWalletState();
   }, [wallet.connected, wallet.account, wallet.chain?.name]);
   const checkWalletBalance = async () => {
-  try {
-    console.log('Checking wallet balance...');
-    
-    const coins = await wallet.getCoins();
-    const totalBalance = coins.reduce((sum, coin) => sum + BigInt(coin.balance), 0n);
-    
-    // Convert to SUI (1 SUI = 1_000_000_000 MIST)
-    const balanceInSui = Number(totalBalance) / 1_000_000_000;
-    
-    console.log('Wallet balance details:', {
-      balanceInSui,
-      balanceInMist: totalBalance.toString(),
-      requiredBalance: config.paymentConfig.minBalance / 1_000_000_000
-    });
-    
-    return balanceInSui >= (config.paymentConfig.minBalance / 1_000_000_000);
-  } catch (error) {
-    console.error('Balance check error:', error);
-    return false;
-  }
-};
+    try {
+      console.log('Checking wallet balance...');
+      
+      // Use the balance from useAccountBalance hook
+      const balanceInMist = BigInt(balance ?? 0);
+      const balanceInSui = Number(balanceInMist) / 1_000_000_000;
+      
+      console.log('Wallet balance details:', {
+        balanceInSui,
+        balanceInMist: balanceInMist.toString(),
+        requiredBalance: config.paymentConfig.minBalance / 1_000_000_000
+      });
+      
+      return balanceInSui >= (config.paymentConfig.minBalance / 1_000_000_000);
+    } catch (error) {
+      console.error('Balance check error:', error);
+      return false;
+    }
+  };
   // Modify handleGameStart
   const handleGameStart = async () => {
     if (!wallet.connected) {
@@ -498,7 +496,7 @@ useEffect(() => {
   }
 };
 
-// Modify window.gameManager.onGameOver
+// Modify window.gameManager.onGameOver to handle signatures differently for free/paid modes
 window.gameManager.onGameOver = async (finalScore) => {
   console.log('Game Over triggered with score:', finalScore);
   
@@ -519,18 +517,42 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
+    let requestBody = {
+      playerWallet: wallet.account.address,
+      score: finalScore,
+      gameType: 'main',
+      gameMode,
+    };
+
+    // Only add signature for paid mode
+    if (gameMode === 'paid') {
+      const scoreMessage = JSON.stringify({
+        playerAddress: wallet.account.address,
+        score: finalScore,
+        timestamp: Date.now(),
+        gameMode,
+        gameType: 'main'
+      });
+
+      const msgBytes = new TextEncoder().encode(scoreMessage);
+      const signature = await wallet.signPersonalMessage({
+        message: msgBytes,
+      });
+
+      requestBody = {
+        ...requestBody,
+        signature,
+        message: scoreMessage,
+      };
+    }
+
     const endpoint = `https://ayagame.onrender.com/api/scores/submit/${gameMode}`;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        playerWallet: wallet.account.address,
-        score: finalScore,
-        gameType: 'main',
-        gameMode,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
