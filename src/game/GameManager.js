@@ -257,45 +257,20 @@ class GameManager {
     }
   }
 
-  updateEntities(entities, isGold, isRed, isBlack) {  
-  for (let i = entities.length - 1; i >= 0; i--) {  
-    const entity = entities[i];  
-    entity.update();  
-  
-    if (checkCollision(entity, bucket)) {  
-      entities.splice(i, 1);  
-      
-      if (isGold) {  
-        score += 15;  
-        splashes.push(new GoldSplash(entity.x + entity.width / 2, bucket.y));  
-      } else if (isRed) {  
-        lives--;  
-        splashes.push(new RedSplash(entity.x + entity.width / 2, bucket.y));  
-      } else if (isBlack) {  
-        lives++;  
-        splashes.push(new GreenSplash(entity.x + entity.width / 2, bucket.y));  
-      } else {  
-        score += 1;  
-        splashes.push(new Splash(entity.x + entity.width / 2, bucket.y));  
-      }  
-    }  
-  
-    if (entity.y > canvas.height) {  
-      entities.splice(i, 1);  
-      if (!isRed) {  
-        lives--;  
-      }  
-    }  
-  }  
+  updateEntities(entities, isGold, isRed, isBlack) {
+    for (let i = entities.length - 1; i >= 0; i--) {
+      const entity = entities[i];
+      entity.update();
 
-  for (let i = splashes.length - 1; i >= 0; i--) {
-    const splash = splashes[i];
-    splash.update();
-    if (splash.opacity <= 0) {
-      splashes.splice(i, 1);
+      if (this.checkCollision(entity, this.bucket)) {
+        entities.splice(i, 1);
+        this.handleCollision(entity, isGold, isRed, isBlack);
+      } else if (entity.y > this.canvas.height) {
+        entities.splice(i, 1);
+        if (!isRed) this.lives--;
+      }
     }
-  }  
-}
+  }
 
   // Collision Detection
   checkCollision(entity, bucket) {
@@ -480,11 +455,13 @@ class Splash {
     this.y = y;
     this.opacity = 1;
     this.fillColor = "rgba(255, 255, 255";
-    this.radius = 20;
+    this.radius = 20; // Initial size of the splash
+    this.growthRate = 0.5; // Amount to increase the radius each update
   }
 
   update() {
-    this.opacity = Math.max(0, this.opacity - 0.03);
+    this.radius += this.growthRate; // Increase radius over time
+    this.opacity = Math.max(0, this.opacity - 0.03); // Fade out
   }
 
   draw(ctx) {
@@ -497,6 +474,7 @@ class Splash {
     ctx.closePath();
   }
 }
+
 
 /**
  * Specialized splash effects for different tear types
