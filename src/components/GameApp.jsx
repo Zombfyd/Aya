@@ -261,13 +261,11 @@ useEffect(() => {
         gameType: 'main'
       };
 
-      // For paid mode, we need session verification
       if (gameMode === 'paid') {
         if (!paymentStatus.verified) {
           alert('Payment verification required for paid mode');
           return;
         }
-
         requestBody = {
           ...requestBody,
           sessionToken: paymentStatus.transactionId
@@ -278,8 +276,11 @@ useEffect(() => {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        mode: 'cors',
+        credentials: 'include',
         body: JSON.stringify(requestBody)
       });
 
@@ -291,10 +292,8 @@ useEffect(() => {
       console.log('Score submission successful');
       alert('Score submitted successfully!');
       
-      // Refresh leaderboards after successful submission
       await fetchLeaderboards();
       
-      // Reset game state
       setGameState(prev => ({
         ...prev,
         gameStarted: false,
@@ -302,7 +301,6 @@ useEffect(() => {
         score: 0
       }));
 
-      // For paid mode, increment attempts counter
       if (gameMode === 'paid') {
         setPaidGameAttempts(prev => prev + 1);
         if (paidGameAttempts + 1 >= MAX_PAID_ATTEMPTS) {
