@@ -30,6 +30,7 @@ const GameApp = () => {
     gameStarted: false,
     score: 0,
     isGameOver: false,
+    hasValidPayment: false
   });
   const [leaderboardData, setLeaderboardData] = useState({
     mainFree: [],
@@ -44,6 +45,9 @@ const GameApp = () => {
   transactionId: null,
   error: null
 });
+  // Add new state for paid game attempts
+  const [paidGameAttempts, setPaidGameAttempts] = useState(0);
+  const MAX_PAID_ATTEMPTS = 4;
   // Utility function for chain name
   const chainName = (chainId) => {
     switch (chainId) {
@@ -94,7 +98,7 @@ const GameApp = () => {
   initializeGameManager();
 }, []);
 
-// Add this useEffect for payment status monitoring
+// Modify payment status monitoring
 useEffect(() => {
   if (transactionInProgress) {
     const checkPaymentStatus = async () => {
@@ -114,6 +118,11 @@ useEffect(() => {
               verified: true,
               error: null
             }));
+            setGameState(prev => ({
+              ...prev,
+              hasValidPayment: true
+            }));
+            setPaidGameAttempts(0); // Reset attempts when payment is verified
             setTransactionInProgress(false);
           }
         }
@@ -177,10 +186,10 @@ useEffect(() => {
     return false;
   }
 };
-  // Payment handling
+  // Modify handleGameStart
   const handleGameStart = async () => {
     if (!wallet.connected) {
-      alert('Please connect your wallet first');
+      alert('Please connect your wallet first to track your scores on the leaderboard');
       return;
     }
 
@@ -189,42 +198,54 @@ useEffect(() => {
       return;
     }
 
-    try {
-      const hasEnoughBalance = await checkWalletBalance();
-      if (!hasEnoughBalance) {
-        alert('Insufficient balance. You need at least 0.25 SUI to play (0.2 SUI game fee + gas)');
+    // Paid game logic
+    if (!gameState.hasValidPayment) {
+      try {
+        const hasEnoughBalance = await checkWalletBalance();
+        if (!hasEnoughBalance) {
+          alert('Insufficient balance. You need at least 0.25 SUI to play (0.2 SUI game fee + gas)');
+          return;
+        }
+
+        setPaying(true);
+        setTransactionInProgress(true);
+
+        const tx = new Transaction();
+        tx.moveCall({
+          target: `${config.packageId}::payment::pay_for_game`,
+          arguments: [
+            tx.pure.u64(config.paymentConfig.totalAmount),
+            tx.object(config.paymentConfigId)
+          ],
+        });
+
+        const response = await wallet.signAndExecuteTransaction({
+          transaction: tx,
+        });
+
+        if (response.effects?.status?.status === 'success') {
+          setPaymentStatus(prev => ({
+            ...prev,
+            verified: true,
+            transactionId: response.digest
+          }));
+          startGame();
+        }
+      } catch (error) {
+        console.error('Payment error:', error);
+        alert(`Payment failed: ${error.message}`);
+      } finally {
+        setPaying(false);
+        setTransactionInProgress(false);
+      }
+    } else {
+      // Check if user has attempts remaining
+      if (paidGameAttempts >= MAX_PAID_ATTEMPTS) {
+        alert('You have used all your paid game attempts. Please make a new payment to continue.');
+        setGameState(prev => ({ ...prev, hasValidPayment: false }));
         return;
       }
-
-      setPaying(true);
-      setTransactionInProgress(true);
-
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${config.packageId}::payment::pay_for_game`,
-        arguments: [
-          tx.pure.u64(config.paymentConfig.totalAmount),
-          tx.object(config.paymentConfigId)
-        ],
-      });
-
-      const response = await wallet.signAndExecuteTransaction({
-        transaction: tx,
-      });
-
-      console.log('Transaction response:', response);
-
-      if (response.effects?.status?.status === 'success') {
-        startGame();
-      } else {
-        throw new Error('Transaction failed');
-      }
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert(`Payment failed: ${error.message}`);
-    } finally {
-      setPaying(false);
-      setTransactionInProgress(false);
+      startGame();
     }
   };
 
@@ -477,7 +498,7 @@ useEffect(() => {
   }
 };
 
-// Add this for score submission
+// Modify window.gameManager.onGameOver
 window.gameManager.onGameOver = async (finalScore) => {
   console.log('Game Over triggered with score:', finalScore);
   
@@ -488,30 +509,15 @@ window.gameManager.onGameOver = async (finalScore) => {
     gameStarted: false
   }));
 
+  if (gameMode === 'paid') {
+    setPaidGameAttempts(prev => prev + 1);
+  }
+
   try {
     if (!wallet.connected || !wallet.account) {
       console.log('No wallet connected, skipping submission');
       return;
     }
-
-    const scoreData = {
-      playerAddress: wallet.account.address,
-      score: finalScore,
-      timestamp: Date.now(),
-      gameMode,
-      gameType: 'main',
-      metadata: {
-        network: wallet.chain?.name,
-        walletProvider: wallet.name,
-        version: '1.0'
-      }
-    };
-
-    const scoreMessage = JSON.stringify(scoreData);
-    
-    const signature = await wallet.signPersonalMessage({
-      message: new TextEncoder().encode(scoreMessage),
-    });
 
     const endpoint = `https://ayagame.onrender.com/api/scores/submit/${gameMode}`;
     const response = await fetch(endpoint, {
@@ -524,26 +530,17 @@ window.gameManager.onGameOver = async (finalScore) => {
         score: finalScore,
         gameType: 'main',
         gameMode,
-        signature,
-        message: scoreMessage,
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Score submission failed:', {
-        status: response.status,
-        error: errorText
-      });
-      alert(`Failed to submit score: ${errorText}`);
+      console.error('Score submission failed:', await response.text());
     } else {
-      const result = await response.json();
-      console.log('Score submission successful:', result);
+      console.log('Score submission successful');
       await fetchLeaderboards();
     }
   } catch (error) {
     console.error('Error in game over handler:', error);
-    alert('Failed to process game over: ' + error.message);
   }
 };
 
@@ -592,13 +589,23 @@ window.gameManager.onGameOver = async (finalScore) => {
             </button>
           </div>
 
+          {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
+            <div className="attempts-info">
+              <p>Attempts remaining: {MAX_PAID_ATTEMPTS - paidGameAttempts}</p>
+            </div>
+          )}
+
           {wallet.connected && (
             <button 
               onClick={handleGameStart}
-              disabled={paying}
+              disabled={gameMode === 'paid' && paying}
               className="start-button"
             >
-              {gameMode === 'paid' ? 'Pay 0.2 SUI and Start Game' : 'Start Free Game'}
+              {gameMode === 'paid' 
+                ? (gameState.hasValidPayment 
+                    ? `Start Paid Game (${MAX_PAID_ATTEMPTS - paidGameAttempts} attempts left)`
+                    : 'Pay 0.2 SUI for 4 Games') 
+                : 'Start Free Game'}
             </button>
           )}
         </header>
