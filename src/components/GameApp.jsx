@@ -258,58 +258,58 @@ useEffect(() => {
       let requestBody = {
         playerWallet: wallet.account.address,
         score: gameState.score,
-        gameType: 'main',
-        gameMode: gameMode,
+        gameType: 'main'
       };
 
-      // Only add signature for paid mode
+      // For paid mode, we need session verification
       if (gameMode === 'paid') {
-        const scoreMessage = JSON.stringify({
-          playerAddress: wallet.account.address,
-          score: gameState.score,
-          timestamp: Date.now(),
-          gameMode: gameMode,
-          gameType: 'main'
-        });
-
-        const msgBytes = new TextEncoder().encode(scoreMessage);
-        const signature = await wallet.signPersonalMessage({
-          message: msgBytes,
-        });
-
-        // Verify signature
-        const verifyResult = await wallet.verifySignedMessage(
-          signature,
-          wallet.account.publicKey
-        );
-
-        if (!verifyResult) {
-          throw new Error('Score signature verification failed');
+        if (!paymentStatus.verified) {
+          alert('Payment verification required for paid mode');
+          return;
         }
 
         requestBody = {
           ...requestBody,
-          signature,
-          message: scoreMessage,
+          sessionToken: paymentStatus.transactionId
         };
       }
 
-      const endpoint = `https://ayagame.onrender.com/api/scores/submit/${gameMode}`;
+      const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Score submission failed');
       }
 
       console.log('Score submission successful');
       alert('Score submitted successfully!');
+      
+      // Refresh leaderboards after successful submission
       await fetchLeaderboards();
+      
+      // Reset game state
+      setGameState(prev => ({
+        ...prev,
+        gameStarted: false,
+        isGameOver: false,
+        score: 0
+      }));
+
+      // For paid mode, increment attempts counter
+      if (gameMode === 'paid') {
+        setPaidGameAttempts(prev => prev + 1);
+        if (paidGameAttempts + 1 >= MAX_PAID_ATTEMPTS) {
+          setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        }
+      }
+
     } catch (error) {
       console.error('Score submission error:', error);
       alert(`Failed to submit score: ${error.message}`);
