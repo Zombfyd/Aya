@@ -205,17 +205,28 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
+        // Get current network recipients from config
+        const currentRecipients = config.getCurrentRecipients();
+        
+        // Calculate amounts based on existing shares
+        const totalAmount = config.paymentConfig.totalAmount;
+        const primaryAmount = Math.floor(totalAmount * config.shares.primary / 10000);
+        const secondaryAmount = Math.floor(totalAmount * config.shares.secondary / 10000);
+        const tertiaryAmount = Math.floor(totalAmount * config.shares.tertiary / 10000);
+
+        console.log('Payment details:', {
+          recipients: currentRecipients,
+          amounts: [primaryAmount, secondaryAmount, tertiaryAmount]
+        });
+
         const tx = {
-          kind: 'moveCall',
+          kind: 'paySui',
           data: {
-            packageObjectId: config.getCurrentPackageId(),
-            module: 'payment',
-            function: 'pay_for_game',
-            typeArguments: ['0x2::sui::SUI'],
-            arguments: [
-              // The wallet will handle coin selection
-              '0x2::coin::Coin<0x2::sui::SUI>',
-              config.getCurrentPaymentConfigId()
+            amounts: [primaryAmount, secondaryAmount, tertiaryAmount],
+            recipients: [
+              currentRecipients.primary,
+              currentRecipients.secondary,
+              currentRecipients.tertiary
             ]
           }
         };
@@ -223,10 +234,7 @@ useEffect(() => {
         console.log('Transaction payload:', tx);
 
         const response = await wallet.signAndExecuteTransaction({
-          transaction: {
-            kind: 'moveCall',
-            data: tx.data
-          }
+          transaction: tx
         });
 
         console.log('Transaction response:', response);
