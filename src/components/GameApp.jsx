@@ -205,20 +205,25 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Simple transfer transaction
+        // Following exact Suiet example structure
         const tx = {
           kind: 'pay',
           data: {
-            inputCoins: [], // Wallet will select coins
+            gasBudget: 10000000,
+            inputCoins: [], // Let wallet select coins
             recipients: [config.getCurrentRecipients().primary],
-            amounts: [config.paymentConfig.totalAmount],
+            amounts: [config.paymentConfig.totalAmount]
           }
         };
 
         console.log('Transaction payload:', tx);
 
+        // Following Suiet example structure exactly
         const response = await wallet.signAndExecuteTransaction({
-          transaction: tx
+          transaction: {
+            kind: 'pay',
+            data: tx.data
+          }
         });
 
         console.log('Transaction response:', response);
