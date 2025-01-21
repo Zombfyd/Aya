@@ -207,14 +207,16 @@ useEffect(() => {
 
         // Step 1: Create and sign the transaction
         const tx = {
-          kind: 'paySui',
+          kind: 'moveCall',
           data: {
-            amounts: [
+            packageObjectId: config.getCurrentPackageId(),
+            module: 'payment',
+            function: 'split_and_transfer',
+            typeArguments: [],
+            arguments: [
               Math.floor(config.paymentConfig.totalAmount * config.shares.primary / 10000),
               Math.floor(config.paymentConfig.totalAmount * config.shares.secondary / 10000),
-              Math.floor(config.paymentConfig.totalAmount * config.shares.tertiary / 10000)
-            ],
-            recipients: [
+              Math.floor(config.paymentConfig.totalAmount * config.shares.tertiary / 10000),
               config.getCurrentRecipients().primary,
               config.getCurrentRecipients().secondary,
               config.getCurrentRecipients().tertiary
@@ -225,7 +227,10 @@ useEffect(() => {
         // Sign the transaction
         console.log('Signing transaction...');
         const signedTx = await wallet.signTransaction({
-          transaction: tx
+          transaction: {
+            kind: 'moveCall',
+            data: tx.data
+          }
         });
         console.log('Transaction signed:', signedTx);
 
@@ -252,7 +257,10 @@ useEffect(() => {
         // Step 4: Execute the transaction
         console.log('Executing transaction...');
         const response = await wallet.signAndExecuteTransaction({
-          transaction: tx
+          transaction: {
+            kind: 'moveCall',
+            data: tx.data
+          }
         });
         console.log('Transaction response:', response);
 
