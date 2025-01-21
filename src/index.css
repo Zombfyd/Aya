@@ -137,7 +137,7 @@ body {
   padding: 20px;
   border-radius: 8px;
   text-align: center;
-  z-index: 100;
+  z-index: 99999;
 }
 
 .score-popup-buttons {
