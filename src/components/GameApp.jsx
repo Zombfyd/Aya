@@ -343,7 +343,10 @@ useEffect(() => {
       const fetchValidatedData = async (endpoint, type) => {
         try {
           const timestamp = Date.now();
-          const response = await fetch(`${baseUrl}/${endpoint}?t=${timestamp}`, {
+          const url = `${baseUrl}/${endpoint}?t=${timestamp}`;
+          console.log(`Fetching ${type} from:`, url); // Log the URL
+
+          const response = await fetch(url, {
             headers: {
               'Accept': 'application/json',
             },
@@ -352,10 +355,26 @@ useEffect(() => {
           });
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Log the actual response for debugging
+            const text = await response.text();
+            console.error(`Server response for ${type}:`, text);
+            throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
           }
 
-          const data = await response.json();
+          // Log the response headers
+          console.log(`Response headers for ${type}:`, Object.fromEntries([...response.headers]));
+
+          const text = await response.text(); // Get response as text first
+          console.log(`Raw response for ${type}:`, text); // Log the raw response
+
+          let data;
+          try {
+            data = JSON.parse(text); // Then parse it
+          } catch (e) {
+            console.error(`JSON parse error for ${type}:`, e);
+            throw e;
+          }
+
           return validateLeaderboardData(data, type);
         } catch (error) {
           console.error(`Error fetching ${type}:`, error);
