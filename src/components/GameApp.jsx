@@ -11,7 +11,7 @@ import {
   useSuiClient
 } from '@suiet/wallet-kit';
 import '@suiet/wallet-kit/style.css';
-import { Transaction } from '@mysten/sui/transactions';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
 import './App.css';
 import config from '../config/config';
 
@@ -205,25 +205,19 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Following exact Suiet example structure
-        const tx = {
-          kind: 'pay',
-          data: {
-            gasBudget: 10000000,
-            inputCoins: [], // Let wallet select coins
-            recipients: [config.getCurrentRecipients().primary],
-            amounts: [config.paymentConfig.totalAmount]
-          }
-        };
+        // Create a new transaction block
+        const txb = new TransactionBlock();
+        
+        // Split coin into separate amounts
+        const [coin] = txb.splitCoins(txb.gas, [txb.pure(config.paymentConfig.totalAmount)]);
+        
+        // Transfer the split coin
+        txb.transferObjects([coin], txb.pure(config.getCurrentRecipients().primary));
 
-        console.log('Transaction payload:', tx);
+        console.log('Transaction block created:', txb);
 
-        // Following Suiet example structure exactly
         const response = await wallet.signAndExecuteTransaction({
-          transaction: {
-            kind: 'pay',
-            data: tx.data
-          }
+          transaction: txb
         });
 
         console.log('Transaction response:', response);
