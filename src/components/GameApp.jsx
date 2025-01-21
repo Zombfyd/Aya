@@ -39,7 +39,11 @@ const GameApp = () => {
   });
   const [gameMode, setGameMode] = useState('free');
   const [paying, setPaying] = useState(false);
-
+  const [paymentStatus, setPaymentStatus] = useState({
+  verified: false,
+  transactionId: null,
+  error: null
+});
   // Utility function for chain name
   const chainName = (chainId) => {
     switch (chainId) {
@@ -53,6 +57,75 @@ const GameApp = () => {
         return "Unknown";
     }
   };
+  useEffect(() => {
+  const initializeGameManager = async () => {
+    try {
+      console.log('Initializing game manager...', {
+        environment: process.env.NODE_ENV,
+        network: config.network,
+        packageId: config.packageId
+      });
+
+      if (!window.gameManager) {
+        console.error('GameManager not found on window object');
+        return;
+      }
+
+      const success = await window.gameManager.initialize();
+      
+      if (success) {
+        console.log('Game manager initialized successfully', {
+          environment: process.env.NODE_ENV,
+          gameMode: gameMode,
+          networkConfig: config.network
+        });
+        setGameManagerInitialized(true);
+      } else {
+        console.error('Game manager initialization returned false', {
+          environment: process.env.NODE_ENV,
+          gameMode: gameMode
+        });
+      }
+    } catch (error) {
+      console.error('Error initializing game manager:', error);
+    }
+  };
+
+  initializeGameManager();
+}, []);
+
+// Add this useEffect for payment status monitoring
+useEffect(() => {
+  if (transactionInProgress) {
+    const checkPaymentStatus = async () => {
+      try {
+        if (paymentStatus.transactionId) {
+          const status = await wallet.getTransactionBlock({
+            digest: paymentStatus.transactionId,
+            options: {
+              showEvents: true,
+              showEffects: true,
+            },
+          });
+
+          if (status.effects?.status?.status === 'success') {
+            setPaymentStatus(prev => ({
+              ...prev,
+              verified: true,
+              error: null
+            }));
+            setTransactionInProgress(false);
+          }
+        }
+      } catch (error) {
+        console.error('Payment status check failed:', error);
+      }
+    };
+
+    const interval = setInterval(checkPaymentStatus, 2000);
+    return () => clearInterval(interval);
+  }
+}, [transactionInProgress, paymentStatus.transactionId]);
 
   // Enhanced wallet connection monitoring
   useEffect(() => {
@@ -82,7 +155,28 @@ const GameApp = () => {
 
     updateWalletState();
   }, [wallet.connected, wallet.account, wallet.chain?.name]);
-
+  const checkWalletBalance = async () => {
+  try {
+    console.log('Checking wallet balance...');
+    
+    const coins = await wallet.getCoins();
+    const totalBalance = coins.reduce((sum, coin) => sum + BigInt(coin.balance), 0n);
+    
+    // Convert to SUI (1 SUI = 1_000_000_000 MIST)
+    const balanceInSui = Number(totalBalance) / 1_000_000_000;
+    
+    console.log('Wallet balance details:', {
+      balanceInSui,
+      balanceInMist: totalBalance.toString(),
+      requiredBalance: config.paymentConfig.minBalance / 1_000_000_000
+    });
+    
+    return balanceInSui >= (config.paymentConfig.minBalance / 1_000_000_000);
+  } catch (error) {
+    console.error('Balance check error:', error);
+    return false;
+  }
+};
   // Payment handling
   const handleGameStart = async () => {
     if (!wallet.connected) {
@@ -326,13 +420,37 @@ const GameApp = () => {
   };
 
   // Start game function
-  const startGame = () => {
-    if (!gameManagerInitialized) {
-      console.error('Cannot start game - game manager not initialized');
-      alert('Please wait for game to initialize');
+  const startGame = async () => {
+  console.log('Starting game with state:', {
+    gameManagerInitialized,
+    walletInitialized,
+    gameMode
+  });
+
+  if (!window.gameManager) {
+    console.error('Game manager not found');
+    alert('Game initialization failed. Please refresh the page and try again.');
+    return;
+  }
+
+  if (!gameManagerInitialized) {
+    console.log('Attempting to initialize game manager...');
+    try {
+      const success = await window.gameManager.initialize();
+      if (!success) {
+        console.error('Game manager initialization failed');
+        alert('Failed to initialize game. Please refresh the page and try again.');
+        return;
+      }
+      setGameManagerInitialized(true);
+    } catch (error) {
+      console.error('Error initializing game manager:', error);
+      alert('Error initializing game. Please refresh the page and try again.');
       return;
     }
+  }
 
+  try {
     setGameState(prev => ({
       ...prev,
       gameStarted: true,
@@ -340,18 +458,94 @@ const GameApp = () => {
       isGameOver: false,
     }));
 
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     if (window.gameManager) {
       console.log(`Starting game in ${gameMode} mode`);
       window.gameManager.startGame(gameMode);
     } else {
-      console.error('Game manager not initialized');
+      throw new Error('Game manager not initialized');
     }
-  };
+  } catch (error) {
+    console.error('Error starting game:', error);
+    setGameState(prev => ({
+      ...prev,
+      gameStarted: false,
+      isGameOver: false,
+    }));
+    alert('Failed to start game. Please try again.');
+  }
+};
 
-  // Initialize leaderboards
-  useEffect(() => {
-    fetchLeaderboards();
-  }, []);
+// Add this for score submission
+window.gameManager.onGameOver = async (finalScore) => {
+  console.log('Game Over triggered with score:', finalScore);
+  
+  setGameState(prev => ({
+    ...prev,
+    score: finalScore,
+    isGameOver: true,
+    gameStarted: false
+  }));
+
+  try {
+    if (!wallet.connected || !wallet.account) {
+      console.log('No wallet connected, skipping submission');
+      return;
+    }
+
+    const scoreData = {
+      playerAddress: wallet.account.address,
+      score: finalScore,
+      timestamp: Date.now(),
+      gameMode,
+      gameType: 'main',
+      metadata: {
+        network: wallet.chain?.name,
+        walletProvider: wallet.name,
+        version: '1.0'
+      }
+    };
+
+    const scoreMessage = JSON.stringify(scoreData);
+    
+    const signature = await wallet.signPersonalMessage({
+      message: new TextEncoder().encode(scoreMessage),
+    });
+
+    const endpoint = `https://ayagame.onrender.com/api/scores/submit/${gameMode}`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        playerWallet: wallet.account.address,
+        score: finalScore,
+        gameType: 'main',
+        gameMode,
+        signature,
+        message: scoreMessage,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Score submission failed:', {
+        status: response.status,
+        error: errorText
+      });
+      alert(`Failed to submit score: ${errorText}`);
+    } else {
+      const result = await response.json();
+      console.log('Score submission successful:', result);
+      await fetchLeaderboards();
+    }
+  } catch (error) {
+    console.error('Error in game over handler:', error);
+    alert('Failed to process game over: ' + error.message);
+  }
+};
 
   // Render method
   return (
