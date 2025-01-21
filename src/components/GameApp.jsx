@@ -205,63 +205,22 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Step 1: Create and sign the transaction
+        // Simple transfer transaction
         const tx = {
-          kind: 'moveCall',
+          kind: 'pay',
           data: {
-            packageObjectId: config.getCurrentPackageId(),
-            module: 'payment',
-            function: 'split_and_transfer',
-            typeArguments: [],
-            arguments: [
-              Math.floor(config.paymentConfig.totalAmount * config.shares.primary / 10000),
-              Math.floor(config.paymentConfig.totalAmount * config.shares.secondary / 10000),
-              Math.floor(config.paymentConfig.totalAmount * config.shares.tertiary / 10000),
-              config.getCurrentRecipients().primary,
-              config.getCurrentRecipients().secondary,
-              config.getCurrentRecipients().tertiary
-            ]
+            inputCoins: [], // Wallet will select coins
+            recipients: [config.getCurrentRecipients().primary],
+            amounts: [config.paymentConfig.totalAmount],
           }
         };
 
-        // Sign the transaction
-        console.log('Signing transaction...');
-        const signedTx = await wallet.signTransaction({
-          transaction: {
-            kind: 'moveCall',
-            data: tx.data
-          }
-        });
-        console.log('Transaction signed:', signedTx);
+        console.log('Transaction payload:', tx);
 
-        // Step 2: Sign a verification message
-        const verificationMsg = `Game payment verification: ${wallet.account?.address}`;
-        const msgBytes = new TextEncoder().encode(verificationMsg);
-        console.log('Signing verification message...');
-        const signedMsg = await wallet.signPersonalMessage({
-          message: msgBytes
-        });
-        console.log('Message signed:', signedMsg);
-
-        // Step 3: Verify the signed message
-        console.log('Verifying signed message...');
-        const isMessageValid = await wallet.verifySignedMessage(
-          signedMsg,
-          wallet.account?.publicKey
-        );
-        if (!isMessageValid) {
-          throw new Error('Message signature verification failed');
-        }
-        console.log('Message verified successfully');
-
-        // Step 4: Execute the transaction
-        console.log('Executing transaction...');
         const response = await wallet.signAndExecuteTransaction({
-          transaction: {
-            kind: 'moveCall',
-            data: tx.data
-          }
+          transaction: tx
         });
+
         console.log('Transaction response:', response);
 
         if (response.effects?.status?.status === 'success') {
@@ -269,13 +228,9 @@ useEffect(() => {
           setPaymentStatus(prev => ({
             ...prev,
             verified: true,
-            transactionId: response.digest,
-            messageSignature: signedMsg.signature,
-            transactionSignature: signedTx.signature
+            transactionId: response.digest
           }));
           startGame();
-        } else {
-          throw new Error('Transaction failed');
         }
 
       } catch (error) {
