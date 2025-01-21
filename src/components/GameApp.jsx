@@ -1,4 +1,4 @@
-import { gameManager } from './GameManager';
+import { gameManager } from './game/GameManager';
 window.gameManager = gameManager;
 import React, { useState, useEffect, useMemo } from 'react';
 import {
