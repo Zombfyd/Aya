@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: aya-game
+    env: node
+    buildCommand: npm run render-build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.0.0
+    autoDeploy: true
