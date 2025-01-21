@@ -2,61 +2,102 @@
 const getEnvironmentFromNetwork = (walletNetwork) => {
     switch (walletNetwork?.toLowerCase()) {
         case 'testnet':
-            return 'development';
+            return 'testnet';
         case 'mainnet':
-            return 'production';
+            return 'mainnet';
         default:
-            // Fallback to development if network is unknown
-            console.warn('Unknown network, defaulting to development:', walletNetwork);
-            return 'development';
+            console.warn('Unknown network, defaulting to testnet:', walletNetwork);
+            return 'testnet';
     }
 };
 
 const config = {
     apiBaseUrl: 'https://ayagame.onrender.com',
-    // Initialize with default, will be updated when wallet connects
+    // Initialize with testnet as default
     network: 'testnet',
-    environment: 'development',
+    
+    // Package IDs for different networks
     packageId: {
-        development: import.meta.env.VITE_TESTNET_PACKAGE_ID,
-        production: import.meta.env.VITE_MAINNET_PACKAGE_ID
+        testnet: import.meta.env.VITE_APP_TESTNET_PACKAGE_ID,
+        mainnet: import.meta.env.VITE_APP_MAINNET_PACKAGE_ID
     },
+    
+    // Payment Config IDs
     paymentConfigId: {
-        development: import.meta.env.VITE_TESTNET_PAYMENT_CONFIG_ID,
-        production: import.meta.env.VITE_MAINNET_PAYMENT_CONFIG_ID
+        testnet: import.meta.env.VITE_APP_TESTNET_PAYMENT_CONFIG_ID,
+        mainnet: import.meta.env.VITE_APP_MAINNET_PAYMENT_CONFIG_ID
     },
+    
+    // Payment Recipients
+    recipients: {
+        testnet: {
+            primary: import.meta.env.VITE_APP_TESTNET_PRIMARY_RECIPIENT,
+            secondary: import.meta.env.VITE_APP_TESTNET_SECONDARY_RECIPIENT,
+            tertiary: import.meta.env.VITE_APP_TESTNET_TERTIARY_RECIPIENT
+        },
+        mainnet: {
+            primary: import.meta.env.VITE_APP_MAINNET_PRIMARY_RECIPIENT,
+            secondary: import.meta.env.VITE_APP_MAINNET_SECONDARY_RECIPIENT,
+            tertiary: import.meta.env.VITE_APP_MAINNET_TERTIARY_RECIPIENT
+        }
+    },
+    
+    // Payment Shares (same for both networks)
+    shares: {
+        primary: parseInt(import.meta.env.VITE_APP_PRIMARY_SHARE),
+        secondary: parseInt(import.meta.env.VITE_APP_SECONDARY_SHARE),
+        tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE)
+    },
+    
     api: {
         scores: {
             submit: (gameMode) => `https://ayagame.onrender.com/api/scores/submit/${gameMode}`,
             leaderboard: (type, mode) => `https://ayagame.onrender.com/api/scores/leaderboard/${type}/${mode}`
         }
     },
+    
     paymentConfig: {
-        totalAmount: 200000000, // 0.2 SUI in MIST
-        minBalance: 250000000,  // 0.25 SUI in MIST for gas buffer
+        totalAmount: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT),
+        minBalance: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) + 50000000, // Adding 0.05 SUI for gas
+    },
+    
+    debug: {
+        enabled: import.meta.env.VITE_APP_DEBUG_MODE === 'true',
+        logLevel: import.meta.env.VITE_APP_LOG_LEVEL
     },
     
     // Function to update config based on wallet network
     updateNetwork: function(walletNetwork) {
-        this.network = walletNetwork?.toLowerCase() || 'testnet';
-        this.environment = getEnvironmentFromNetwork(this.network);
-        console.log(`Network updated to ${this.network} (${this.environment})`);
+        const newNetwork = getEnvironmentFromNetwork(walletNetwork);
+        if (this.network !== newNetwork) {
+            this.network = newNetwork;
+            if (this.debug.enabled) {
+                console.log(`Network updated to ${this.network}`);
+                console.log('Using Package ID:', this.getCurrentPackageId());
+                console.log('Using Payment Config ID:', this.getCurrentPaymentConfigId());
+                console.log('Using Recipients:', this.getCurrentRecipients());
+            }
+        }
     },
 
     // Getter functions for network-dependent values
     getCurrentPackageId: function() {
-        return this.packageId[this.environment];
+        return this.packageId[this.network];
     },
     
     getCurrentPaymentConfigId: function() {
-        return this.paymentConfigId[this.environment];
+        return this.paymentConfigId[this.network];
+    },
+    
+    getCurrentRecipients: function() {
+        return this.recipients[this.network];
     }
 };
 
 // Validate configuration in development
 if (import.meta.env.DEV) {
     console.log('Current configuration:', {
-        environment: config.environment,
+        environment: config.network,
         network: config.network,
         hasPackageId: !!config.getCurrentPackageId(),
         hasPaymentConfigId: !!config.getCurrentPaymentConfigId(),
