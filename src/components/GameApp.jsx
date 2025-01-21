@@ -206,27 +206,24 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Log the transaction details we're about to send
-        const txConfig = {
-          packageObjectId: config.getCurrentPackageId(),
-          module: 'payment',
-          function: 'pay_for_game',
-          arguments: [
-            config.paymentConfig.totalAmount.toString(),
-            config.getCurrentPaymentConfigId()
-          ]
-        };
-        console.log('Transaction config:', txConfig);
-
-        // Create transaction with more explicit error handling
+        // Create transaction with correct argument types
         try {
           console.log('Creating transaction...');
           const tx = new Transaction();
           tx.moveCall({
             target: `${config.getCurrentPackageId()}::payment::pay_for_game`,
+            typeArguments: [], // No type arguments needed
             arguments: [
-              tx.pure(config.paymentConfig.totalAmount),
-              tx.pure(config.getCurrentPaymentConfigId())
+              tx.objectRef({
+                objectId: '0x2::coin::Coin<0x2::sui::SUI>', // This needs to be a valid coin object ID
+                version: 1,
+                digest: '...'
+              }),
+              tx.objectRef({
+                objectId: config.getCurrentPaymentConfigId(), // The PaymentConfig object
+                version: 1,
+                digest: '...'
+              })
             ]
           });
           console.log('Transaction created successfully:', tx);
@@ -238,12 +235,19 @@ useEffect(() => {
               showEvents: true,
               showEffects: true,
             }
-          }).catch(error => {
-            console.error('Wallet transaction error:', error);
-            throw error;
           });
           
           console.log('Got response from wallet:', response);
+
+          if (response.effects?.status?.status === 'success') {
+            console.log('Transaction successful!');
+            setPaymentStatus(prev => ({
+              ...prev,
+              verified: true,
+              transactionId: response.digest
+            }));
+            startGame();
+          }
 
         } catch (txError) {
           console.error('Transaction creation/execution error:', txError);
