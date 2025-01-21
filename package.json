@@ -5,7 +5,7 @@
   "type": "module",
   "dependencies": {
     "@mysten/sui": "1.1.0",
-    "@mysten/sui.js": "^0.54.1",
+    
     "@suiet/wallet-kit": "0.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
