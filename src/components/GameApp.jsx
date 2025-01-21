@@ -247,7 +247,7 @@ useEffect(() => {
     }
   };
 
-  // Score submission with signature verification
+  // Modify handleScoreSubmit to only require signatures for paid mode
   const handleScoreSubmit = async () => {
     if (!wallet.connected || !wallet.account) {
       alert('Please connect your wallet first');
@@ -255,27 +255,43 @@ useEffect(() => {
     }
 
     try {
-      const scoreMessage = JSON.stringify({
-        playerAddress: wallet.account.address,
+      let requestBody = {
+        playerWallet: wallet.account.address,
         score: gameState.score,
-        timestamp: Date.now(),
+        gameType: 'main',
         gameMode: gameMode,
-        gameType: 'main'
-      });
+      };
 
-      const msgBytes = new TextEncoder().encode(scoreMessage);
-      const signature = await wallet.signPersonalMessage({
-        message: msgBytes,
-      });
+      // Only add signature for paid mode
+      if (gameMode === 'paid') {
+        const scoreMessage = JSON.stringify({
+          playerAddress: wallet.account.address,
+          score: gameState.score,
+          timestamp: Date.now(),
+          gameMode: gameMode,
+          gameType: 'main'
+        });
 
-      // Verify signature
-      const verifyResult = await wallet.verifySignedMessage(
-        signature,
-        wallet.account.publicKey
-      );
+        const msgBytes = new TextEncoder().encode(scoreMessage);
+        const signature = await wallet.signPersonalMessage({
+          message: msgBytes,
+        });
 
-      if (!verifyResult) {
-        throw new Error('Score signature verification failed');
+        // Verify signature
+        const verifyResult = await wallet.verifySignedMessage(
+          signature,
+          wallet.account.publicKey
+        );
+
+        if (!verifyResult) {
+          throw new Error('Score signature verification failed');
+        }
+
+        requestBody = {
+          ...requestBody,
+          signature,
+          message: scoreMessage,
+        };
       }
 
       const endpoint = `https://ayagame.onrender.com/api/scores/submit/${gameMode}`;
@@ -284,22 +300,14 @@ useEffect(() => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          playerWallet: wallet.account.address,
-          score: gameState.score,
-          gameType: 'main',
-          gameMode: gameMode,
-          signature: signature,
-          message: scoreMessage,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         throw new Error(await response.text());
       }
 
-      const result = await response.json();
-      console.log('Score submission result:', result);
+      console.log('Score submission successful');
       alert('Score submitted successfully!');
       await fetchLeaderboards();
     } catch (error) {
