@@ -1,8 +1,19 @@
 const config = {
+    apiBaseUrl: 'https://ayagame.onrender.com',
+    network: process.env.NODE_ENV === 'development' ? 'testnet' : 'mainnet',
+    packageId: process.env.REACT_APP_PACKAGE_ID || 'your_default_package_id',
+    paymentConfig: {
+        minBalance: 200000000, // 0.2 SUI in MIST
+        totalAmount: 200000000
+    },
+    api: {
+        scores: {
+            submit: (gameMode) => `https://ayagame.onrender.com/api/scores/submit/${gameMode}`,
+            leaderboard: (type, mode) => `https://ayagame.onrender.com/api/scores/leaderboard/${type}/${mode}`
+        }
+    },
     environment: import.meta.env.VITE_APP_ENVIRONMENT,
-    packageId: import.meta.env.VITE_APP_PACKAGE_ID,
     paymentConfigId: import.meta.env.VITE_APP_PAYMENT_CONFIG_ID,
-    network: import.meta.env.VITE_APP_ENVIRONMENT === 'development' ? 'sui:testnet' : 'sui:mainnet',
     
     // Payment configuration
     paymentConfig: {
@@ -17,15 +28,6 @@ const config = {
             primary: parseInt(import.meta.env.VITE_APP_PRIMARY_SHARE) || 6000,   // 60%
             secondary: parseInt(import.meta.env.VITE_APP_SECONDARY_SHARE) || 2500, // 25%
             tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE) || 1500   // 15%
-        }
-    },
-
-    // API endpoints
-    api: {
-        base: 'https://ayagame.onrender.com/api',
-        scores: {
-            submit: (gameMode) => `https://ayagame.onrender.com/api/scores/submit/${gameMode}`,
-            leaderboard: (type) => `https://ayagame.onrender.com/api/scores/leaderboard/${type}`
         }
     },
 
