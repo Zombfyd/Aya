@@ -208,25 +208,26 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Updated transaction construction
-        const tx = new Transaction({
-          kind: 'moveCall',
-          data: {
-            packageObjectId: config.packageId,
-            module: 'payment',
-            function: 'pay_for_game',
-            typeArguments: [],
-            arguments: [
-              config.paymentConfig.totalAmount.toString(),
-              config.paymentConfigId
-            ],
-            gasBudget: 10000000, // Adjust as needed
+        // Create transaction using the new Transaction builder API
+        const tx = new Transaction();
+        tx.moveCall({
+          target: `${config.packageId}::payment::pay_for_game`,
+          arguments: [
+            tx.pure(config.paymentConfig.totalAmount),
+            tx.pure(config.paymentConfigId)
+          ]
+        });
+
+        // Use the new recommended signAndExecuteTransaction method
+        const response = await wallet.signAndExecuteTransaction({
+          transaction: tx,
+          options: {
+            showEffects: true,
+            showEvents: true,
           }
         });
 
-        const response = await wallet.signAndExecuteTransaction({
-          transaction: tx,
-        });
+        console.log('Transaction response:', response);
 
         if (response.effects?.status?.status === 'success') {
           setPaymentStatus(prev => ({
