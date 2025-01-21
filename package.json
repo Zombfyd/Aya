@@ -2,14 +2,13 @@
   "name": "aya-game-integration",
   "version": "1.0.0",
   "description": "Aya Game Integration",
-  "type": "module",
   "dependencies": {
     "@mysten/sui": "1.1.0",
-    
+    "@mysten/sui.js": "^0.49.1",
     "@suiet/wallet-kit": "0.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "serve": "^14.2.1",
+    "serve-handler": "^6.1.5",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
@@ -23,7 +22,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "serve -s dist -l $PORT",
+    "start": "node server.cjs",
     "render-build": "npm install && vite build"
   },
   "engines": {
