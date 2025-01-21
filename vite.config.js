@@ -14,7 +14,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
-          'sui-vendor': ['@mysten/sui.js', '@suiet/wallet-kit']
+          'sui-vendor': ['@mysten/sui.js','@mysten/sui', '@suiet/wallet-kit']
         }
       }
     }
