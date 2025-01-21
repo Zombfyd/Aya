@@ -201,42 +201,59 @@ useEffect(() => {
 
     if (!gameState.hasValidPayment) {
       try {
-        console.log('Starting transaction process...');
+        console.log('Starting payment process...');
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Get current network recipients from config
-        const currentRecipients = config.getCurrentRecipients();
-        
-        // Calculate amounts based on existing shares
-        const totalAmount = config.paymentConfig.totalAmount;
-        const primaryAmount = Math.floor(totalAmount * config.shares.primary / 10000);
-        const secondaryAmount = Math.floor(totalAmount * config.shares.secondary / 10000);
-        const tertiaryAmount = Math.floor(totalAmount * config.shares.tertiary / 10000);
-
-        console.log('Payment details:', {
-          recipients: currentRecipients,
-          amounts: [primaryAmount, secondaryAmount, tertiaryAmount]
-        });
-
+        // Step 1: Create and sign the transaction
         const tx = {
           kind: 'paySui',
           data: {
-            amounts: [primaryAmount, secondaryAmount, tertiaryAmount],
+            amounts: [
+              Math.floor(config.paymentConfig.totalAmount * config.shares.primary / 10000),
+              Math.floor(config.paymentConfig.totalAmount * config.shares.secondary / 10000),
+              Math.floor(config.paymentConfig.totalAmount * config.shares.tertiary / 10000)
+            ],
             recipients: [
-              currentRecipients.primary,
-              currentRecipients.secondary,
-              currentRecipients.tertiary
+              config.getCurrentRecipients().primary,
+              config.getCurrentRecipients().secondary,
+              config.getCurrentRecipients().tertiary
             ]
           }
         };
 
-        console.log('Transaction payload:', tx);
+        // Sign the transaction
+        console.log('Signing transaction...');
+        const signedTx = await wallet.signTransaction({
+          transaction: tx
+        });
+        console.log('Transaction signed:', signedTx);
 
+        // Step 2: Sign a verification message
+        const verificationMsg = `Game payment verification: ${wallet.account?.address}`;
+        const msgBytes = new TextEncoder().encode(verificationMsg);
+        console.log('Signing verification message...');
+        const signedMsg = await wallet.signPersonalMessage({
+          message: msgBytes
+        });
+        console.log('Message signed:', signedMsg);
+
+        // Step 3: Verify the signed message
+        console.log('Verifying signed message...');
+        const isMessageValid = await wallet.verifySignedMessage(
+          signedMsg,
+          wallet.account?.publicKey
+        );
+        if (!isMessageValid) {
+          throw new Error('Message signature verification failed');
+        }
+        console.log('Message verified successfully');
+
+        // Step 4: Execute the transaction
+        console.log('Executing transaction...');
         const response = await wallet.signAndExecuteTransaction({
           transaction: tx
         });
-
         console.log('Transaction response:', response);
 
         if (response.effects?.status?.status === 'success') {
@@ -244,13 +261,17 @@ useEffect(() => {
           setPaymentStatus(prev => ({
             ...prev,
             verified: true,
-            transactionId: response.digest
+            transactionId: response.digest,
+            messageSignature: signedMsg.signature,
+            transactionSignature: signedTx.signature
           }));
           startGame();
+        } else {
+          throw new Error('Transaction failed');
         }
 
       } catch (error) {
-        console.error('Transaction error:', error);
+        console.error('Payment process error:', error);
         alert(`Payment failed: ${error.message}`);
       } finally {
         setPaying(false);
