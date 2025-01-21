@@ -1,4 +1,4 @@
-/* Existing App.css styles */
+/* Base container styles */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -6,426 +6,244 @@
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.card {
+.game-container {
+  width: 100%;
+  max-width: 1280px;
+  max-height: 700px;
+  margin: 0 auto;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  padding: 2em;
+  gap: 2rem;
 }
 
-.read-the-docs {
-  color: #888;
-}
-
-.btn-group button+button {
-  margin-left: 12px;
-}
-
-/* New Game and Leaderboard Styles */
-.game-container {
-    width: 100%;
-    max-width: 1280px;
-    max-height: 700px;
-    margin: 0 auto;
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2rem;
-}
-
-/* Header styles */
-header {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-}
-
-.mode-selector {
-    display: flex;
-    gap: 1rem;
-}
-
-.mode-selector button {
-    padding: 0.5rem 1rem;
-    border: 2px solid #2054c9;
-    border-radius: 8px;
-    background: transparent;
-    color: #2054c9;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.mode-selector button.active {
-    background: #2054c9;
-    color: white;
-}
-
-/* Game canvas styles */
+/* Game canvas styling */
 .game-canvas {
-    width: 100%;
-    max-width: 800px;
-    height: 700px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    margin: 2rem 0;
+  width: 100%;
+  max-width: 800px;
+  height: 700px;
+  background: linear-gradient(145deg, #1c1c1c, #252525);
+  border-radius: 15px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
+  margin: 2rem 0;
+  background: url('https://i.imgflip.com/4zei4c.jpg') no-repeat center bottom;
+  background-size: cover;
 }
 
-/* Popup styles */
-.game-popup, .score-popup {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    text-align: center;
-    z-index: 1000;
-}
-
-.game-popup button, .score-popup button {
-    margin-top: 1rem;
-    padding: 0.75rem 1.5rem;
-    background: #2054c9;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-}
-
-.game-popup button:hover, .score-popup button:hover {
-    background: #1843a0;
-}
-
-/* Leaderboard styles */
-.leaderboards-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    padding: 20px;
-    justify-content: center;
-    width: 100%;
-    max-width: 1280px;
-}
-
-.leaderboard-section {
-    flex: 1;
-    min-width: 300px;
-    max-width: 600px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.leaderboard-section h3 {
-    text-align: center;
-    color: #2054c9;
-    margin-bottom: 20px;
-    font-size: 1.5rem;
-    font-weight: 600;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: rgba(255, 255, 255, 0.45);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-thead {
-    background-color: #f4f4f4;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-tbody {
-    display: block;
-    max-height: 400px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #2054c9 #f4f4f4;
-}
-
-tbody::-webkit-scrollbar {
-    width: 8px;
-}
-
-tbody::-webkit-scrollbar-track {
-    background: #f4f4f4;
-}
-
-tbody::-webkit-scrollbar-thumb {
-    background-color: #2054c9;
-    border-radius: 4px;
-}
-
-thead tr, tbody tr {
-    display: table;
-    width: 100%;
-    table-layout: fixed;
-}
-
-th, td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-    font-size: 0.9rem;
-}
-
-th {
-    background-color: #2054c9;
-    color: white;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-tr:nth-child(even) {
-    background-color: rgba(32, 84, 201, 0.05);
-}
-
-tr:hover {
-    background-color: rgba(32, 84, 201, 0.1);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .game-container {
-        padding: 1rem;
-    }
-    
-    .leaderboard-section {
-        min-width: 100%;
-    }
-    
-    header {
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .game-canvas {
-        height: 400px;
-    }
-    
-    th, td {
-        padding: 8px;
-        font-size: 0.8rem;
-    }
-}
-
-/* Game state indicators */
-.game-status {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    padding: 0.5rem 1rem;
-    background: rgba(32, 84, 201, 0.9);
-    color: white;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-/* Add to your existing App.css */
-
-.wallet-status {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    margin: 0 1rem;
-}
-
-.wallet-status .connected {
-    color: #4CAF50;
-    font-weight: 500;
-}
-
-.wallet-status .disconnected {
-    color: #f44336;
-    font-weight: 500;
-}
-
-/* Loading state for leaderboards */
-.leaderboard-section.loading {
-    position: relative;
-    min-height: 200px;
-}
-
-.leaderboard-section.loading::after {
-    content: "Loading...";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #2054c9;
-    font-size: 1.2rem;
-}
-
-/* Error state for leaderboards */
-.leaderboard-section.error {
-    border: 1px solid #f44336;
-}
-
-.leaderboard-section.error::after {
-    content: "Error loading leaderboard";
-    color: #f44336;
-}
-
-/* Debug panel */
-.debug-info {
-    font-family: monospace;
-    background: rgba(240, 240, 240, 0.9) !important;
-    border-top: 2px solid #2054c9;
-    z-index: 1000;
-}
-
-.debug-info p {
-    margin: 5px 0;
-    font-size: 12px;
-}
-/* Add these styles to your App.css */
-
-/* Header container styling */
+/* Header and wallet connection styles */
 header {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    background: rgba(255, 255, 255, 0.95);
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
 }
 
-/* Style the Sui wallet connect button container */
-.wkit-connected-container {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-bottom: 1rem;
-}
-
-/* Style the wallet connect button */
-.wkit-connected-container button {
-    background: #2054c9;
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.3s ease;
-}
-
-.wkit-connected-container button:hover {
-    background: #1843a0;
-}
-
-/* Wallet status styling */
 .wallet-status {
-    text-align: center;
-    padding: 0.75rem 1.5rem;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 8px;
-    margin: 1rem 0;
-    width: 100%;
+  text-align: center;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  margin: 1rem 0;
+  width: 100%;
 }
 
 .wallet-info {
-    color: #2054c9;
-    font-weight: 500;
+  color: #2054c9;
+  font-weight: 500;
 }
 
 /* Mode selector styling */
 .mode-selector {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
-    width: 100%;
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  width: 100%;
 }
 
 .mode-selector button {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: 2px solid #2054c9;
-    border-radius: 8px;
-    background: transparent;
-    color: #2054c9;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 2px solid #2054c9;
+  border-radius: 8px;
+  background: transparent;
+  color: #2054c9;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .mode-selector button.active {
-    background: #2054c9;
-    color: white;
+  background: #2054c9;
+  color: white;
 }
 
 .mode-selector button:hover:not(.active) {
-    background: rgba(32, 84, 201, 0.1);
+  background: rgba(32, 84, 201, 0.1);
 }
 
-.mode-selector button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+/* Leaderboard styles */
+.leaderboards-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 20px;
+  justify-content: center;
+  width: 100%;
+  max-width: 1280px;
 }
 
-/* Hide header when game is active */
-.game-container.active header {
-    display: none;
+.leaderboard-section {
+  flex: 1;
+  min-width: 300px;
+  max-width: 600px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-/* Responsive adjustments */
+.leaderboard-section h3 {
+  text-align: center;
+  color: #2054c9;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Table styles */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+thead {
+  background-color: #f4f4f4;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+tbody {
+  display: block;
+  max-height: 600px;
+  overflow-y: auto;
+  width: auto;
+}
+
+thead, tbody tr {
+  display: table;
+  width: 100%;
+}
+
+th, td {
+  font-size: 1rem;
+  padding: 10px;
+  border: 5px solid #ddd;
+}
+
+th {
+  background-color: #f4f4f4;
+  text-align: center;
+}
+
+tr:nth-child(even) {
+  background-color: #8c8c8c;
+}
+
+/* Score popup styles */
+.score-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  max-width: 400px;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 20px;
+  z-index: 9999;
+  text-align: center;
+}
+
+.score-popup button {
+  padding: 8px;
+  font-size: 1rem;
+  border: 1px solid #444;
+  border-radius: 5px;
+  color: #2054c9;
+  margin: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.score-popup button:hover {
+  background-color: #2054c9;
+  color: #f1f1f1;
+}
+
+/* Wallet container styles */
+.wallet-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.wallet-button, .game-mode-button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  background-color: #2054c9;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  margin: 5px;
+  transition: background-color 0.3s ease;
+}
+
+.wallet-button:hover, .game-mode-button:hover {
+  background-color: #10389d;
+}
+
+/* Responsive design */
 @media (max-width: 768px) {
-    header {
-        width: 90%;
-        padding: 1.5rem;
-    }
-
-    .mode-selector {
-        flex-direction: column;
-    }
-
-    .mode-selector button {
-        width: 100%;
-    }
+  .game-container {
+    padding: 1rem;
+  }
+  
+  .leaderboard-section {
+    min-width: 100%;
+  }
+  
+  header {
+    width: 90%;
+    padding: 1.5rem;
+  }
+  
+  .mode-selector {
+    flex-direction: column;
+  }
+  
+  .mode-selector button {
+    width: 100%;
+  }
+  
+  .game-canvas {
+    height: 400px;
+  }
 }
