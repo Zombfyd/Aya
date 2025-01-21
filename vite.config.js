@@ -3,20 +3,18 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    host: true,
-    port: 3000
+  resolve: {
+    alias: {
+      '@mysten/sui.js': '@mysten/sui.js/dist/index.mjs',
+    }
+  },
+  optimizeDeps: {
+    include: ['@mysten/sui.js']
   },
   build: {
-    outDir: 'dist',
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'sui-vendor': ['@mysten/sui.js','@mysten/sui', '@suiet/wallet-kit']
-        }
-      }
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
     }
   }
 });
