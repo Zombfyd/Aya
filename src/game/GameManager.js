@@ -39,7 +39,7 @@ class GameManager {
       goldtear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b32a8d6f25cb51c70748a_GoldTear.2.png"),
       redtear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256456275e1857d4646_RedTear.2.png"),
       blacktear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b225c9f972035e5189e4b_GreenTear.2.png"),
-      background: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/675f182861501c77469cf67a_AYABG72.gif")
+      background: this.loadImage("https://i.imgflip.com/4zei4c.jpg")
     };
 
     // Bind methods to maintain correct 'this' context
