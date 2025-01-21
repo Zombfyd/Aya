@@ -218,37 +218,36 @@ useEffect(() => {
         };
         console.log('Transaction config:', txConfig);
 
-        // Create and execute transaction
-        const tx = new Transaction();
-        tx.moveCall({
-          target: `${config.getCurrentPackageId()}::payment::pay_for_game`,
-          arguments: [
-            tx.pure(config.paymentConfig.totalAmount),
-            tx.pure(config.getCurrentPaymentConfigId())
-          ]
-        });
+        // Create transaction with more explicit error handling
+        try {
+          console.log('Creating transaction...');
+          const tx = new Transaction();
+          tx.moveCall({
+            target: `${config.getCurrentPackageId()}::payment::pay_for_game`,
+            arguments: [
+              tx.pure(config.paymentConfig.totalAmount),
+              tx.pure(config.getCurrentPaymentConfigId())
+            ]
+          });
+          console.log('Transaction created successfully:', tx);
 
-        console.log('Sending transaction to wallet...');
-        const response = await wallet.signAndExecuteTransaction({
-          transaction: tx,
-          options: {
-            showEvents: true,
-            showEffects: true,
-          }
-        });
-        
-        console.log('Transaction response:', response);
+          console.log('Sending transaction to wallet...');
+          const response = await wallet.signAndExecuteTransaction({
+            transaction: tx,
+            options: {
+              showEvents: true,
+              showEffects: true,
+            }
+          }).catch(error => {
+            console.error('Wallet transaction error:', error);
+            throw error;
+          });
+          
+          console.log('Got response from wallet:', response);
 
-        if (response.effects?.status?.status === 'success') {
-          console.log('Transaction successful!');
-          setPaymentStatus(prev => ({
-            ...prev,
-            verified: true,
-            transactionId: response.digest
-          }));
-          startGame();
-        } else {
-          throw new Error('Transaction failed');
+        } catch (txError) {
+          console.error('Transaction creation/execution error:', txError);
+          throw txError;
         }
 
       } catch (error) {
