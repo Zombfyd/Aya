@@ -208,13 +208,20 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
-        const tx = new Transaction();
-        tx.moveCall({
-          target: `${config.packageId}::payment::pay_for_game`,
-          arguments: [
-            tx.pure.u64(config.paymentConfig.totalAmount),
-            tx.object(config.paymentConfigId)
-          ],
+        // Updated transaction construction
+        const tx = new Transaction({
+          kind: 'moveCall',
+          data: {
+            packageObjectId: config.packageId,
+            module: 'payment',
+            function: 'pay_for_game',
+            typeArguments: [],
+            arguments: [
+              config.paymentConfig.totalAmount.toString(),
+              config.paymentConfigId
+            ],
+            gasBudget: 10000000, // Adjust as needed
+          }
         });
 
         const response = await wallet.signAndExecuteTransaction({
@@ -272,8 +279,7 @@ useEffect(() => {
         };
       }
 
-      // Use the API endpoint from config
-      const endpoint = config.api.scores.submit(gameMode);
+      const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -286,7 +292,7 @@ useEffect(() => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Score submission failed' }));
+        const errorData = await response.json();
         throw new Error(errorData.error || 'Score submission failed');
       }
 
