@@ -199,59 +199,43 @@ useEffect(() => {
       return;
     }
 
-    // Paid game logic
     if (!gameState.hasValidPayment) {
       try {
         console.log('Starting transaction process...');
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Create transaction with correct argument types
-        try {
-          console.log('Creating transaction...');
-          const tx = new Transaction();
-          tx.moveCall({
-            target: `${config.getCurrentPackageId()}::payment::pay_for_game`,
-            typeArguments: [], // No type arguments needed
+        const tx = {
+          kind: 'moveCall',
+          data: {
+            packageObjectId: config.getCurrentPackageId(),
+            module: 'payment',
+            function: 'pay_for_game',
+            typeArguments: [],
             arguments: [
-              tx.objectRef({
-                objectId: '0x2::coin::Coin<0x2::sui::SUI>', // This needs to be a valid coin object ID
-                version: 1,
-                digest: '...'
-              }),
-              tx.objectRef({
-                objectId: config.getCurrentPaymentConfigId(), // The PaymentConfig object
-                version: 1,
-                digest: '...'
-              })
-            ]
-          });
-          console.log('Transaction created successfully:', tx);
-
-          console.log('Sending transaction to wallet...');
-          const response = await wallet.signAndExecuteTransaction({
-            transaction: tx,
-            options: {
-              showEvents: true,
-              showEffects: true,
-            }
-          });
-          
-          console.log('Got response from wallet:', response);
-
-          if (response.effects?.status?.status === 'success') {
-            console.log('Transaction successful!');
-            setPaymentStatus(prev => ({
-              ...prev,
-              verified: true,
-              transactionId: response.digest
-            }));
-            startGame();
+              config.paymentConfig.totalAmount,
+              config.getCurrentPaymentConfigId()
+            ],
+            gasBudget: 10000000
           }
+        };
 
-        } catch (txError) {
-          console.error('Transaction creation/execution error:', txError);
-          throw txError;
+        console.log('Transaction payload:', tx);
+
+        const response = await wallet.signAndExecuteTransaction({
+          transaction: tx
+        });
+
+        console.log('Transaction response:', response);
+
+        if (response.effects?.status?.status === 'success') {
+          console.log('Transaction successful');
+          setPaymentStatus(prev => ({
+            ...prev,
+            verified: true,
+            transactionId: response.digest
+          }));
+          startGame();
         }
 
       } catch (error) {
