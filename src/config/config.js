@@ -1,10 +1,29 @@
+// Helper function to determine environment based on wallet network
+const getEnvironmentFromNetwork = (walletNetwork) => {
+    switch (walletNetwork?.toLowerCase()) {
+        case 'testnet':
+            return 'development';
+        case 'mainnet':
+            return 'production';
+        default:
+            // Fallback to development if network is unknown
+            console.warn('Unknown network, defaulting to development:', walletNetwork);
+            return 'development';
+    }
+};
+
 const config = {
     apiBaseUrl: 'https://ayagame.onrender.com',
-    network: process.env.NODE_ENV === 'development' ? 'testnet' : 'mainnet',
-    packageId: process.env.REACT_APP_PACKAGE_ID || 'your_default_package_id',
-    paymentConfig: {
-        minBalance: 200000000, // 0.2 SUI in MIST
-        totalAmount: 200000000
+    // Initialize with default, will be updated when wallet connects
+    network: 'testnet',
+    environment: 'development',
+    packageId: {
+        development: import.meta.env.VITE_TESTNET_PACKAGE_ID,
+        production: import.meta.env.VITE_MAINNET_PACKAGE_ID
+    },
+    paymentConfigId: {
+        development: import.meta.env.VITE_TESTNET_PAYMENT_CONFIG_ID,
+        production: import.meta.env.VITE_MAINNET_PAYMENT_CONFIG_ID
     },
     api: {
         scores: {
@@ -12,29 +31,25 @@ const config = {
             leaderboard: (type, mode) => `https://ayagame.onrender.com/api/scores/leaderboard/${type}/${mode}`
         }
     },
-    environment: import.meta.env.VITE_APP_ENVIRONMENT,
-    paymentConfigId: import.meta.env.VITE_APP_PAYMENT_CONFIG_ID,
-    
-    // Payment configuration
     paymentConfig: {
-        totalAmount: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) || 200000000, // 0.2 SUI in MIST
+        totalAmount: 200000000, // 0.2 SUI in MIST
         minBalance: 250000000,  // 0.25 SUI in MIST for gas buffer
-        recipients: {
-            primary: import.meta.env.VITE_APP_PRIMARY_RECIPIENT,
-            secondary: import.meta.env.VITE_APP_SECONDARY_RECIPIENT,
-            tertiary: import.meta.env.VITE_APP_TERTIARY_RECIPIENT
-        },
-        shares: {
-            primary: parseInt(import.meta.env.VITE_APP_PRIMARY_SHARE) || 6000,   // 60%
-            secondary: parseInt(import.meta.env.VITE_APP_SECONDARY_SHARE) || 2500, // 25%
-            tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE) || 1500   // 15%
-        }
+    },
+    
+    // Function to update config based on wallet network
+    updateNetwork: function(walletNetwork) {
+        this.network = walletNetwork?.toLowerCase() || 'testnet';
+        this.environment = getEnvironmentFromNetwork(this.network);
+        console.log(`Network updated to ${this.network} (${this.environment})`);
     },
 
-    // Debug settings
-    debug: {
-        enabled: import.meta.env.VITE_APP_DEBUG_MODE === 'true',
-        logLevel: import.meta.env.VITE_APP_LOG_LEVEL || 'error'
+    // Getter functions for network-dependent values
+    getCurrentPackageId: function() {
+        return this.packageId[this.environment];
+    },
+    
+    getCurrentPaymentConfigId: function() {
+        return this.paymentConfigId[this.environment];
     }
 };
 
@@ -43,16 +58,16 @@ if (import.meta.env.DEV) {
     console.log('Current configuration:', {
         environment: config.environment,
         network: config.network,
-        hasPackageId: !!config.packageId,
-        hasPaymentConfigId: !!config.paymentConfigId,
+        hasPackageId: !!config.getCurrentPackageId(),
+        hasPaymentConfigId: !!config.getCurrentPaymentConfigId(),
         totalAmount: config.paymentConfig.totalAmount,
         debug: config.debug
     });
 
     // Validate required configuration
     const requiredConfig = [
-        'packageId',
-        'paymentConfigId',
+        'getCurrentPackageId',
+        'getCurrentPaymentConfigId',
         'paymentConfig.recipients.primary',
         'paymentConfig.recipients.secondary',
         'paymentConfig.recipients.tertiary'
