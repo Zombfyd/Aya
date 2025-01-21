@@ -257,20 +257,45 @@ class GameManager {
     }
   }
 
-  updateEntities(entities, isGold, isRed, isBlack) {
-    for (let i = entities.length - 1; i >= 0; i--) {
-      const entity = entities[i];
-      entity.update();
+  updateEntities(entities, isGold, isRed, isBlack) {  
+  for (let i = entities.length - 1; i >= 0; i--) {  
+    const entity = entities[i];  
+    entity.update();  
+  
+    if (checkCollision(entity, bucket)) {  
+      entities.splice(i, 1);  
+      
+      if (isGold) {  
+        score += 15;  
+        splashes.push(new GoldSplash(entity.x + entity.width / 2, bucket.y));  
+      } else if (isRed) {  
+        lives--;  
+        splashes.push(new RedSplash(entity.x + entity.width / 2, bucket.y));  
+      } else if (isBlack) {  
+        lives++;  
+        splashes.push(new GreenSplash(entity.x + entity.width / 2, bucket.y));  
+      } else {  
+        score += 1;  
+        splashes.push(new Splash(entity.x + entity.width / 2, bucket.y));  
+      }  
+    }  
+  
+    if (entity.y > canvas.height) {  
+      entities.splice(i, 1);  
+      if (!isRed) {  
+        lives--;  
+      }  
+    }  
+  }  
 
-      if (this.checkCollision(entity, this.bucket)) {
-        entities.splice(i, 1);
-        this.handleCollision(entity, isGold, isRed, isBlack);
-      } else if (entity.y > this.canvas.height) {
-        entities.splice(i, 1);
-        if (!isRed) this.lives--;
-      }
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    const splash = splashes[i];
+    splash.update();
+    if (splash.opacity <= 0) {
+      splashes.splice(i, 1);
     }
-  }
+  }  
+}
 
   // Collision Detection
   checkCollision(entity, bucket) {
