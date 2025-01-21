@@ -211,19 +211,22 @@ useEffect(() => {
             packageObjectId: config.getCurrentPackageId(),
             module: 'payment',
             function: 'pay_for_game',
-            typeArguments: [],
+            typeArguments: ['0x2::sui::SUI'],
             arguments: [
-              config.paymentConfig.totalAmount,
+              // The wallet will handle coin selection
+              '0x2::coin::Coin<0x2::sui::SUI>',
               config.getCurrentPaymentConfigId()
-            ],
-            gasBudget: 10000000
+            ]
           }
         };
 
         console.log('Transaction payload:', tx);
 
         const response = await wallet.signAndExecuteTransaction({
-          transaction: tx
+          transaction: {
+            kind: 'moveCall',
+            data: tx.data
+          }
         });
 
         console.log('Transaction response:', response);
