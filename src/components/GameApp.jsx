@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet, ConnectButton } from '@suiet/wallet-kit';
+import { useAccountBalance } from '@suiet/wallet-kit';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 import config from '../config/config';
 import { gameManager } from '../game/GameManager';
