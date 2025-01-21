@@ -13,7 +13,7 @@ import {
 import '@suiet/wallet-kit/style.css';
 import { Transaction } from '@mysten/sui/transactions';
 import './App.css';
-import config from './config';
+import config from '../config/config';
 
 const GameApp = () => {
   // Wallet and client hooks
