@@ -164,6 +164,14 @@ useEffect(() => {
 
     updateWalletState();
   }, [wallet.connected, wallet.account, wallet.chain?.name]);
+
+  // In your component, add useEffect to watch wallet network changes
+  useEffect(() => {
+    if (wallet.connected) {
+      config.updateNetwork(wallet.chain?.name);
+    }
+  }, [wallet.connected, wallet.chain]);
+
   const checkWalletBalance = async () => {
     try {
       console.log('Checking wallet balance...');
@@ -208,17 +216,16 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Create transaction using the new Transaction builder API
+        // Use the new config getters
         const tx = new Transaction();
         tx.moveCall({
-          target: `${config.packageId}::payment::pay_for_game`,
+          target: `${config.getCurrentPackageId()}::payment::pay_for_game`,
           arguments: [
             tx.pure(config.paymentConfig.totalAmount),
-            tx.pure(config.paymentConfigId)
+            tx.pure(config.getCurrentPaymentConfigId())
           ]
         });
 
-        // Use the new recommended signAndExecuteTransaction method
         const response = await wallet.signAndExecuteTransaction({
           transaction: tx,
           options: {
@@ -245,7 +252,6 @@ useEffect(() => {
         setTransactionInProgress(false);
       }
     } else {
-      // Check if user has attempts remaining
       if (paidGameAttempts >= MAX_PAID_ATTEMPTS) {
         alert('You have used all your paid game attempts. Please make a new payment to continue.');
         setGameState(prev => ({ ...prev, hasValidPayment: false }));
