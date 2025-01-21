@@ -272,7 +272,8 @@ useEffect(() => {
         };
       }
 
-      const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
+      // Use the API endpoint from config
+      const endpoint = config.api.scores.submit(gameMode);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -285,7 +286,7 @@ useEffect(() => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: 'Score submission failed' }));
         throw new Error(errorData.error || 'Score submission failed');
       }
 
