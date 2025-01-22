@@ -266,7 +266,7 @@ useEffect(() => {
     try {
       let requestBody = {
         playerWallet: wallet.account.address,
-        score: gameState.score,
+        score: Number(gameState.score),
         gameType: 'main'
       };
 
@@ -275,11 +275,7 @@ useEffect(() => {
           alert('Payment verification required for paid mode');
           return;
         }
-        requestBody = {
-          ...requestBody,
-          sessionToken: paymentStatus.transactionId,
-          gameMode: 'paid'
-        };
+        requestBody.sessionToken = paymentStatus.transactionId;
       }
 
       const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
@@ -300,7 +296,24 @@ useEffect(() => {
       const result = await response.json();
       console.log('Score submission successful:', result);
 
-      // Update game state and leaderboards
+      // If it's paid mode, verify the score
+      if (gameMode === 'paid' && result.score && result.score.id) {
+        const verifyEndpoint = `https://ayagame.onrender.com/api/scores/verify/${result.score.id}`;
+        const verifyResponse = await fetch(verifyEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors'
+        });
+
+        if (!verifyResponse.ok) {
+          console.warn('Score verification failed');
+        } else {
+          console.log('Score verified successfully');
+        }
+      }
+
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
         setPaidGameAttempts(newAttempts);
@@ -503,7 +516,7 @@ window.gameManager.onGameOver = async (finalScore) => {
 
     let requestBody = {
       playerWallet: wallet.account.address,
-      score: finalScore,
+      score: Number(finalScore),
       gameType: 'main'
     };
 
@@ -512,11 +525,7 @@ window.gameManager.onGameOver = async (finalScore) => {
         console.error('Missing payment verification for paid mode');
         return;
       }
-      requestBody = {
-        ...requestBody,
-        sessionToken: paymentStatus.transactionId,
-        gameMode: 'paid'
-      };
+      requestBody.sessionToken = paymentStatus.transactionId;
     }
 
     const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
@@ -536,6 +545,24 @@ window.gameManager.onGameOver = async (finalScore) => {
 
     const result = await response.json();
     console.log('Score submission successful:', result);
+
+    // If it's paid mode, verify the score
+    if (gameMode === 'paid' && result.score && result.score.id) {
+      const verifyEndpoint = `https://ayagame.onrender.com/api/scores/verify/${result.score.id}`;
+      const verifyResponse = await fetch(verifyEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors'
+      });
+
+      if (!verifyResponse.ok) {
+        console.warn('Score verification failed');
+      } else {
+        console.log('Score verified successfully');
+      }
+    }
 
     await fetchLeaderboards();
     
