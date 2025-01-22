@@ -198,6 +198,20 @@ useEffect(() => {
   // Modify handleGameStart
   const handleGameStart = async () => {
     if (gameMode === 'free' || !wallet.connected) {
+      await new Promise((resolve) => {
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              resolve();
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      });
+      
+      // Start the game after countdown is complete
       startGame();
       return;
     }
