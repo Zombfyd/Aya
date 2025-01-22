@@ -656,27 +656,31 @@ window.gameManager.onGameOver = async (finalScore) => {
         statusDetails: response.effects?.status?.status
       });
       
-      // Log the entire response structure
-      console.log('Response structure:', JSON.stringify(response, null, 2));
-      
-      if (response.digest) {  // First check if we have a digest
+      if (response.digest) {
         console.log('Transaction submitted with digest:', response.digest);
         setDigest(response.digest);
         
-        // Set game state even if just digest is present
-        setGameState(prev => ({
-          ...prev,
-          hasValidPayment: true
-        }));
+        // Store the transaction ID for score verification
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
-          transactionId: response.digest
+          transactionId: response.digest,
+          timestamp: Date.now()  // Add timestamp for verification
         }));
-        console.log('Payment successful, starting game in 3 seconds...');
+
+        setGameState(prev => ({
+          ...prev,
+          hasValidPayment: true,
+          currentSessionId: response.digest  // Store the session ID
+        }));
+
+        console.log('Payment successful, starting game in 3 seconds...', {
+          transactionId: response.digest,
+          timestamp: Date.now()
+        });
         
         setTimeout(() => {
-          console.log('Starting game now...');
+          console.log('Starting game now with session:', response.digest);
           startGame();
         }, 3000);
       }
