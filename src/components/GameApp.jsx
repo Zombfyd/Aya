@@ -553,112 +553,107 @@ window.gameManager.onGameOver = async (finalScore) => {
 };
 
   const handleGamePayment = async () => {
-    if (!wallet.connected) {
-      alert('Please connect wallet first');
-      return;
+  if (!wallet.connected) {
+    alert('Please connect wallet first');
+    return;
+  }
+
+  try {
+    console.log('Starting game payment...');
+    const recipients = config.getCurrentRecipients();
+    const totalAmount = config.paymentConfig.totalAmount;
+    
+    // Calculate amounts based on shares
+    const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+    const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+    const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+    
+    console.log('Payment distribution:', {
+      total: totalAmount,
+      primary: { address: recipients.primary, amount: primaryAmount },
+      secondary: { address: recipients.secondary, amount: secondaryAmount },
+      tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
+    });
+
+    const txb = new TransactionBlock();
+    
+    // Split the coins for each recipient
+    const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
+      txb.gas,
+      [primaryAmount, secondaryAmount, tertiaryAmount]
+    );
+
+    // Transfer to primary recipient
+    txb.transferObjects(
+      [primaryCoin],
+      txb.pure(recipients.primary)
+    );
+
+    // Transfer to secondary recipient
+    txb.transferObjects(
+      [secondaryCoin],
+      txb.pure(recipients.secondary)
+    );
+
+    // Transfer to tertiary recipient
+    txb.transferObjects(
+      [tertiaryCoin],
+      txb.pure(recipients.tertiary)
+    );
+
+    const response = await wallet.signAndExecuteTransaction({
+      transaction: txb,
+      options: { showEffects: true }
+    });
+
+    console.log('Full Payment Response:', {
+      response,
+      digest: response.digest,
+      effects: response.effects,
+      status: response.effects?.status,
+      statusDetails: response.effects?.status?.status
+    });
+    
+    if (response.digest) {
+      console.log('Transaction submitted with digest:', response.digest);
+      setDigest(response.digest);
+      
+      setPaymentStatus(prev => ({
+        ...prev,
+        verified: true,
+        transactionId: response.digest,
+        timestamp: Date.now()
+      }));
+
+      setGameState(prev => ({
+        ...prev,
+        hasValidPayment: true,
+        currentSessionId: response.digest
+      }));
+
+      // Set initial countdown and start the timer
+      setCountdown(3);
+
+      // Create a Promise that resolves after the countdown
+      await new Promise((resolve) => {
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              resolve();
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      });
     }
-
-    try {
-      console.log('Starting game payment...');
-      const recipients = config.getCurrentRecipients();
-      const totalAmount = config.paymentConfig.totalAmount;
-      
-      // Calculate amounts based on shares
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-      
-      console.log('Payment distribution:', {
-        total: totalAmount,
-        primary: { address: recipients.primary, amount: primaryAmount },
-        secondary: { address: recipients.secondary, amount: secondaryAmount },
-        tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
-      });
-
-      const txb = new TransactionBlock();
-
-      // Split the coins for each recipient
-      const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
-        txb.gas,
-        [primaryAmount, secondaryAmount, tertiaryAmount]
-      );
-
-      // Transfer to primary recipient
-      txb.transferObjects(
-        [primaryCoin],
-        txb.pure(recipients.primary)
-      );
-
-      // Transfer to secondary recipient
-      txb.transferObjects(
-        [secondaryCoin],
-        txb.pure(recipients.secondary)
-      );
-
-      // Transfer to tertiary recipient
-      txb.transferObjects(
-        [tertiaryCoin],
-        txb.pure(recipients.tertiary)
-      );
-
-      const response = await wallet.signAndExecuteTransaction({
-        transaction: txb,
-        options: { showEffects: true }
-      });
-
-      console.log('Full Payment Response:', {
-        response,
-        digest: response.digest,
-        effects: response.effects,
-        status: response.effects?.status,
-        statusDetails: response.effects?.status?.status
-      });
-      
-      if (response.digest) {
-        console.log('Transaction submitted with digest:', response.digest);
-        setDigest(response.digest);
-        
-        setPaymentStatus(prev => ({
-          ...prev,
-          verified: true,
-          transactionId: response.digest,
-          timestamp: Date.now()
-        }));
-
-        setGameState(prev => ({
-          ...prev,
-          hasValidPayment: true,
-          currentSessionId: response.digest
-        }));
-
-        // Start countdown
-        setCountdown(3);
-  
-  // Create a Promise that resolves after the countdown
-  setCountdown(3);
-  
-  // Create a Promise that resolves after the countdown
-   setCountdown(3);
-  
-  // Create a Promise that resolves after the countdown
-  await new Promise((resolve) => {
-    const countdownInterval = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(countdownInterval);
-          resolve();
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  });
-    } catch (error) {
-      console.error('Payment error:', error);
-      setCountdown(null);
-      alert(`Payment failed: ${error.message}`);
-    }
-  };
+  } catch (error) {
+    console.error('Payment error:', error);
+    setCountdown(null);
+    alert(`Payment failed: ${error.message}`);
+  }
+};
 
   // Add useEffect for periodic leaderboard updates
   useEffect(() => {
