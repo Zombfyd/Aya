@@ -541,7 +541,8 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
-    if (gameMode === 'paid' && (!paymentStatus.verified || !paymentStatus.sessionToken)) {
+    // Add sessionToken validation
+    if (gameMode === 'paid' && (!paymentStatus.verified || !paymentStatus.transactionId)) {
       console.error('Missing payment verification for paid mode');
       return;
     }
@@ -550,12 +551,14 @@ window.gameManager.onGameOver = async (finalScore) => {
       playerWallet: wallet.account.address,
       score: finalScore,
       gameType: 'main',
-      sessionToken: paymentStatus.sessionToken || paymentStatus.transactionId
+      // Add these fields for paid mode
+      sessionToken: paymentStatus.transactionId,  // This was missing
+      txHash: paymentStatus.transactionId
     };
 
-    console.log('Submitting score with payload:', requestBody);
-
     const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
+    console.log('Submitting score with payload:', requestBody); // Add debug logging
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -655,49 +658,22 @@ window.gameManager.onGameOver = async (finalScore) => {
         console.log('Transaction submitted with digest:', response.digest);
         setDigest(response.digest);
         
-        // Initialize paid session with the backend
-        const sessionResponse = await fetch(`${config.apiBaseUrl}/api/scores/initiate-paid-session`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          credentials: 'include',
-          mode: 'cors',
-          body: JSON.stringify({
-            playerWallet: wallet.account.address,
-            txHash: response.digest,
-            gameType: 'main'
-          })
-        });
-
-        if (!sessionResponse.ok) {
-          const errorText = await sessionResponse.text();
-          console.error('Session initialization failed:', errorText);
-          throw new Error(`Failed to initialize game session: ${errorText}`);
-        }
-
-        const sessionData = await sessionResponse.json();
-        console.log('Session initialized:', sessionData);
-
-        // Store the payment and session information
+        // Store the transaction ID for score verification
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
           transactionId: response.digest,
-          sessionToken: sessionData.sessionToken || response.digest, // Use session token if provided
-          timestamp: Date.now()
+          timestamp: Date.now()  // Add timestamp for verification
         }));
 
         setGameState(prev => ({
           ...prev,
           hasValidPayment: true,
-          currentSessionId: response.digest
+          currentSessionId: response.digest  // Store the session ID
         }));
 
-        console.log('Payment and session setup complete:', {
+        console.log('Payment successful, starting game in 3 seconds...', {
           transactionId: response.digest,
-          sessionToken: sessionData.sessionToken || response.digest,
           timestamp: Date.now()
         });
         
