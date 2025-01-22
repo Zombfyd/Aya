@@ -633,16 +633,19 @@ window.gameManager.onGameOver = async (finalScore) => {
 
         // Start countdown
         setCountdown(3);
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              startGame();
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
+  
+  // Create a Promise that resolves after the countdown
+  await new Promise((resolve) => {
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          resolve();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
       }
 
