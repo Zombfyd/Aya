@@ -541,8 +541,7 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
-    // Add sessionToken validation
-    if (gameMode === 'paid' && (!paymentStatus.verified || !paymentStatus.transactionId)) {
+    if (gameMode === 'paid' && (!paymentStatus.verified || !paymentStatus.sessionToken)) {
       console.error('Missing payment verification for paid mode');
       return;
     }
@@ -551,14 +550,12 @@ window.gameManager.onGameOver = async (finalScore) => {
       playerWallet: wallet.account.address,
       score: finalScore,
       gameType: 'main',
-      // Add these fields for paid mode
-      sessionToken: paymentStatus.transactionId,  // This was missing
-      txHash: paymentStatus.transactionId
+      sessionToken: paymentStatus.sessionToken || paymentStatus.transactionId
     };
 
-    const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
-    console.log('Submitting score with payload:', requestBody); // Add debug logging
+    console.log('Submitting score with payload:', requestBody);
 
+    const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -675,15 +672,20 @@ window.gameManager.onGameOver = async (finalScore) => {
         });
 
         if (!sessionResponse.ok) {
-          const errorData = await sessionResponse.json();
-          throw new Error(errorData.error || 'Failed to initialize game session');
+          const errorText = await sessionResponse.text();
+          console.error('Session initialization failed:', errorText);
+          throw new Error(`Failed to initialize game session: ${errorText}`);
         }
+
+        const sessionData = await sessionResponse.json();
+        console.log('Session initialized:', sessionData);
 
         // Store the payment and session information
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
           transactionId: response.digest,
+          sessionToken: sessionData.sessionToken || response.digest, // Use session token if provided
           timestamp: Date.now()
         }));
 
@@ -693,8 +695,9 @@ window.gameManager.onGameOver = async (finalScore) => {
           currentSessionId: response.digest
         }));
 
-        console.log('Payment successful, starting game in 3 seconds...', {
+        console.log('Payment and session setup complete:', {
           transactionId: response.digest,
+          sessionToken: sessionData.sessionToken || response.digest,
           timestamp: Date.now()
         });
         
