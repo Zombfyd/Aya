@@ -21,7 +21,6 @@ const GameApp = () => {
   const client = useSuiClient();
   const { balance } = useAccountBalance();
   const [digest, setDigest] = useState('');
-  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
   
   // Game state management
   const [gameManagerInitialized, setGameManagerInitialized] = useState(false);
