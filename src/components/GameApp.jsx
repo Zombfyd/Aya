@@ -8,18 +8,22 @@ import {
   SuiChainId,
   ErrorCode,
   formatSUI,
-  useSuiClient
+  useSuiClient,
+  useSignAndExecuteTransaction
 } from '@suiet/wallet-kit';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { TransactionBlock, Transaction } from '@mysten/sui/transactions';
 import '@suiet/wallet-kit/style.css';
 import './App.css';
 import config from '../config/config';
-import { Transaction } from "@mysten/sui/transactions";
 
 const GameApp = () => {
   // Wallet and client hooks
   const wallet = useWallet();
   const client = useSuiClient();
   const { balance } = useAccountBalance();
+  const [digest, setDigest] = useState('');
+  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
   
   // Game state management
   const [gameManagerInitialized, setGameManagerInitialized] = useState(false);
@@ -603,24 +607,19 @@ window.gameManager.onGameOver = async (finalScore) => {
     try {
       console.log('Starting test transfer...');
       
-      // Create new transaction
-      const transaction = new Transaction();
-      
-      // Add transfer operation
-      transaction.transferSui({
-        recipient: '0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9', // Test address
-        amount: 1000000, // 0.001 SUI
-      });
-
-      console.log('Transaction created:', transaction);
-
-      const response = await wallet.signAndExecuteTransaction({
-        transaction,
-        chain: 'sui:testnet'
-      });
-
-      console.log('Transfer response:', response);
-      alert('Transfer successful!');
+      signAndExecuteTransaction(
+        {
+          transaction: new Transaction(),
+          chain: 'sui:testnet',
+        },
+        {
+          onSuccess: (result) => {
+            console.log('executed transaction', result);
+            setDigest(result.digest);
+            alert('Transfer successful!');
+          },
+        },
+      );
 
     } catch (error) {
       console.error('Transfer error:', error);
@@ -700,6 +699,12 @@ window.gameManager.onGameOver = async (finalScore) => {
             >
               Test Transfer (0.001 SUI)
             </button>
+          )}
+
+          {wallet.connected && (
+            <div>
+              <div>Digest: {digest}</div>
+            </div>
           )}
         </header>
       )}
