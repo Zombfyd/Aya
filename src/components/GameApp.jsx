@@ -260,7 +260,7 @@ useEffect(() => {
   // Modify handleScoreSubmit to only require signatures for paid mode
   const handleScoreSubmit = async () => {
     if (!wallet.connected || !wallet.account) {
-      console.log('No wallet connected, skipping submission');
+      alert('Please connect your wallet first');
       return;
     }
 
@@ -269,18 +269,16 @@ useEffect(() => {
         playerWallet: wallet.account.address,
         score: gameState.score,
         gameType: 'main',
-        verified: true
+        timestamp: Date.now()
       };
 
       if (gameMode === 'paid') {
         if (!paymentStatus.verified || !paymentStatus.transactionId) {
-          console.error('Missing payment verification for paid mode');
+          alert('Payment verification required for paid mode');
           return;
         }
         requestBody.sessionToken = paymentStatus.transactionId;
       }
-
-      console.log('Submitting score with payload:', requestBody);
 
       const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
       const response = await fetch(endpoint, {
@@ -289,6 +287,7 @@ useEffect(() => {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
+        mode: 'cors',
         credentials: 'include',
         body: JSON.stringify(requestBody)
       });
@@ -300,7 +299,7 @@ useEffect(() => {
 
       const result = await response.json();
       console.log('Score submission successful:', result);
-
+      
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
         setPaidGameAttempts(newAttempts);
@@ -309,8 +308,9 @@ useEffect(() => {
         }
       }
 
+      // Refresh leaderboards after successful submission
       await fetchLeaderboards();
-
+      
     } catch (error) {
       console.error('Score submission error:', error);
       alert(`Failed to submit score: ${error.message}`);
@@ -484,7 +484,7 @@ useEffect(() => {
   }
 };
 
-// Modify window.gameManager.onGameOver to properly handle score submissions
+// Modify window.gameManager.onGameOver to properly handle paid game submissions
 window.gameManager.onGameOver = async (finalScore) => {
   console.log('Game Over triggered with score:', finalScore);
   
@@ -501,39 +501,34 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
-    // Build the request body
-    const requestBody = {
+    // Add sessionToken validation
+    if (gameMode === 'paid' && (!paymentStatus.verified || !paymentStatus.transactionId)) {
+      console.error('Missing payment verification for paid mode');
+      return;
+    }
+
+    let requestBody = {
       playerWallet: wallet.account.address,
       score: finalScore,
       gameType: 'main',
-      verified: true,  // Explicitly set verified to true
-      gameMode: gameMode  // Add gameMode to request
+      // Add these fields for paid mode
+      sessionToken: paymentStatus.transactionId,
+      txHash: paymentStatus.transactionId
     };
 
-    // For paid mode, add verification data
-    if (gameMode === 'paid') {
-      if (!paymentStatus.verified || !paymentStatus.transactionId) {
-        console.error('Missing payment verification for paid mode');
-        return;
-      }
-      requestBody.sessionToken = paymentStatus.transactionId;
-      requestBody.txHash = paymentStatus.transactionId;
-      requestBody.paymentVerified = true;  // Add payment verification flag
-    }
-
+    // Updated endpoint to match backend route
+    const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`; // Removed 'submit/'
     console.log('Submitting score with payload:', requestBody);
 
-    const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Score-Verification': 'true'  // Add verification header
+        'Accept': 'application/json'
       },
       credentials: 'include',
       mode: 'cors',
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -542,16 +537,7 @@ window.gameManager.onGameOver = async (finalScore) => {
       throw new Error(errorData.error || 'Score submission failed');
     }
 
-    const result = await response.json();
-    console.log('Score submission response:', result);
-
-    // Verify the submission was successful
-    if (!result.score || !result.score.verified) {
-      console.error('Score was not properly verified:', result);
-      throw new Error('Score verification failed');
-    }
-
-    console.log('Score submission successful and verified');
+    console.log('Score submission successful');
     await fetchLeaderboards();
     
     if (gameMode === 'paid') {
