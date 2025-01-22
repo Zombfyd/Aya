@@ -78,37 +78,19 @@ const GameApp = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  // Modify your ConnectButton section to show mobile guidance
-  return (
-    <div className="game-container">
-      <header>
-        <div className="wkit-connected-container">
-          {isMobile && !wallet.connected && (
-            <div className="mobile-wallet-guide">
-              <p>To play on mobile:</p>
-              <ol>
-                <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
-                <li>Connect your wallet using the button below</li>
-              </ol>
-            </div>
-          )}
-          <ConnectButton
-            onConnectError={(error) => {
-              if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                console.warn("User rejected connection to " + error.details?.wallet);
-              } else {
-                console.warn("Unknown connect error: ", error);
-              }
-            }}
-          />
-        </div>
-        {/* ... rest of your existing code ... */}
-      </header>
-      {/* ... rest of your existing code ... */}
-    </div>
-  );
-};
+  // Utility function for chain name
+  const chainName = (chainId) => {
+    switch (chainId) {
+      case SuiChainId.MAIN_NET:
+        return "Mainnet";
+      case SuiChainId.TEST_NET:
+        return "Testnet";
+      case SuiChainId.DEV_NET:
+        return "Devnet";
+      default:
+        return "Unknown";
+    }
+  };
   useEffect(() => {
   const initializeGameManager = async () => {
     try {
@@ -721,10 +703,19 @@ window.gameManager.onGameOver = async (finalScore) => {
 
   // Render method
   return (
-    <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
       {(!gameState.gameStarted && (paidGameAttempts >= MAX_PAID_ATTEMPTS || !gameState.hasValidPayment)) && (
         <header>
           <div className="wkit-connected-container">
+            {isMobile && !wallet.connected && (
+              <div className="mobile-wallet-guide">
+                <p>To play on mobile:</p>
+                <ol>
+                  <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
+                  <li>Connect your wallet using the button below</li>
+                </ol>
+              </div>
+            )}
             <ConnectButton
               onConnectError={(error) => {
                 if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
