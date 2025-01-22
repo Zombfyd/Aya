@@ -30,17 +30,26 @@ const GameApp = () => {
     try {
       console.log('Starting test transfer...');
       
-      // Create new transaction block
       const txb = new TransactionBlock();
-      
-      // Split coin and transfer
-      const [coin] = txb.splitCoins(txb.gas, [txb.pure(1000000)]); // 0.001 SUI
-      txb.transferObjects([coin], txb.pure('0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9'));
+      console.log('Initial txb:', txb);
 
-      console.log('Transaction block created:', txb);
+      // Add transfer operation
+      txb.add(
+        txb.splitCoins(txb.gas, [1000000]) // 0.001 SUI
+      );
+      
+      txb.transferObjects(
+        [txb.object('0x6')], // Example object ID
+        txb.pure('0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9')
+      );
+
+      console.log('Transaction block after operations:', txb);
+      console.log('Wallet status:', wallet.status);
+      console.log('Chain:', wallet.chain);
 
       const response = await wallet.signAndExecuteTransaction({
         transaction: txb,
+        options: { showEffects: true }
       });
 
       console.log('Transfer response:', response);
@@ -52,7 +61,8 @@ const GameApp = () => {
       console.error('Error details:', {
         name: error.name,
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
+        txb: error.txb
       });
       alert(`Transfer failed: ${error.message}`);
     }
