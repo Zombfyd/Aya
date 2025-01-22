@@ -561,17 +561,9 @@ window.gameManager.onGameOver = async (finalScore) => {
     let requestBody = {
       playerWallet: wallet.account.address,
       score: finalScore,
-      gameType: 'main'
+      gameType: 'main',
+      sessionToken: paymentStatus.transactionId  // Always include sessionToken for paid mode
     };
-
-    if (gameMode === 'paid') {
-      requestBody = {
-        ...requestBody,
-        sessionToken: paymentStatus.transactionId,
-        attempt: paidGameAttempts + 1,
-        mode: 'paid'
-      };
-    }
 
     console.log('Submitting score with data:', requestBody);
 
@@ -592,7 +584,9 @@ window.gameManager.onGameOver = async (finalScore) => {
       console.error('Score submission response:', {
         status: response.status,
         statusText: response.statusText,
-        error: errorData
+        error: errorData,
+        requestBody,
+        endpoint
       });
       throw new Error(errorData.error || 'Score submission failed');
     }
@@ -612,7 +606,13 @@ window.gameManager.onGameOver = async (finalScore) => {
       error,
       paymentStatus,
       gameMode,
-      attempt: paidGameAttempts + 1
+      attempt: paidGameAttempts + 1,
+      requestBody: {
+        playerWallet: wallet.account.address,
+        score: finalScore,
+        gameType: 'main',
+        sessionToken: paymentStatus.transactionId
+      }
     });
   }
 };
