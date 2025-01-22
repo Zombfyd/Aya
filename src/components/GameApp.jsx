@@ -603,11 +603,11 @@ window.gameManager.onGameOver = async (finalScore) => {
     try {
       // Check wallet balance first
       const balanceInMist = BigInt(balance ?? 0);
-      const requiredAmount = BigInt(config.paymentConfig.totalAmount + 50000000); // Adding 0.05 SUI for gas
+      const requiredAmount = BigInt(200000000 + 50000000); // 0.2 SUI + 0.05 SUI for gas
       
       console.log('Balance check:', {
-        balance: Number(balanceInMist) / 1_000_000_000,
-        required: Number(requiredAmount) / 1_000_000_000,
+        balanceSUI: Number(balanceInMist) / 1_000_000_000,
+        requiredSUI: Number(requiredAmount) / 1_000_000_000,
         hasEnough: balanceInMist >= requiredAmount
       });
 
@@ -620,30 +620,18 @@ window.gameManager.onGameOver = async (finalScore) => {
 
       console.log('Starting game payment...');
       const recipients = config.getCurrentRecipients();
-      const totalAmount = config.paymentConfig.totalAmount;
-      
-      // Log recipient addresses and config
-      console.log('Payment Configuration:', {
-        network: config.network,
-        recipients: {
-          primary: recipients.primary,
-          secondary: recipients.secondary,
-          tertiary: recipients.tertiary
-        },
-        totalAmount: totalAmount,
-        shares: config.shares
-      });
+      const totalAmount = 200000000; // 0.2 SUI in MIST
       
       // Calculate amounts based on shares
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100));
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 100));
+      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));   // 60% of 0.2 SUI
+      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100)); // 30% of 0.2 SUI
+      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 100));  // 10% of 0.2 SUI
       
-      console.log('Payment Amounts (in MIST):', {
-        primary: primaryAmount,
-        secondary: secondaryAmount,
-        tertiary: tertiaryAmount,
-        total: primaryAmount + secondaryAmount + tertiaryAmount
+      console.log('Payment Amounts:', {
+        primarySUI: primaryAmount / 1_000_000_000,
+        secondarySUI: secondaryAmount / 1_000_000_000,
+        tertiarySUI: tertiaryAmount / 1_000_000_000,
+        totalSUI: totalAmount / 1_000_000_000
       });
 
       const txb = new TransactionBlock();
