@@ -30,11 +30,10 @@ const GameApp = () => {
       console.log('Starting test transfer...');
       
       const tx = {
-        kind: 'paySui',
+        type: 'transferSui',
         data: {
-          amounts: [1000000], // 0.001 SUI
-          recipients: ['0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9'],
-          gasBudget: 10000000
+          recipient: '0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9',
+          amount: 1000000,
         }
       };
 
@@ -42,12 +41,7 @@ const GameApp = () => {
       console.log('Wallet status:', wallet.status);
       console.log('Chain:', wallet.chain);
 
-      const response = await wallet.signAndExecuteTransaction({
-        transaction: tx,
-        options: {
-          showEvents: true
-        }
-      });
+      const response = await wallet.signAndExecuteTransaction(tx);
 
       console.log('Transfer response:', response);
       setDigest(response.digest);
