@@ -535,10 +535,6 @@ window.gameManager.onGameOver = async (finalScore) => {
     gameStarted: false
   }));
 
-  if (gameMode === 'paid') {
-    setPaidGameAttempts(prev => prev + 1);
-  }
-
   try {
     if (!wallet.connected || !wallet.account) {
       console.log('No wallet connected, skipping submission');
@@ -549,32 +545,13 @@ window.gameManager.onGameOver = async (finalScore) => {
       playerWallet: wallet.account.address,
       score: finalScore,
       gameType: 'main',
-      gameMode,
+      gameMode: 'paid',
+      sessionToken: paymentStatus.transactionId  // Add the transaction ID as session token
     };
 
-    // Only add signature for paid mode
-    if (gameMode === 'paid') {
-      const scoreMessage = JSON.stringify({
-        playerAddress: wallet.account.address,
-        score: finalScore,
-        timestamp: Date.now(),
-        gameMode,
-        gameType: 'main'
-      });
+    console.log('Submitting score with data:', requestBody);
 
-      const msgBytes = new TextEncoder().encode(scoreMessage);
-      const signature = await wallet.signPersonalMessage({
-        message: msgBytes,
-      });
-
-      requestBody = {
-        ...requestBody,
-        signature,
-        message: scoreMessage,
-      };
-    }
-
-    const endpoint = `https://ayagame.onrender.com/api/scores/submit/${gameMode}`;
+    const endpoint = `${config.apiBaseUrl}/api/scores/submit/paid`;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -584,11 +561,14 @@ window.gameManager.onGameOver = async (finalScore) => {
     });
 
     if (!response.ok) {
-      console.error('Score submission failed:', await response.text());
-    } else {
-      console.log('Score submission successful');
-      await fetchLeaderboards();
+      const errorData = await response.json();
+      console.error('Score submission failed:', errorData);
+      throw new Error(errorData.error || 'Score submission failed');
     }
+
+    console.log('Score submission successful');
+    await fetchLeaderboards();
+
   } catch (error) {
     console.error('Error in game over handler:', error);
   }
@@ -699,7 +679,7 @@ window.gameManager.onGameOver = async (finalScore) => {
   // Render method
   return (
     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {!gameState.gameStarted && (
+      {(!gameState.gameStarted && (paidGameAttempts >= MAX_PAID_ATTEMPTS || !gameState.hasValidPayment)) && (
         <header>
           <div className="wkit-connected-container">
             <ConnectButton
@@ -723,7 +703,6 @@ window.gameManager.onGameOver = async (finalScore) => {
             </div>
           )}
 
-          {/* Rest of your existing UI components */}
           <div className="mode-selector">
             <button 
               onClick={() => setGameMode('free')}
@@ -765,42 +744,30 @@ window.gameManager.onGameOver = async (finalScore) => {
 
       <canvas id="tearCatchGameCanvas" className="game-canvas" />
 
-      <div className="leaderboards-container">
-        {isLeaderboardLoading ? (
-          <div className="loading-indicator">Loading leaderboards...</div>
-        ) : (
-          gameMode === 'paid' ? (
-            <>
-              {renderLeaderboard(leaderboardData.mainPaid, 'Main Paid Leaderboard')}
-              {renderLeaderboard(leaderboardData.secondaryPaid, 'Secondary Paid Leaderboard')}
-            </>
-          ) : (
-            <>
-              {renderLeaderboard(leaderboardData.mainFree, 'Main Free Leaderboard')}
-              {renderLeaderboard(leaderboardData.secondaryFree, 'Secondary Free Leaderboard')}
-            </>
-          )
-        )}
-      </div>
-
       {gameState.isGameOver && (
         <div className="score-popup">
           <h2>Game Over!</h2>
           <p>Your Score: <span>{gameState.score}</span></p>
           <div className="score-popup-buttons">
-            <button onClick={handleScoreSubmit}>Submit Score</button>
-            <button onClick={restartGame}>Play Again</button>
-            <button 
-              onClick={() => {
-                setGameState({
-                  gameStarted: false,
-                  isGameOver: false,
-                  score: 0
-                });
-              }}
-            >
-              Back to Menu
-            </button>
+            {gameMode === 'free' && (  // Only show submit button in free mode
+              <button onClick={handleScoreSubmit}>Submit Score</button>
+            )}
+            {(paidGameAttempts < MAX_PAID_ATTEMPTS && gameState.hasValidPayment) && (
+              <button onClick={restartGame}>Play Again</button>
+            )}
+            {(paidGameAttempts >= MAX_PAID_ATTEMPTS || !gameState.hasValidPayment) && (
+              <button 
+                onClick={() => {
+                  setGameState({
+                    gameStarted: false,
+                    isGameOver: false,
+                    score: 0
+                  });
+                }}
+              >
+                Back to Menu
+              </button>
+            )}
           </div>
         </div>
       )}
