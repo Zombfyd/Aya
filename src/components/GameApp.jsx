@@ -65,7 +65,7 @@ const GameApp = () => {
         return "Unknown";
     }
   };
-  const [isMobile, setIsMobile] = useState(false);
+  
   
   // Add mobile detection on component mount
   useEffect(() => {
