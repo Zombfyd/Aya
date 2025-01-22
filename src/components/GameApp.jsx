@@ -260,7 +260,7 @@ useEffect(() => {
   // Modify handleScoreSubmit to only require signatures for paid mode
   const handleScoreSubmit = async () => {
     if (!wallet.connected || !wallet.account) {
-      alert('Please connect your wallet first');
+      console.log('No wallet connected, skipping submission');
       return;
     }
 
@@ -269,16 +269,19 @@ useEffect(() => {
         playerWallet: wallet.account.address,
         score: gameState.score,
         gameType: 'main',
-        timestamp: Date.now()
+        verified: true // Explicitly set verified to true
       };
 
+      // Add session token for paid mode
       if (gameMode === 'paid') {
         if (!paymentStatus.verified || !paymentStatus.transactionId) {
-          alert('Payment verification required for paid mode');
+          console.error('Missing payment verification for paid mode');
           return;
         }
         requestBody.sessionToken = paymentStatus.transactionId;
       }
+
+      console.log('Submitting score with payload:', requestBody);
 
       const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
       const response = await fetch(endpoint, {
@@ -287,7 +290,6 @@ useEffect(() => {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        mode: 'cors',
         credentials: 'include',
         body: JSON.stringify(requestBody)
       });
@@ -299,7 +301,8 @@ useEffect(() => {
 
       const result = await response.json();
       console.log('Score submission successful:', result);
-      
+
+      // Update paid game attempts if needed
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
         setPaidGameAttempts(newAttempts);
@@ -308,9 +311,9 @@ useEffect(() => {
         }
       }
 
-      // Refresh leaderboards after successful submission
+      // Refresh leaderboards immediately after successful submission
       await fetchLeaderboards();
-      
+
     } catch (error) {
       console.error('Score submission error:', error);
       alert(`Failed to submit score: ${error.message}`);
