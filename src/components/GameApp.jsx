@@ -49,6 +49,8 @@ const GameApp = () => {
   // Add new state for paid game attempts
   const [paidGameAttempts, setPaidGameAttempts] = useState(0);
   const MAX_PAID_ATTEMPTS = 4;
+  // Add this to your state declarations
+  const [countdown, setCountdown] = useState(null);
   // Utility function for chain name
   const chainName = (chainId) => {
     switch (chainId) {
@@ -617,38 +619,37 @@ window.gameManager.onGameOver = async (finalScore) => {
         console.log('Transaction submitted with digest:', response.digest);
         setDigest(response.digest);
         
-        // Store the transaction ID for score verification
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
           transactionId: response.digest,
-          timestamp: Date.now()  // Add timestamp for verification
+          timestamp: Date.now()
         }));
 
         setGameState(prev => ({
           ...prev,
           hasValidPayment: true,
-          currentSessionId: response.digest  // Store the session ID
+          currentSessionId: response.digest
         }));
 
-        console.log('Payment successful, starting game in 3 seconds...', {
-          transactionId: response.digest,
-          timestamp: Date.now()
-        });
-        
-        setTimeout(() => {
-          console.log('Starting game now with session:', response.digest);
-          startGame();
-        }, 3000);
+        // Start countdown
+        setCountdown(3);
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              startGame();
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
       }
 
     } catch (error) {
       console.error('Payment error:', error);
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
+      setCountdown(null);
       alert(`Payment failed: ${error.message}`);
     }
   };
@@ -790,6 +791,25 @@ window.gameManager.onGameOver = async (finalScore) => {
               />
             </>
           )}
+        </div>
+      )}
+
+      {countdown !== null && (
+        <div className="countdown-overlay">
+          <div className="countdown-popup">
+            <h2>Payment Successful!</h2>
+            <p>Game starting in</p>
+            <div className="countdown-number">{countdown}</div>
+            <div className="countdown-progress">
+              <div 
+                className="countdown-bar" 
+                style={{ 
+                  width: `${(countdown / 3) * 100}%`,
+                  transition: 'width 1s linear'
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
