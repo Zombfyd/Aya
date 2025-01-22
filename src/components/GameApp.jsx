@@ -52,6 +52,16 @@ const GameApp = () => {
   const MAX_PAID_ATTEMPTS = 4;
   // Add this to your state declarations
   const [countdown, setCountdown] = useState(null);
+   useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      setIsMobile(mobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   // Utility function for chain name
   const chainName = (chainId) => {
     switch (chainId) {
@@ -79,18 +89,7 @@ const GameApp = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   // Utility function for chain name
-  const chainName = (chainId) => {
-    switch (chainId) {
-      case SuiChainId.MAIN_NET:
-        return "Mainnet";
-      case SuiChainId.TEST_NET:
-        return "Testnet";
-      case SuiChainId.DEV_NET:
-        return "Devnet";
-      default:
-        return "Unknown";
-    }
-  };
+  
   useEffect(() => {
   const initializeGameManager = async () => {
     try {
