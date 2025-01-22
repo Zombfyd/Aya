@@ -269,10 +269,9 @@ useEffect(() => {
         playerWallet: wallet.account.address,
         score: gameState.score,
         gameType: 'main',
-        verified: true // Explicitly set verified to true
+        verified: true
       };
 
-      // Add session token for paid mode
       if (gameMode === 'paid') {
         if (!paymentStatus.verified || !paymentStatus.transactionId) {
           console.error('Missing payment verification for paid mode');
@@ -302,7 +301,6 @@ useEffect(() => {
       const result = await response.json();
       console.log('Score submission successful:', result);
 
-      // Update paid game attempts if needed
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
         setPaidGameAttempts(newAttempts);
@@ -311,7 +309,6 @@ useEffect(() => {
         }
       }
 
-      // Refresh leaderboards immediately after successful submission
       await fetchLeaderboards();
 
     } catch (error) {
