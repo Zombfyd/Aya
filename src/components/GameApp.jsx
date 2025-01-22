@@ -544,14 +544,21 @@ window.gameManager.onGameOver = async (finalScore) => {
     let requestBody = {
       playerWallet: wallet.account.address,
       score: finalScore,
-      gameType: 'main',
-      gameMode: 'paid',
-      sessionToken: paymentStatus.transactionId  // Add the transaction ID as session token
+      gameType: 'main'
     };
 
-    console.log('Submitting score with data:', requestBody);
+    if (gameMode === 'paid') {
+      if (!paymentStatus.verified || !paymentStatus.transactionId) {
+        console.error('Missing payment verification for paid mode');
+        return;
+      }
+      requestBody = {
+        ...requestBody,
+        sessionToken: paymentStatus.transactionId
+      };
+    }
 
-    const endpoint = `${config.apiBaseUrl}/api/scores/submit/paid`;
+    const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -568,6 +575,13 @@ window.gameManager.onGameOver = async (finalScore) => {
 
     console.log('Score submission successful');
     await fetchLeaderboards();
+    
+    if (gameMode === 'paid') {
+      setPaidGameAttempts(prev => prev + 1);
+      if (paidGameAttempts + 1 >= MAX_PAID_ATTEMPTS) {
+        setGameState(prev => ({ ...prev, hasValidPayment: false }));
+      }
+    }
 
   } catch (error) {
     console.error('Error in game over handler:', error);
