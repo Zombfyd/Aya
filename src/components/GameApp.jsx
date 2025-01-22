@@ -557,7 +557,6 @@ window.gameManager.onGameOver = async (finalScore) => {
     alert('Please connect wallet first');
     return;
   }
-
   try {
     console.log('Starting game payment...');
     const recipients = config.getCurrentRecipients();
@@ -574,7 +573,6 @@ window.gameManager.onGameOver = async (finalScore) => {
       secondary: { address: recipients.secondary, amount: secondaryAmount },
       tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
     });
-
     const txb = new TransactionBlock();
     
     // Split the coins for each recipient
@@ -582,30 +580,25 @@ window.gameManager.onGameOver = async (finalScore) => {
       txb.gas,
       [primaryAmount, secondaryAmount, tertiaryAmount]
     );
-
     // Transfer to primary recipient
     txb.transferObjects(
       [primaryCoin],
       txb.pure(recipients.primary)
     );
-
     // Transfer to secondary recipient
     txb.transferObjects(
       [secondaryCoin],
       txb.pure(recipients.secondary)
     );
-
     // Transfer to tertiary recipient
     txb.transferObjects(
       [tertiaryCoin],
       txb.pure(recipients.tertiary)
     );
-
     const response = await wallet.signAndExecuteTransaction({
       transaction: txb,
       options: { showEffects: true }
     });
-
     console.log('Full Payment Response:', {
       response,
       digest: response.digest,
@@ -624,16 +617,15 @@ window.gameManager.onGameOver = async (finalScore) => {
         transactionId: response.digest,
         timestamp: Date.now()
       }));
-
       setGameState(prev => ({
         ...prev,
         hasValidPayment: true,
         currentSessionId: response.digest
       }));
-
+      
       // Set initial countdown and start the timer
       setCountdown(3);
-
+      
       // Create a Promise that resolves after the countdown
       await new Promise((resolve) => {
         const countdownInterval = setInterval(() => {
@@ -644,10 +636,12 @@ window.gameManager.onGameOver = async (finalScore) => {
               return null;
             }
             return prev - 1;
-            startGame();
           });
         }, 1000);
       });
+      
+      // Start the game after countdown is complete
+      startGame();
     }
   } catch (error) {
     console.error('Payment error:', error);
