@@ -198,6 +198,7 @@ useEffect(() => {
   // Modify handleGameStart
   const handleGameStart = async () => {
     if (gameMode === 'free' || !wallet.connected) {
+       setCountdown(3);
       await new Promise((resolve) => {
         const countdownInterval = setInterval(() => {
           setCountdown(prev => {
