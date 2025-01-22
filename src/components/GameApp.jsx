@@ -679,48 +679,54 @@ window.gameManager.onGameOver = async (finalScore) => {
       });
       
       if (response.digest) {
-        // Wait briefly for transaction to be confirmed
-        console.log('Transaction submitted, waiting for confirmation...');
+        console.log(`Transaction submitted: https://testnet.suivision.xyz/txblock/${response.digest}`);
         
         try {
-          // Wait for 2 seconds to allow transaction to be processed
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait for 3 seconds to allow transaction to be processed
+          await new Promise(resolve => setTimeout(resolve, 3000));
           
-          // Verify the transaction
+          // Use wallet instead of client for verification
           const txDetails = await wallet.getTransactionBlock({
             digest: response.digest,
-            options: { showEvents: true, showEffects: true }
+            options: { 
+              showEffects: true,
+              showEvents: true,
+              showInput: true
+            }
           });
           
-          console.log('Transaction Details:', txDetails);
+          console.log('Detailed Transaction Status:', {
+            digest: txDetails.digest,
+            status: txDetails.effects?.status,
+            events: txDetails.events
+          });
 
-          // Check if transaction was successful
-          if (txDetails.effects?.status?.status !== 'failure') {
-            setGameState(prev => ({
-              ...prev,
-              hasValidPayment: true
-            }));
-            setPaymentStatus(prev => ({
-              ...prev,
-              verified: true,
-              transactionId: response.digest
-            }));
-            setDigest(response.digest);
-            console.log('Payment successful, starting game in 3 seconds...');
-            
-            setTimeout(() => {
-              console.log('Starting game now...');
-              startGame();
-            }, 3000);
-          } else {
-            throw new Error('Transaction failed: ' + JSON.stringify(txDetails.effects?.status));
+          if (txDetails.effects?.status?.error) {
+            throw new Error(`Transaction failed: ${txDetails.effects.status.error}`);
           }
+
+          setGameState(prev => ({
+            ...prev,
+            hasValidPayment: true
+          }));
+          setPaymentStatus(prev => ({
+            ...prev,
+            verified: true,
+            transactionId: response.digest
+          }));
+          setDigest(response.digest);
+          console.log('Payment successful, starting game in 3 seconds...');
+          
+          setTimeout(() => {
+            console.log('Starting game now...');
+            startGame();
+          }, 3000);
         } catch (verifyError) {
-          console.error('Transaction verification failed:', verifyError);
-          throw new Error('Failed to verify transaction: ' + verifyError.message);
+          console.error('Transaction verification error:', verifyError);
+          alert(`Transaction verification failed: ${verifyError.message}. Check the transaction at https://testnet.suivision.xyz/txblock/${response.digest}`);
         }
       } else {
-        throw new Error('No transaction digest received');
+        throw new Error('Transaction failed: No digest received');
       }
 
     } catch (error) {
