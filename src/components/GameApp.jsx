@@ -605,6 +605,14 @@ window.gameManager.onGameOver = async (finalScore) => {
       const recipients = config.getCurrentRecipients();
       const totalAmount = config.paymentConfig.totalAmount;
       
+      // Log configuration details
+      console.log('Payment configuration:', {
+        recipients,
+        totalAmount,
+        shares: config.shares,
+        network: config.network
+      });
+      
       // Calculate amounts based on shares
       const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));
       const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100));
@@ -643,24 +651,37 @@ window.gameManager.onGameOver = async (finalScore) => {
         txb.pure(recipients.tertiary)
       );
 
+      console.log('Executing transaction...');
       const response = await wallet.signAndExecuteTransaction({
         transaction: txb,
         options: { showEffects: true }
       });
 
-      console.log('Payment response:', response);
+      console.log('Full transaction response:', response);
+      console.log('Transaction status:', response.effects?.status);
+      console.log('Transaction digest:', response.digest);
       
       if (response.effects?.status?.status === 'success') {
+        console.log('Transaction successful, updating game state...');
+        
         setGameState(prev => ({
           ...prev,
           hasValidPayment: true
         }));
+        
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
           transactionId: response.digest
         }));
+        
         setDigest(response.digest);
+        
+        console.log('Game state updated, payment status:', {
+          hasValidPayment: true,
+          transactionId: response.digest
+        });
+        
         console.log('Payment successful, starting game in 3 seconds...');
         
         // Add a 3-second delay before starting the game
@@ -668,6 +689,9 @@ window.gameManager.onGameOver = async (finalScore) => {
           console.log('Starting game now...');
           startGame();
         }, 3000);
+      } else {
+        console.warn('Transaction completed but status was not success:', response.effects?.status);
+        throw new Error('Transaction failed: ' + (response.effects?.status?.error || 'Unknown error'));
       }
 
     } catch (error) {
@@ -675,7 +699,8 @@ window.gameManager.onGameOver = async (finalScore) => {
       console.error('Error details:', {
         name: error.name,
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
+        response: error.response
       });
       alert(`Payment failed: ${error.message}`);
     }
