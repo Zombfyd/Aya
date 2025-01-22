@@ -269,7 +269,8 @@ useEffect(() => {
         playerWallet: wallet.account.address,
         score: gameState.score,
         gameType: 'main',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        verified: true
       };
 
       if (gameMode === 'paid') {
@@ -277,7 +278,12 @@ useEffect(() => {
           alert('Payment verification required for paid mode');
           return;
         }
-        requestBody.sessionToken = paymentStatus.transactionId;
+        requestBody = {
+          ...requestBody,
+          sessionToken: paymentStatus.transactionId,
+          txHash: paymentStatus.transactionId,
+          gameMode: 'paid'
+        };
       }
 
       const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
@@ -300,6 +306,12 @@ useEffect(() => {
       const result = await response.json();
       console.log('Score submission successful:', result);
       
+      if (result.verified === false) {
+        console.warn('Score submitted but not verified');
+        alert('Score submitted but verification pending. Please try again.');
+        return;
+      }
+
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
         setPaidGameAttempts(newAttempts);
@@ -308,7 +320,6 @@ useEffect(() => {
         }
       }
 
-      // Refresh leaderboards after successful submission
       await fetchLeaderboards();
       
     } catch (error) {
@@ -501,7 +512,6 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
-    // Add sessionToken validation
     if (gameMode === 'paid' && (!paymentStatus.verified || !paymentStatus.transactionId)) {
       console.error('Missing payment verification for paid mode');
       return;
@@ -511,13 +521,20 @@ window.gameManager.onGameOver = async (finalScore) => {
       playerWallet: wallet.account.address,
       score: finalScore,
       gameType: 'main',
-      // Add these fields for paid mode
-      sessionToken: paymentStatus.transactionId,
-      txHash: paymentStatus.transactionId
+      verified: true,
+      timestamp: Date.now()
     };
 
-    // Updated endpoint to match backend route
-    const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`; // Removed 'submit/'
+    if (gameMode === 'paid') {
+      requestBody = {
+        ...requestBody,
+        sessionToken: paymentStatus.transactionId,
+        txHash: paymentStatus.transactionId,
+        gameMode: 'paid'
+      };
+    }
+
+    const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
     console.log('Submitting score with payload:', requestBody);
 
     const response = await fetch(endpoint, {
@@ -533,11 +550,18 @@ window.gameManager.onGameOver = async (finalScore) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Score submission failed:', errorData);
       throw new Error(errorData.error || 'Score submission failed');
     }
 
-    console.log('Score submission successful');
+    const result = await response.json();
+    console.log('Score submission successful:', result);
+
+    if (result.verified === false) {
+      console.warn('Score submitted but not verified');
+      alert('Score submitted but verification pending. Please try again.');
+      return;
+    }
+
     await fetchLeaderboards();
     
     if (gameMode === 'paid') {
