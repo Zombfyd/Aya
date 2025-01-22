@@ -510,12 +510,13 @@ window.gameManager.onGameOver = async (finalScore) => {
       score: finalScore,
       gameType: 'main',
       // Add these fields for paid mode
-      sessionToken: paymentStatus.transactionId,  // This was missing
+      sessionToken: paymentStatus.transactionId,
       txHash: paymentStatus.transactionId
     };
 
-    const endpoint = `https://ayagame.onrender.com/api/scores/submit/${gameMode}`;
-    console.log('Submitting score with payload:', requestBody); // Add debug logging
+    // Updated endpoint to match backend route
+    const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`; // Removed 'submit/'
+    console.log('Submitting score with payload:', requestBody);
 
     const response = await fetch(endpoint, {
       method: 'POST',
