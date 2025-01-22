@@ -9,8 +9,7 @@ import {
   ErrorCode,
   formatSUI,
   useSuiClient,
-  useSignAndExecuteTransaction
-} from '@suiet/wallet-kit';
+  } from '@suiet/wallet-kit';
 import '@suiet/wallet-kit/style.css';
 import './App.css';
 import config from '../config/config';
