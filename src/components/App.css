@@ -1,4 +1,23 @@
-/* Base container styles */
+.mobile-wallet-guide {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.mobile-wallet-guide p {
+  margin: 0 0 10px 0;
+  font-weight: bold;
+}
+
+.mobile-wallet-guide ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.mobile-wallet-guide li {
+  margin-bottom: 5px;
+}/* Base container styles */
 #root {
   max-width: 1280px;
   margin: 0 auto;
