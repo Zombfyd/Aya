@@ -266,21 +266,19 @@ useEffect(() => {
       let requestBody = {
         playerWallet: wallet.account.address,
         score: gameState.score,
-        gameType: 'main'
+        gameType: 'main',
+        timestamp: Date.now()
       };
 
       if (gameMode === 'paid') {
-        if (!paymentStatus.verified) {
+        if (!paymentStatus.verified || !paymentStatus.transactionId) {
           alert('Payment verification required for paid mode');
           return;
         }
-        requestBody = {
-          ...requestBody,
-          sessionToken: paymentStatus.transactionId
-        };
+        requestBody.sessionToken = paymentStatus.transactionId;
       }
 
-      const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
+      const endpoint = `${config.apiBaseUrl}/api/scores/${gameMode}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -297,9 +295,17 @@ useEffect(() => {
         throw new Error(errorData.error || 'Score submission failed');
       }
 
-      console.log('Score submission successful');
-      alert('Score submitted successfully!');
+      const result = await response.json();
+      console.log('Score submission successful:', result);
       
+      if (gameMode === 'paid') {
+        const newAttempts = paidGameAttempts + 1;
+        setPaidGameAttempts(newAttempts);
+        if (newAttempts >= MAX_PAID_ATTEMPTS) {
+          setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        }
+      }
+
       await fetchLeaderboards();
       
       setGameState(prev => ({
@@ -309,13 +315,6 @@ useEffect(() => {
         score: 0
       }));
 
-      if (gameMode === 'paid') {
-        setPaidGameAttempts(prev => prev + 1);
-        if (paidGameAttempts + 1 >= MAX_PAID_ATTEMPTS) {
-          setGameState(prev => ({ ...prev, hasValidPayment: false }));
-        }
-      }
-
     } catch (error) {
       console.error('Score submission error:', error);
       alert(`Failed to submit score: ${error.message}`);
@@ -324,79 +323,18 @@ useEffect(() => {
 
   // Leaderboard functions
   const fetchLeaderboards = async () => {
-    console.log('Starting leaderboard fetch...');
     setIsLeaderboardLoading(true);
     
-    const baseUrl = `${config.apiBaseUrl}/api/scores/leaderboard`;
-    
     try {
-      // Function to validate leaderboard data
-      const validateLeaderboardData = (data, type) => {
-        if (!Array.isArray(data)) {
-          console.error(`Invalid ${type} data structure:`, data);
-          return [];
-        }
-        
-        return data.filter(entry => {
-          const isValid = entry && 
-                         typeof entry.playerWallet === 'string' && 
-                         typeof entry.score === 'number';
-          if (!isValid) {
-            console.error(`Invalid entry in ${type}:`, entry);
-          }
-          return isValid;
-        });
-      };
-
-      const fetchValidatedData = async (endpoint, type) => {
-        try {
-          const timestamp = Date.now();
-          const url = `${baseUrl}/${endpoint}?t=${timestamp}`;
-          console.log(`Fetching ${type} from:`, url);
-
-          const response = await fetch(url, {
-            headers: {
-              'Accept': 'application/json',
-            },
-            credentials: 'include',
-            mode: 'cors'
-          });
-
-          if (!response.ok) {
-            const text = await response.text();
-            console.error(`Server response for ${type}:`, text);
-            throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-          }
-
-          console.log(`Response headers for ${type}:`, Object.fromEntries([...response.headers]));
-
-          const text = await response.text();
-          console.log(`Raw response for ${type}:`, text);
-
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch (e) {
-            console.error(`JSON parse error for ${type}:`, e);
-            throw e;
-          }
-
-          return validateLeaderboardData(data, type);
-        } catch (error) {
-          console.error(`Error fetching ${type}:`, error);
-          return [];
-        }
-      };
-
-      // Fetch all leaderboards
+      const baseUrl = `${config.apiBaseUrl}/api/scores/leaderboard`;
+      
       const [mainFree, secondaryFree, mainPaid, secondaryPaid] = await Promise.all([
-        fetchValidatedData('main/free', 'Main Free'),
-        fetchValidatedData('secondary/free', 'Secondary Free'),
-        fetchValidatedData('main/paid', 'Main Paid'),
-        fetchValidatedData('secondary/paid', 'Secondary Paid')
-      ]);
+        fetch(`${baseUrl}/main/free`),
+        fetch(`${baseUrl}/secondary/free`),
+        fetch(`${baseUrl}/main/paid`),
+        fetch(`${baseUrl}/secondary/paid`)
+      ].map(promise => promise.then(res => res.json())));
 
-      // Update state with fetched data
       setLeaderboardData({
         mainFree,
         secondaryFree,
@@ -404,7 +342,7 @@ useEffect(() => {
         secondaryPaid
       });
     } catch (error) {
-      console.error('Error in fetchLeaderboards:', error);
+      console.error('Error fetching leaderboards:', error);
     } finally {
       setIsLeaderboardLoading(false);
     }
