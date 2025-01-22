@@ -29,26 +29,24 @@ const GameApp = () => {
     try {
       console.log('Starting test transfer...');
       
-      // Using moveCall format instead
       const tx = {
-        kind: 'moveCall',
+        kind: 'paySui',
         data: {
-          packageObjectId: '0x2',
-          module: 'pay',
-          function: 'split_and_transfer',
-          typeArguments: [],
-          arguments: [
-            1000000, // amount (0.001 SUI)
-            '0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9' // recipient
-          ],
+          amounts: [1000000], // 0.001 SUI
+          recipients: ['0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9'],
           gasBudget: 10000000
         }
       };
 
       console.log('Transaction payload:', tx);
+      console.log('Wallet status:', wallet.status);
+      console.log('Chain:', wallet.chain);
 
       const response = await wallet.signAndExecuteTransaction({
-        transaction: tx
+        transaction: tx,
+        options: {
+          showEvents: true
+        }
       });
 
       console.log('Transfer response:', response);
@@ -57,6 +55,11 @@ const GameApp = () => {
 
     } catch (error) {
       console.error('Transfer error:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       alert(`Transfer failed: ${error.message}`);
     }
   };
