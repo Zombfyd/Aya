@@ -641,10 +641,10 @@ window.gameManager.onGameOver = async (finalScore) => {
             if (prev <= 1) {
               clearInterval(countdownInterval);
               resolve();
-              startGame();
               return null;
             }
             return prev - 1;
+            startGame();
           });
         }, 1000);
       });
