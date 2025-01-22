@@ -300,3 +300,70 @@ tr:nth-child(even) {
   padding: 20px;
   color: #fff;
 }
+.countdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.countdown-popup {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 30px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  animation: popIn 0.3s ease-out;
+}
+
+.countdown-number {
+  font-size: 72px;
+  font-weight: bold;
+  margin: 20px 0;
+  color: #4CAF50;
+  text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.countdown-progress {
+  width: 200px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin: 20px auto;
+  overflow: hidden;
+}
+
+.countdown-bar {
+  height: 100%;
+  background: #4CAF50;
+  border-radius: 2px;
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.countdown-popup h2 {
+  margin: 0 0 10px 0;
+  color: #4CAF50;
+}
+
+.countdown-popup p {
+  margin: 0;
+  opacity: 0.8;
+}
