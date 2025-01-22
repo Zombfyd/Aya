@@ -652,55 +652,68 @@ window.gameManager.onGameOver = async (finalScore) => {
       });
       
       if (response.digest) {
-        // Get the parent transaction hash from the effects
-        const mainTxHash = response.effects?.transactionDigest || response.digest;
-        console.log('Using transaction hash for session:', mainTxHash);
+        console.log('Transaction submitted with digest:', response.digest);
+        setDigest(response.digest);
         
         // Initialize paid session with the backend
         const sessionResponse = await fetch(`${config.apiBaseUrl}/api/scores/initiate-paid-session`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
+          credentials: 'include',
+          mode: 'cors',
           body: JSON.stringify({
             playerWallet: wallet.account.address,
-            txHash: mainTxHash,  // Use the main transaction hash
+            txHash: response.digest,
             gameType: 'main'
           })
         });
 
         if (!sessionResponse.ok) {
-          const errorData = await sessionResponse.json();
-          throw new Error(errorData.error || 'Failed to initialize game session');
+          const errorText = await sessionResponse.text();
+          console.error('Session initialization failed:', errorText);
+          throw new Error(`Failed to initialize game session: ${errorText}`);
         }
 
         const sessionData = await sessionResponse.json();
-        
-        setPaymentStatus({
+        console.log('Session initialized:', sessionData);
+
+        // Store the payment and session information
+        setPaymentStatus(prev => ({
+          ...prev,
           verified: true,
-          transactionId: mainTxHash,
-          sessionToken: sessionData.sessionToken,
+          transactionId: response.digest,
+          sessionToken: sessionData.sessionToken || response.digest, // Use session token if provided
           timestamp: Date.now()
-        });
+        }));
 
         setGameState(prev => ({
           ...prev,
-          hasValidPayment: true
+          hasValidPayment: true,
+          currentSessionId: response.digest
         }));
 
-        console.log('Payment successful, starting game in 3 seconds...', {
-          transactionId: mainTxHash,
+        console.log('Payment and session setup complete:', {
+          transactionId: response.digest,
+          sessionToken: sessionData.sessionToken || response.digest,
           timestamp: Date.now()
         });
         
         setTimeout(() => {
-          console.log('Starting game now with session:', mainTxHash);
+          console.log('Starting game now with session:', response.digest);
           startGame();
         }, 3000);
       }
 
     } catch (error) {
       console.error('Payment error:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       alert(`Payment failed: ${error.message}`);
     }
   };
