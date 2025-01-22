@@ -205,19 +205,25 @@ useEffect(() => {
         setPaying(true);
         setTransactionInProgress(true);
 
-        // Create a new transaction block
-        const txb = new TransactionBlock();
-        
-        // Split coin into separate amounts
-        const [coin] = txb.splitCoins(txb.gas, [txb.pure(config.paymentConfig.totalAmount)]);
-        
-        // Transfer the split coin
-        txb.transferObjects([coin], txb.pure(config.getCurrentRecipients().primary));
+        // Following exact Suiet example structure
+        const tx = {
+          kind: 'pay',
+          data: {
+            gasBudget: 10000000,
+            inputCoins: [], // Let wallet select coins
+            recipients: [config.getCurrentRecipients().primary],
+            amounts: [config.paymentConfig.totalAmount]
+          }
+        };
 
-        console.log('Transaction block created:', txb);
+        console.log('Transaction payload:', tx);
 
+        // Following Suiet example structure exactly
         const response = await wallet.signAndExecuteTransaction({
-          transaction: txb
+          transaction: {
+            kind: 'pay',
+            data: tx.data
+          }
         });
 
         console.log('Transaction response:', response);
