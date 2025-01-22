@@ -603,7 +603,8 @@ window.gameManager.onGameOver = async (finalScore) => {
     try {
       // Check wallet balance first
       const balanceInMist = BigInt(balance ?? 0);
-      const requiredAmount = BigInt(200000000 + 50000000); // 0.2 SUI + 0.05 SUI for gas
+      const totalAmount = 200000000; // 0.2 SUI total
+      const requiredAmount = BigInt(totalAmount + 50000000); // 0.2 SUI + 0.05 SUI for gas
       
       console.log('Balance check:', {
         balanceSUI: Number(balanceInMist) / 1_000_000_000,
@@ -620,12 +621,11 @@ window.gameManager.onGameOver = async (finalScore) => {
 
       console.log('Starting game payment...');
       const recipients = config.getCurrentRecipients();
-      const totalAmount = 200000000; // 0.2 SUI in MIST
       
-      // Calculate amounts based on shares
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100));
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 100));
+      // Calculate amounts based on shares (total 0.2 SUI)
+      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));    // 60% = 0.12 SUI
+      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100)); // 30% = 0.06 SUI
+      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 100));   // 10% = 0.02 SUI
       
       console.log('Payment Amounts:', {
         primarySUI: primaryAmount / 1_000_000_000,
