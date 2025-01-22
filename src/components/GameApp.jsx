@@ -27,6 +27,7 @@ const GameApp = () => {
   const [walletInitialized, setWalletInitialized] = useState(false);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [transactionInProgress, setTransactionInProgress] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [gameState, setGameState] = useState({
     gameStarted: false,
     score: 0,
@@ -64,6 +65,50 @@ const GameApp = () => {
         return "Unknown";
     }
   };
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Add mobile detection on component mount
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      setIsMobile(mobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Modify your ConnectButton section to show mobile guidance
+  return (
+    <div className="game-container">
+      <header>
+        <div className="wkit-connected-container">
+          {isMobile && !wallet.connected && (
+            <div className="mobile-wallet-guide">
+              <p>To play on mobile:</p>
+              <ol>
+                <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
+                <li>Connect your wallet using the button below</li>
+              </ol>
+            </div>
+          )}
+          <ConnectButton
+            onConnectError={(error) => {
+              if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
+                console.warn("User rejected connection to " + error.details?.wallet);
+              } else {
+                console.warn("Unknown connect error: ", error);
+              }
+            }}
+          />
+        </div>
+        {/* ... rest of your existing code ... */}
+      </header>
+      {/* ... rest of your existing code ... */}
+    </div>
+  );
+};
   useEffect(() => {
   const initializeGameManager = async () => {
     try {
