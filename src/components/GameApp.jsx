@@ -655,8 +655,14 @@ window.gameManager.onGameOver = async (finalScore) => {
           ...prev,
           hasValidPayment: true
         }));
+        setPaymentStatus(prev => ({
+          ...prev,
+          verified: true,
+          transactionId: response.digest
+        }));
         setDigest(response.digest);
         console.log('Payment successful, ready to start game');
+        startGame();
       }
 
     } catch (error) {
@@ -723,11 +729,15 @@ window.gameManager.onGameOver = async (finalScore) => {
 
           {wallet.connected && (
             <button 
-              onClick={handleGamePayment}
-              style={{ margin: '10px', padding: '10px' }}
-              disabled={gameState.hasValidPayment}
+              onClick={gameMode === 'paid' && !gameState.hasValidPayment ? handleGamePayment : handleGameStart}
+              disabled={gameMode === 'paid' && paying}
+              className="start-button"
             >
-              Start Game ({formatSUI(config.paymentConfig.totalAmount)} SUI)
+              {gameMode === 'paid' 
+                ? (gameState.hasValidPayment 
+                    ? `Start Paid Game (${MAX_PAID_ATTEMPTS - paidGameAttempts} attempts left)`
+                    : `Pay ${formatSUI(config.paymentConfig.totalAmount)} SUI for ${MAX_PAID_ATTEMPTS} Games`) 
+                : 'Start Free Game'}
             </button>
           )}
         </header>
