@@ -642,8 +642,8 @@ window.gameManager.onGameOver = async (finalScore) => {
       console.log('Payment Response:', response);
       
       if (response.digest) {
-        // Initiate paid session with the server
-        const sessionResponse = await fetch(`${config.apiBaseUrl}/api/scores/initiate-session`, {
+        // Initiate paid session with the server - using correct endpoint
+        const sessionResponse = await fetch(`${config.apiBaseUrl}/api/scores/paid/initiate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -665,11 +665,10 @@ window.gameManager.onGameOver = async (finalScore) => {
 
         const { sessionToken } = await sessionResponse.json();
         
-        // Store session token instead of transaction ID
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
-          transactionId: sessionToken,  // Use session token for verification
+          transactionId: sessionToken,
           timestamp: Date.now()
         }));
 
@@ -688,6 +687,11 @@ window.gameManager.onGameOver = async (finalScore) => {
 
     } catch (error) {
       console.error('Payment error:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       alert(`Payment failed: ${error.message}`);
     }
   };
