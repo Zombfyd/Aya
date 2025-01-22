@@ -623,9 +623,9 @@ window.gameManager.onGameOver = async (finalScore) => {
       const totalAmount = 200000000; // 0.2 SUI in MIST
       
       // Calculate amounts based on shares
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));   // 60% of 0.2 SUI
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100)); // 30% of 0.2 SUI
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 100));  // 10% of 0.2 SUI
+      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));
+      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100));
+      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 100));
       
       console.log('Payment Amounts:', {
         primarySUI: primaryAmount / 1_000_000_000,
@@ -636,97 +636,60 @@ window.gameManager.onGameOver = async (finalScore) => {
 
       const txb = new TransactionBlock();
 
-      // Log gas coin before split
-      console.log('Creating transaction block...');
-
-      // Split the coins for each recipient
-      const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
-        txb.gas,
-        [primaryAmount, secondaryAmount, tertiaryAmount]
+      // First, split the gas coin
+      txb.add(
+        txb.splitCoins(txb.gas, [primaryAmount, secondaryAmount, tertiaryAmount])
       );
-
-      console.log('Coins split, setting up transfers...');
 
       // Transfer to primary recipient
       txb.transferObjects(
-        [primaryCoin],
+        [txb.object('0x6')],
         txb.pure(recipients.primary)
       );
 
       // Transfer to secondary recipient
       txb.transferObjects(
-        [secondaryCoin],
+        [txb.object('0x6')],
         txb.pure(recipients.secondary)
       );
 
       // Transfer to tertiary recipient
       txb.transferObjects(
-        [tertiaryCoin],
+        [txb.object('0x6')],
         txb.pure(recipients.tertiary)
       );
 
       console.log('Executing transaction...');
       const response = await wallet.signAndExecuteTransaction({
         transaction: txb,
-        options: { showEvents: true, showEffects: true, showInput: true }
+        options: { showEffects: true }
       });
 
       console.log('Transaction Response:', {
         digest: response.digest,
         status: response.effects?.status?.status,
-        effects: response.effects,
-        events: response.events
+        effects: response.effects
       });
       
-      if (response.digest) {
-        console.log(`Transaction submitted: https://testnet.suivision.xyz/txblock/${response.digest}`);
+      if (response.effects?.status?.status === 'success') {
+        setGameState(prev => ({
+          ...prev,
+          hasValidPayment: true
+        }));
+        setPaymentStatus(prev => ({
+          ...prev,
+          verified: true,
+          transactionId: response.digest
+        }));
+        setDigest(response.digest);
+        console.log('Payment successful, starting game in 3 seconds...');
         
-        try {
-          // Wait for 3 seconds to allow transaction to be processed
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          // Use wallet instead of client for verification
-          const txDetails = await wallet.getTransactionBlock({
-            digest: response.digest,
-            options: { 
-              showEffects: true,
-              showEvents: true,
-              showInput: true
-            }
-          });
-          
-          console.log('Detailed Transaction Status:', {
-            digest: txDetails.digest,
-            status: txDetails.effects?.status,
-            events: txDetails.events
-          });
-
-          if (txDetails.effects?.status?.error) {
-            throw new Error(`Transaction failed: ${txDetails.effects.status.error}`);
-          }
-
-          setGameState(prev => ({
-            ...prev,
-            hasValidPayment: true
-          }));
-          setPaymentStatus(prev => ({
-            ...prev,
-            verified: true,
-            transactionId: response.digest
-          }));
-          setDigest(response.digest);
-          console.log('Payment successful, starting game in 3 seconds...');
-          
-          setTimeout(() => {
-            console.log('Starting game now...');
-            startGame();
-          }, 3000);
-        } catch (verifyError) {
-          console.error('Transaction verification error:', verifyError);
-          alert(`Transaction verification failed: ${verifyError.message}. Check the transaction at https://testnet.suivision.xyz/txblock/${response.digest}`);
-        }
+        setTimeout(() => {
+          console.log('Starting game now...');
+          startGame();
+        }, 3000);
       } else {
-        throw new Error('Transaction failed: No digest received');
+        throw new Error('Transaction failed: ' + JSON.stringify(response.effects?.status));
       }
 
     } catch (error) {
