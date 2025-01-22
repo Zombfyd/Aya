@@ -541,39 +541,42 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
+    let requestBody = {
+      playerWallet: wallet.account.address,
+      score: finalScore,
+      gameType: 'main'
+    };
+
     if (gameMode === 'paid') {
-      console.log('Submitting paid score:', {
-        playerWallet: wallet.account.address,
-        transactionId: paymentStatus.transactionId,
-        score: finalScore,
-        gameType: 'main'
-      });
-
-      const endpoint = `${config.apiBaseUrl}/api/scores/submit/paid`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        mode: 'cors',
-        credentials: 'include',
-        body: JSON.stringify({
-          playerWallet: wallet.account.address,
-          transactionId: paymentStatus.transactionId,
-          score: finalScore,
-          gameType: 'main'
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Score submission failed');
+      if (!paymentStatus.verified || !paymentStatus.transactionId) {
+        console.error('Missing payment verification for paid mode');
+        return;
       }
+      requestBody = {
+        ...requestBody,
+        sessionToken: paymentStatus.transactionId
+      };
+    }
 
-      console.log('Score submission successful');
-      await fetchLeaderboards();
-      
+    const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Score submission failed:', errorData);
+      throw new Error(errorData.error || 'Score submission failed');
+    }
+
+    console.log('Score submission successful');
+    await fetchLeaderboards();
+    
+    if (gameMode === 'paid') {
       setPaidGameAttempts(prev => prev + 1);
       if (paidGameAttempts + 1 >= MAX_PAID_ATTEMPTS) {
         setGameState(prev => ({ ...prev, hasValidPayment: false }));
@@ -639,24 +642,39 @@ window.gameManager.onGameOver = async (finalScore) => {
         options: { showEffects: true }
       });
 
-      console.log('Payment Response:', response);
+      console.log('Full Payment Response:', {
+        response,
+        digest: response.digest,
+        effects: response.effects,
+        status: response.effects?.status,
+        statusDetails: response.effects?.status?.status
+      });
       
       if (response.digest) {
+        console.log('Transaction submitted with digest:', response.digest);
+        setDigest(response.digest);
+        
+        // Store the transaction ID for score verification
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
           transactionId: response.digest,
-          timestamp: Date.now()
+          timestamp: Date.now()  // Add timestamp for verification
         }));
 
         setGameState(prev => ({
           ...prev,
-          hasValidPayment: true
+          hasValidPayment: true,
+          currentSessionId: response.digest  // Store the session ID
         }));
 
-        console.log('Payment successful, starting game in 3 seconds...');
+        console.log('Payment successful, starting game in 3 seconds...', {
+          transactionId: response.digest,
+          timestamp: Date.now()
+        });
+        
         setTimeout(() => {
-          console.log('Starting game now...');
+          console.log('Starting game now with session:', response.digest);
           startGame();
         }, 3000);
       }
