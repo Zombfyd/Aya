@@ -8,7 +8,8 @@ import {
   SuiChainId,
   ErrorCode,
   formatSUI,
-  useSuiClient
+  useSuiClient,
+  useSignAndExecuteTransaction
 } from '@suiet/wallet-kit';
 import '@suiet/wallet-kit/style.css';
 import './App.css';
@@ -603,27 +604,46 @@ window.gameManager.onGameOver = async (finalScore) => {
 
     try {
       console.log('Starting game payment...');
-      console.log('Payment config:', {
-        amount: config.paymentConfig.totalAmount,
-        recipient: config.getCurrentRecipients().primary
+      const recipients = config.getCurrentRecipients();
+      const totalAmount = config.paymentConfig.totalAmount;
+      
+      // Calculate amounts based on shares
+      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));
+      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100));
+      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 100));
+      
+      console.log('Payment distribution:', {
+        total: totalAmount,
+        primary: { address: recipients.primary, amount: primaryAmount },
+        secondary: { address: recipients.secondary, amount: secondaryAmount },
+        tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
       });
-      
+
       const txb = new TransactionBlock();
-      console.log('Initial txb:', txb);
 
-      // Add transfer operation with configured amount
-      txb.add(
-        txb.splitCoins(txb.gas, [config.paymentConfig.totalAmount])
+      // Split the coins for each recipient
+      const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
+        txb.gas,
+        [primaryAmount, secondaryAmount, tertiaryAmount]
       );
-      
+
+      // Transfer to primary recipient
       txb.transferObjects(
-        [txb.object('0x6')], // Example object ID
-        txb.pure(config.getCurrentRecipients().primary)
+        [primaryCoin],
+        txb.pure(recipients.primary)
       );
 
-      console.log('Transaction block after operations:', txb);
-      console.log('Wallet status:', wallet.status);
-      console.log('Chain:', wallet.chain);
+      // Transfer to secondary recipient
+      txb.transferObjects(
+        [secondaryCoin],
+        txb.pure(recipients.secondary)
+      );
+
+      // Transfer to tertiary recipient
+      txb.transferObjects(
+        [tertiaryCoin],
+        txb.pure(recipients.tertiary)
+      );
 
       const response = await wallet.signAndExecuteTransaction({
         transaction: txb,
@@ -631,13 +651,13 @@ window.gameManager.onGameOver = async (finalScore) => {
       });
 
       console.log('Payment response:', response);
-      setDigest(response.digest);
       
-      if (response.digest) {
+      if (response.effects?.status?.status === 'success') {
         setGameState(prev => ({
           ...prev,
           hasValidPayment: true
         }));
+        setDigest(response.digest);
         console.log('Payment successful, ready to start game');
       }
 
@@ -646,8 +666,7 @@ window.gameManager.onGameOver = async (finalScore) => {
       console.error('Error details:', {
         name: error.name,
         message: error.message,
-        stack: error.stack,
-        txb: error.txb
+        stack: error.stack
       });
       alert(`Payment failed: ${error.message}`);
     }
