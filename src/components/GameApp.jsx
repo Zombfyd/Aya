@@ -10,11 +10,10 @@ import {
   formatSUI,
   useSuiClient
 } from '@suiet/wallet-kit';
-import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { Transaction } from '@mysten/sui/transactions';
 import '@suiet/wallet-kit/style.css';
 import './App.css';
 import config from '../config/config';
+import { Transaction } from "@mysten/sui/transactions";
 
 const GameApp = () => {
   // Wallet and client hooks
