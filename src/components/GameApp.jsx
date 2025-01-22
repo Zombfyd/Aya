@@ -278,7 +278,7 @@ useEffect(() => {
         requestBody.sessionToken = paymentStatus.transactionId;
       }
 
-      const endpoint = `${config.apiBaseUrl}/api/scores/${gameMode}`;
+      const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -306,15 +306,9 @@ useEffect(() => {
         }
       }
 
+      // Refresh leaderboards after successful submission
       await fetchLeaderboards();
       
-      setGameState(prev => ({
-        ...prev,
-        gameStarted: false,
-        isGameOver: false,
-        score: 0
-      }));
-
     } catch (error) {
       console.error('Score submission error:', error);
       alert(`Failed to submit score: ${error.message}`);
@@ -326,49 +320,75 @@ useEffect(() => {
     setIsLeaderboardLoading(true);
     
     try {
-      const baseUrl = `${config.apiBaseUrl}/api/scores/leaderboard`;
+      const baseUrl = `https://ayagame.onrender.com/api/scores/leaderboard`;
       
-      const [mainFree, secondaryFree, mainPaid, secondaryPaid] = await Promise.all([
+      const [mainFree, mainPaid] = await Promise.all([
         fetch(`${baseUrl}/main/free`),
-        fetch(`${baseUrl}/secondary/free`),
-        fetch(`${baseUrl}/main/paid`),
-        fetch(`${baseUrl}/secondary/paid`)
-      ].map(promise => promise.then(res => res.json())));
+        fetch(`${baseUrl}/main/paid`)
+      ].map(promise => 
+        promise
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            return res.json();
+          })
+          .catch(error => {
+            console.error('Leaderboard fetch error:', error);
+            return [];
+          })
+      ));
 
       setLeaderboardData({
         mainFree,
-        secondaryFree,
-        mainPaid,
-        secondaryPaid
+        mainPaid
       });
     } catch (error) {
       console.error('Error fetching leaderboards:', error);
+      setLeaderboardData({
+        mainFree: [],
+        mainPaid: []
+      });
     } finally {
       setIsLeaderboardLoading(false);
     }
   };
 
-  const renderLeaderboard = (data, title) => (
-    <div className="leaderboard-section">
-      <h3>{title}</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Wallet</th>
-            <th>Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(data || []).map((entry, index) => (
-            <tr key={index}>
-              <td>{`${entry.playerWallet.slice(0, 6)}...${entry.playerWallet.slice(-4)}`}</td>
-              <td>{entry.score}</td>
+  // Leaderboard component
+  const LeaderboardComponent = ({ data, title }) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="leaderboard-section">
+          <h3>{title}</h3>
+          <p>No scores yet</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="leaderboard-section">
+        <h3>{title}</h3>
+        <table className="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Wallet</th>
+              <th>Score</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+          </thead>
+          <tbody>
+            {data.map((entry, index) => (
+              <tr key={index} className={index < 3 ? `rank-${index + 1}` : ''}>
+                <td className="rank-cell">{index + 1}</td>
+                <td className="wallet-cell" title={entry.playerWallet}>
+                  {`${entry.playerWallet.slice(0, 6)}...${entry.playerWallet.slice(-4)}`}
+                </td>
+                <td className="score-cell">{entry.score.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   // Game restart function
   const restartGame = () => {
@@ -494,7 +514,7 @@ window.gameManager.onGameOver = async (finalScore) => {
       txHash: paymentStatus.transactionId
     };
 
-    const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
+    const endpoint = `https://ayagame.onrender.com/api/scores/submit/${gameMode}`;
     console.log('Submitting score with payload:', requestBody); // Add debug logging
 
     const response = await fetch(endpoint, {
@@ -632,6 +652,15 @@ window.gameManager.onGameOver = async (finalScore) => {
     }
   };
 
+  // Add useEffect for periodic leaderboard updates
+  useEffect(() => {
+    fetchLeaderboards(); // Initial fetch
+    
+    const intervalId = setInterval(fetchLeaderboards, 30000); // Update every 30 seconds
+    
+    return () => clearInterval(intervalId); // Cleanup on unmount
+  }, []);
+
   // Render method
   return (
     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
@@ -741,6 +770,25 @@ window.gameManager.onGameOver = async (finalScore) => {
           <p>Game Mode: {gameMode}</p>
           <p>Game Started: {String(gameState.gameStarted)}</p>
           <p>Score: {gameState.score}</p>
+        </div>
+      )}
+
+      {!gameState.gameStarted && (
+        <div className="leaderboards-container">
+          {isLeaderboardLoading ? (
+            <div className="leaderboard-loading">Loading leaderboards...</div>
+          ) : (
+            <>
+              <LeaderboardComponent 
+                data={leaderboardData.mainFree} 
+                title="Free Mode Leaderboard" 
+              />
+              <LeaderboardComponent 
+                data={leaderboardData.mainPaid} 
+                title="Paid Mode Leaderboard" 
+              />
+            </>
+          )}
         </div>
       )}
     </div>
