@@ -267,8 +267,7 @@ useEffect(() => {
       let requestBody = {
         playerWallet: wallet.account.address,
         score: gameState.score,
-        gameType: 'main',
-        timestamp: Date.now()
+        gameType: 'main'
       };
 
       if (gameMode === 'paid') {
@@ -279,7 +278,6 @@ useEffect(() => {
         requestBody = {
           ...requestBody,
           sessionToken: paymentStatus.transactionId,
-          txHash: paymentStatus.transactionId,
           gameMode: 'paid'
         };
       }
@@ -288,11 +286,9 @@ useEffect(() => {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
         mode: 'cors',
-        credentials: 'include',
         body: JSON.stringify(requestBody)
       });
 
@@ -304,11 +300,7 @@ useEffect(() => {
       const result = await response.json();
       console.log('Score submission successful:', result);
 
-      // Wait for a moment and then fetch leaderboards to ensure the score is included
-      setTimeout(async () => {
-        await fetchLeaderboards();
-      }, 1000);
-
+      // Update game state and leaderboards
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
         setPaidGameAttempts(newAttempts);
@@ -317,6 +309,8 @@ useEffect(() => {
         }
       }
 
+      await fetchLeaderboards();
+      
     } catch (error) {
       console.error('Score submission error:', error);
       alert(`Failed to submit score: ${error.message}`);
@@ -507,57 +501,42 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
-    // Build the request body
-    const requestBody = {
+    let requestBody = {
       playerWallet: wallet.account.address,
       score: finalScore,
-      gameType: 'main',
-      verified: true,  // Explicitly set verified to true
-      gameMode: gameMode  // Add gameMode to request
+      gameType: 'main'
     };
 
-    // For paid mode, add verification data
     if (gameMode === 'paid') {
       if (!paymentStatus.verified || !paymentStatus.transactionId) {
         console.error('Missing payment verification for paid mode');
         return;
       }
-      requestBody.sessionToken = paymentStatus.transactionId;
-      requestBody.txHash = paymentStatus.transactionId;
-      requestBody.paymentVerified = true;  // Add payment verification flag
+      requestBody = {
+        ...requestBody,
+        sessionToken: paymentStatus.transactionId,
+        gameMode: 'paid'
+      };
     }
-
-    console.log('Submitting score with payload:', requestBody);
 
     const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Score-Verification': 'true'  // Add verification header
+        'Content-Type': 'application/json'
       },
-      credentials: 'include',
       mode: 'cors',
       body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Score submission failed:', errorData);
       throw new Error(errorData.error || 'Score submission failed');
     }
 
     const result = await response.json();
-    console.log('Score submission response:', result);
+    console.log('Score submission successful:', result);
 
-    // Verify the submission was successful
-    if (!result.score || !result.score.verified) {
-      console.error('Score was not properly verified:', result);
-      throw new Error('Score verification failed');
-    }
-
-    console.log('Score submission successful and verified');
     await fetchLeaderboards();
     
     if (gameMode === 'paid') {
