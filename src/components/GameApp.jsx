@@ -8,11 +8,10 @@ import {
   SuiChainId,
   ErrorCode,
   formatSUI,
-  useSuiClient,
-  useSignAndExecuteTransaction
+  useSuiClient
 } from '@suiet/wallet-kit';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-import { TransactionBlock, Transaction } from '@mysten/sui/transactions';
+import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { Transaction } from '@mysten/sui/transactions';
 import '@suiet/wallet-kit/style.css';
 import './App.css';
 import config from '../config/config';
