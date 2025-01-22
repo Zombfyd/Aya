@@ -690,35 +690,49 @@ window.gameManager.onGameOver = async (finalScore) => {
         events: response.events
       });
       
-      if (response.effects?.status?.status === 'success') {
-        // Verify the transaction after success
-        console.log('Verifying transaction...');
-        const txDetails = await wallet.getTransactionBlock({
-          digest: response.digest,
-          options: { showEvents: true, showEffects: true }
-        });
+      if (response.digest) {
+        // Wait briefly for transaction to be confirmed
+        console.log('Transaction submitted, waiting for confirmation...');
         
-        console.log('Transaction Details:', txDetails);
+        try {
+          // Wait for 2 seconds to allow transaction to be processed
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Verify the transaction
+          const txDetails = await wallet.getTransactionBlock({
+            digest: response.digest,
+            options: { showEvents: true, showEffects: true }
+          });
+          
+          console.log('Transaction Details:', txDetails);
 
-        setGameState(prev => ({
-          ...prev,
-          hasValidPayment: true
-        }));
-        setPaymentStatus(prev => ({
-          ...prev,
-          verified: true,
-          transactionId: response.digest
-        }));
-        setDigest(response.digest);
-        console.log('Payment successful, starting game in 3 seconds...');
-        
-        // Add a 3-second delay before starting the game
-        setTimeout(() => {
-          console.log('Starting game now...');
-          startGame();
-        }, 3000);
+          // Check if transaction was successful
+          if (txDetails.effects?.status?.status !== 'failure') {
+            setGameState(prev => ({
+              ...prev,
+              hasValidPayment: true
+            }));
+            setPaymentStatus(prev => ({
+              ...prev,
+              verified: true,
+              transactionId: response.digest
+            }));
+            setDigest(response.digest);
+            console.log('Payment successful, starting game in 3 seconds...');
+            
+            setTimeout(() => {
+              console.log('Starting game now...');
+              startGame();
+            }, 3000);
+          } else {
+            throw new Error('Transaction failed: ' + JSON.stringify(txDetails.effects?.status));
+          }
+        } catch (verifyError) {
+          console.error('Transaction verification failed:', verifyError);
+          throw new Error('Failed to verify transaction: ' + verifyError.message);
+        }
       } else {
-        throw new Error('Transaction failed: ' + JSON.stringify(response.effects?.status));
+        throw new Error('No transaction digest received');
       }
 
     } catch (error) {
