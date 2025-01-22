@@ -661,13 +661,8 @@ window.gameManager.onGameOver = async (finalScore) => {
           transactionId: response.digest
         }));
         setDigest(response.digest);
-        console.log('Payment successful, starting game in 3 seconds...');
-        
-        // Add a 3-second delay before starting the game
-        setTimeout(() => {
-          console.log('Starting game now...');
-          startGame();
-        }, 3000);
+        console.log('Payment successful, ready to start game');
+        startGame();
       }
 
     } catch (error) {
