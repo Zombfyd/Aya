@@ -635,6 +635,9 @@ window.gameManager.onGameOver = async (finalScore) => {
         setCountdown(3);
   
   // Create a Promise that resolves after the countdown
+  setCountdown(3);
+  
+  // Create a Promise that resolves after the countdown
   await new Promise((resolve) => {
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
@@ -646,8 +649,7 @@ window.gameManager.onGameOver = async (finalScore) => {
         return prev - 1;
       });
     }, 1000);
-
-      }
+  }
 
     } catch (error) {
       console.error('Payment error:', error);
