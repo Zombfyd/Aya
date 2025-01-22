@@ -603,18 +603,20 @@ window.gameManager.onGameOver = async (finalScore) => {
     try {
       console.log('Starting test transfer...');
       
-      const tx = {
-        kind: 'transferSui',
-        data: {
-          recipient: '0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9',  // Replace with a test wallet address
-          amount: '1000000' // 0.001 SUI
-        }
-      };
-
-      console.log('Transfer payload:', tx);
+      // Create new transaction
+      const transaction = new Transaction();
       
+      // Add transfer operation
+      transaction.transferSui({
+        recipient: '0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9', // Test address
+        amount: 1000000, // 0.001 SUI
+      });
+
+      console.log('Transaction created:', transaction);
+
       const response = await wallet.signAndExecuteTransaction({
-        transaction: tx
+        transaction,
+        chain: 'sui:testnet'
       });
 
       console.log('Transfer response:', response);
