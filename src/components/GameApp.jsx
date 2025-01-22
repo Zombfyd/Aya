@@ -541,6 +541,23 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
+    if (gameMode === 'paid') {
+      // Debug logging
+      console.log('Payment Status:', {
+        verified: paymentStatus.verified,
+        transactionId: paymentStatus.transactionId,
+        currentAttempt: paidGameAttempts + 1
+      });
+
+      if (!paymentStatus.verified || !paymentStatus.transactionId) {
+        console.error('Missing payment verification:', {
+          verified: paymentStatus.verified,
+          transactionId: paymentStatus.transactionId
+        });
+        return;
+      }
+    }
+
     let requestBody = {
       playerWallet: wallet.account.address,
       score: finalScore,
@@ -548,28 +565,35 @@ window.gameManager.onGameOver = async (finalScore) => {
     };
 
     if (gameMode === 'paid') {
-      if (!paymentStatus.verified || !paymentStatus.transactionId) {
-        console.error('Missing payment verification for paid mode');
-        return;
-      }
       requestBody = {
         ...requestBody,
-        sessionToken: paymentStatus.transactionId
+        sessionToken: paymentStatus.transactionId,
+        attempt: paidGameAttempts + 1,
+        mode: 'paid'
       };
     }
+
+    console.log('Submitting score with data:', requestBody);
 
     const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: JSON.stringify(requestBody),
+      mode: 'cors',
+      credentials: 'include',
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Score submission failed:', errorData);
+      console.error('Score submission response:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
       throw new Error(errorData.error || 'Score submission failed');
     }
 
@@ -584,7 +608,12 @@ window.gameManager.onGameOver = async (finalScore) => {
     }
 
   } catch (error) {
-    console.error('Error in game over handler:', error);
+    console.error('Error in game over handler:', {
+      error,
+      paymentStatus,
+      gameMode,
+      attempt: paidGameAttempts + 1
+    });
   }
 };
 
@@ -762,8 +791,11 @@ window.gameManager.onGameOver = async (finalScore) => {
         <div className="score-popup">
           <h2>Game Over!</h2>
           <p>Your Score: <span>{gameState.score}</span></p>
+          {gameMode === 'paid' && (
+            <p>Round {paidGameAttempts + 1} of {MAX_PAID_ATTEMPTS}</p>
+          )}
           <div className="score-popup-buttons">
-            {gameMode === 'free' && (  // Only show submit button in free mode
+            {gameMode === 'free' && (
               <button onClick={handleScoreSubmit}>Submit Score</button>
             )}
             {(paidGameAttempts < MAX_PAID_ATTEMPTS && gameState.hasValidPayment) && (
