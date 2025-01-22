@@ -658,18 +658,39 @@ window.gameManager.onGameOver = async (finalScore) => {
         console.log('Transaction submitted with digest:', response.digest);
         setDigest(response.digest);
         
-        // Store the transaction ID for score verification
+        // Initialize paid session with the backend
+        const sessionResponse = await fetch(`${config.apiBaseUrl}/api/scores/initiate-paid-session`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include',
+          mode: 'cors',
+          body: JSON.stringify({
+            playerWallet: wallet.account.address,
+            txHash: response.digest,
+            gameType: 'main'
+          })
+        });
+
+        if (!sessionResponse.ok) {
+          const errorData = await sessionResponse.json();
+          throw new Error(errorData.error || 'Failed to initialize game session');
+        }
+
+        // Store the payment and session information
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
           transactionId: response.digest,
-          timestamp: Date.now()  // Add timestamp for verification
+          timestamp: Date.now()
         }));
 
         setGameState(prev => ({
           ...prev,
           hasValidPayment: true,
-          currentSessionId: response.digest  // Store the session ID
+          currentSessionId: response.digest
         }));
 
         console.log('Payment successful, starting game in 3 seconds...', {
