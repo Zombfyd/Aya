@@ -524,7 +524,7 @@ useEffect(() => {
   }
 };
 
-// Modify window.gameManager.onGameOver to handle signatures differently for free/paid modes
+// Modify window.gameManager.onGameOver to properly handle paid game submissions
 window.gameManager.onGameOver = async (finalScore) => {
   console.log('Game Over triggered with score:', finalScore);
   
@@ -541,29 +541,32 @@ window.gameManager.onGameOver = async (finalScore) => {
       return;
     }
 
+    // Add sessionToken validation
+    if (gameMode === 'paid' && (!paymentStatus.verified || !paymentStatus.transactionId)) {
+      console.error('Missing payment verification for paid mode');
+      return;
+    }
+
     let requestBody = {
       playerWallet: wallet.account.address,
       score: finalScore,
-      gameType: 'main'
+      gameType: 'main',
+      // Add these fields for paid mode
+      sessionToken: paymentStatus.transactionId,  // This was missing
+      txHash: paymentStatus.transactionId
     };
 
-    if (gameMode === 'paid') {
-      if (!paymentStatus.verified || !paymentStatus.transactionId) {
-        console.error('Missing payment verification for paid mode');
-        return;
-      }
-      requestBody = {
-        ...requestBody,
-        sessionToken: paymentStatus.transactionId
-      };
-    }
-
     const endpoint = `${config.apiBaseUrl}/api/scores/submit/${gameMode}`;
+    console.log('Submitting score with payload:', requestBody); // Add debug logging
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
+      credentials: 'include',
+      mode: 'cors',
       body: JSON.stringify(requestBody),
     });
 
@@ -585,6 +588,7 @@ window.gameManager.onGameOver = async (finalScore) => {
 
   } catch (error) {
     console.error('Error in game over handler:', error);
+    alert(`Failed to submit score: ${error.message}`);
   }
 };
 
