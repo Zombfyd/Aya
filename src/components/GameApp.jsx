@@ -29,12 +29,19 @@ const GameApp = () => {
     try {
       console.log('Starting test transfer...');
       
-      // Simple transfer transaction
+      // Using moveCall format instead
       const tx = {
-        kind: 'transferSui',
+        kind: 'moveCall',
         data: {
-          recipient: '0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9', // Replace with test address
-          amount: 1000000, // 0.001 SUI
+          packageObjectId: '0x2',
+          module: 'pay',
+          function: 'split_and_transfer',
+          typeArguments: [],
+          arguments: [
+            1000000, // amount (0.001 SUI)
+            '0x2d81a1b3f1e5b06e7b07b9b2f1f2b367f477f5f6e6f0e8c7d8c6f4e3d2c1b0a9' // recipient
+          ],
+          gasBudget: 10000000
         }
       };
 
