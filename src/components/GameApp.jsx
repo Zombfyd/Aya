@@ -601,75 +601,54 @@ window.gameManager.onGameOver = async (finalScore) => {
     }
 
     try {
-      // Check wallet balance first
-      const balanceInMist = BigInt(balance ?? 0);
-      const totalAmount = 200000000; // 0.2 SUI total
-      const requiredAmount = BigInt(totalAmount + 50000000); // 0.2 SUI + 0.05 SUI for gas
-      
-      console.log('Balance check:', {
-        balanceSUI: Number(balanceInMist) / 1_000_000_000,
-        requiredSUI: Number(requiredAmount) / 1_000_000_000,
-        hasEnough: balanceInMist >= requiredAmount
-      });
-
-      if (balanceInMist < requiredAmount) {
-        const requiredSUI = Number(requiredAmount) / 1_000_000_000;
-        const balanceSUI = Number(balanceInMist) / 1_000_000_000;
-        alert(`Insufficient balance. You need at least ${requiredSUI} SUI but have ${balanceSUI} SUI`);
-        return;
-      }
-
       console.log('Starting game payment...');
       const recipients = config.getCurrentRecipients();
+      const totalAmount = config.paymentConfig.totalAmount;
       
-      // Calculate amounts based on shares (total 0.2 SUI)
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 100));    // 60% = 0.12 SUI
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 100)); // 30% = 0.06 SUI
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 100));   // 10% = 0.02 SUI
+      // Calculate amounts based on shares
+      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
       
-      console.log('Payment Amounts:', {
-        primarySUI: primaryAmount / 1_000_000_000,
-        secondarySUI: secondaryAmount / 1_000_000_000,
-        tertiarySUI: tertiaryAmount / 1_000_000_000,
-        totalSUI: totalAmount / 1_000_000_000
+      console.log('Payment distribution:', {
+        total: totalAmount,
+        primary: { address: recipients.primary, amount: primaryAmount },
+        secondary: { address: recipients.secondary, amount: secondaryAmount },
+        tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
       });
 
       const txb = new TransactionBlock();
 
-      // First, split the gas coin
-      txb.add(
-        txb.splitCoins(txb.gas, [primaryAmount, secondaryAmount, tertiaryAmount])
+      // Split the coins for each recipient
+      const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
+        txb.gas,
+        [primaryAmount, secondaryAmount, tertiaryAmount]
       );
 
       // Transfer to primary recipient
       txb.transferObjects(
-        [txb.object('0x6')],
+        [primaryCoin],
         txb.pure(recipients.primary)
       );
 
       // Transfer to secondary recipient
       txb.transferObjects(
-        [txb.object('0x6')],
+        [secondaryCoin],
         txb.pure(recipients.secondary)
       );
 
       // Transfer to tertiary recipient
       txb.transferObjects(
-        [txb.object('0x6')],
+        [tertiaryCoin],
         txb.pure(recipients.tertiary)
       );
 
-      console.log('Executing transaction...');
       const response = await wallet.signAndExecuteTransaction({
         transaction: txb,
         options: { showEffects: true }
       });
 
-      console.log('Transaction Response:', {
-        digest: response.digest,
-        status: response.effects?.status?.status,
-        effects: response.effects
-      });
+      console.log('Payment response:', response);
       
       if (response.effects?.status?.status === 'success') {
         setGameState(prev => ({
@@ -684,12 +663,11 @@ window.gameManager.onGameOver = async (finalScore) => {
         setDigest(response.digest);
         console.log('Payment successful, starting game in 3 seconds...');
         
+        // Add a 3-second delay before starting the game
         setTimeout(() => {
           console.log('Starting game now...');
           startGame();
         }, 3000);
-      } else {
-        throw new Error('Transaction failed: ' + JSON.stringify(response.effects?.status));
       }
 
     } catch (error) {
