@@ -11,7 +11,7 @@
     "render-build": "npm install && tsc && vite build"
   },
   "dependencies": {
-    "@mysten/sui.js": "1.12.0",
+    "@mysten/sui": "1.12.0",
     "@suiet/wallet-kit": "0.3.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
