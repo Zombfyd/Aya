@@ -10,10 +10,10 @@ import {
   formatSUI,
   useSuiClient,
   } from '@suiet/wallet-kit';
-import '@suiet/wallet-kit.js/style.css';
+import '@suiet/wallet-kit/style.css';
 import './App.css';
 import config from '../config/config';
-import { TransactionBlock } from '@mysten/sui/transactions';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
 
 const GameApp = () => {
   // Wallet and client hooks
