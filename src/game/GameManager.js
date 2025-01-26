@@ -493,6 +493,15 @@ class GameManager {
       }
     }
   }
+
+  startMouseControl() {
+    this.mouseControlEnabled = true;
+    // Start spawning tears
+    this.spawnTeardrop();
+    this.spawnGoldtear();
+    this.spawnRedtear();
+    this.spawnBlacktear();
+  }
 }
 
 /**
