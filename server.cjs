@@ -4,10 +4,11 @@ const path = require('path');
 const cors = require('cors');
 
 const corsHeaders = {
- 'Access-Control-Allow-Origin': 'https://www.ayaonsui.xyz',
- 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
- 'Access-Control-Allow-Headers': 'Content-Type',
- 'Access-Control-Allow-Credentials': 'true'
+  'Access-Control-Allow-Origin': 'https://www.ayaonsui.xyz',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Credentials': 'true',
+  'Cross-Origin-Resource-Policy': 'cross-origin'
 };
 
 const server = http.createServer((request, response) => {
