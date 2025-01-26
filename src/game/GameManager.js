@@ -138,14 +138,36 @@ class GameManager {
     this.initGame();
     this.gameMode = mode;
     
-    // Start with bucket in center and waiting for click
+    // Start with bucket in center
     this.bucket.x = (this.canvas.width / 2) - (this.bucket.width / 2);
-    this.bucketClickable = true;
     this.mouseControlEnabled = false;
+    this.gameActive = true;
 
-    // Don't start spawning tears until bucket is clicked
-    this.waitForBucketClick = true;  // New flag
-    this.gameActive = true;  // Set game as active for rendering
+    // Add click listener directly to canvas
+    this.canvas.addEventListener('click', (e) => {
+      if (!this.mouseControlEnabled && this.gameActive) {
+        const rect = this.canvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+
+        // Check if click is on bucket with larger hit area
+        const hitArea = 20;
+        if (clickX >= this.bucket.x - hitArea && 
+            clickX <= this.bucket.x + this.bucket.width + hitArea &&
+            clickY >= this.bucket.y - hitArea && 
+            clickY <= this.bucket.y + this.bucket.height + hitArea) {
+          
+          console.log('Bucket clicked - starting game');
+          this.mouseControlEnabled = true;
+          
+          // Start spawning tears
+          this.spawnTeardrop();
+          this.spawnGoldtear();
+          this.spawnRedtear();
+          this.spawnBlacktear();
+        }
+      }
+    });
 
     if (!this.gameLoopId) {
       this.gameLoop();
@@ -225,9 +247,8 @@ class GameManager {
         console.log('Bucket clicked - starting game');
         this.mouseControlEnabled = true;
         this.bucketClickable = false;
-        this.waitForBucketClick = false;
-
-        // Start spawning tears now that bucket is clicked
+        
+        // Start spawning tears
         this.spawnTeardrop();
         this.spawnGoldtear();
         this.spawnRedtear();
