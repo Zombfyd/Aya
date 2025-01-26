@@ -191,16 +191,17 @@ class GameManager {
 
   // Event Handlers
   handlePointerMove(e) {
-    if (!this.gameActive && !this.bucket) return;
+    if (!this.gameActive || !this.bucket) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
     
     // Store last known mouse position relative to window
-    this.lastKnownMouseX = e.clientX;
+    this.lastKnownMouseX = pointerX;  // Store relative to canvas instead of window
     
+    // Center the bucket under the cursor
     this.bucket.x = Math.min(
-      Math.max(pointerX - this.bucket.width / 2, 0),
+      Math.max(pointerX - (this.bucket.width / 2), 0),
       this.canvas.width - this.bucket.width
     );
   }
