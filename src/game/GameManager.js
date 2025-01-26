@@ -23,7 +23,15 @@ class GameManager {
     this.speedMultiplier = 1;
     this.lastCheckpoint = 0;
     
-    // Spawn timers for different tear types
+    // Control flags
+    this.mouseControlEnabled = false;
+    
+    // Bind methods to maintain correct 'this' context
+    this.gameLoop = this.gameLoop.bind(this);
+    this.handlePointerMove = this.handlePointerMove.bind(this);
+    this.handleResize = this.handleResize.bind(this);
+    
+    // Initialize spawnTimers
     this.spawnTimers = {
       teardrop: null,
       goldtear: null,
@@ -31,8 +39,7 @@ class GameManager {
       blacktear: null
     };
 
-    // Load and manage game images - using direct URLs for now
-    // In production, these should be moved to your CDN or static hosting
+    // Load and manage game images
     this.images = {
       bucket: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/674fb166a33aa5af2e8be714_1faa3.svg"),
       teardrop: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png"),
@@ -42,16 +49,8 @@ class GameManager {
       background: this.loadImage("https://i.imgflip.com/4zei4c.jpg")
     };
 
-    // Bind methods to maintain correct 'this' context
-    this.gameLoop = this.gameLoop.bind(this);
-    this.handlePointerMove = this.handlePointerMove.bind(this);
-    this.handleResize = this.handleResize.bind(this);
-
-    this.bucketClickable = true;  // New flag to track if bucket can be clicked
-    this.mouseControlEnabled = false;  // New flag to track if mouse control is enabled
-    
-    // Bind the new click handler
-    this.handleBucketClick = this.handleBucketClick.bind(this);
+    // Initialize click handler as null
+    this.handleBucketClick = null;
   }
 
   // Image Loading Method
@@ -222,7 +221,6 @@ class GameManager {
     this.gameActive = false;
 
     // Reset click controls
-    this.bucketClickable = true;
     this.mouseControlEnabled = false;
 
     // Clear canvas if context exists
