@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "node server.js",
     "dev": "vite --port 3000",
     "build": "tsc && vite build",
     "preview": "vite preview",
@@ -11,6 +12,8 @@
     "render-build": "npm install && tsc && vite build"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
     "@mysten/sui.js": "0.45.1",
     "@suiet/wallet-kit": "0.3.2",
     "react": "^18.2.0",
