@@ -305,12 +305,13 @@ useEffect(() => {
     }
 
     try {
+      // Create base request body
       let requestBody = {
         playerWallet: wallet.account.address,
-        score: gameState.score,
-        gameType: 'main'
+        score: gameState.score
       };
 
+      // Add paid game specific data if in paid mode
       if (gameMode === 'paid') {
         if (!paymentStatus.verified || !paymentStatus.transactionId) {
           alert('Payment verification required for paid mode');
@@ -323,23 +324,29 @@ useEffect(() => {
         };
       }
 
-      const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        mode: 'cors',
-        body: JSON.stringify(requestBody)
+      // Submit to both main and secondary leaderboards
+      const submissions = ['main', 'secondary'].map(async (type) => {
+        const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}/${type}`;
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors',
+          body: JSON.stringify({ ...requestBody, gameType: type })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`${type} submission failed: ${errorData.error}`);
+        }
+
+        return response.json();
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Score submission failed');
-      }
-
-      const result = await response.json();
-      console.log('Score submission successful:', result);
+      // Wait for both submissions to complete
+      await Promise.all(submissions);
+      console.log('Score submissions successful');
 
       // Update game state and leaderboards
       if (gameMode === 'paid') {
@@ -544,8 +551,7 @@ window.gameManager.onGameOver = async (finalScore) => {
 
     let requestBody = {
       playerWallet: wallet.account.address,
-      score: finalScore,
-      gameType: 'main'
+      score: finalScore
     };
 
     if (gameMode === 'paid') {
@@ -560,23 +566,29 @@ window.gameManager.onGameOver = async (finalScore) => {
       };
     }
 
-    const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      mode: 'cors',
-      body: JSON.stringify(requestBody)
+    // Submit to both main and secondary leaderboards
+    const submissions = ['main', 'secondary'].map(async (type) => {
+      const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}/${type}`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors',
+        body: JSON.stringify({ ...requestBody, gameType: type })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`${type} submission failed: ${errorData.error}`);
+      }
+
+      return response.json();
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Score submission failed');
-    }
-
-    const result = await response.json();
-    console.log('Score submission successful:', result);
+    // Wait for both submissions to complete
+    await Promise.all(submissions);
+    console.log('Score submissions successful');
 
     await fetchLeaderboards();
     
