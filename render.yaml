@@ -9,4 +9,10 @@ services:
         value: 18.0.0
       - key: PORT
         value: 10000
+      - key: CORS_ORIGIN
+        value: https://www.ayaonsui.xyz
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: https://www.ayaonsui.xyz
     autoDeploy: true
