@@ -32,6 +32,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// Specific handler for the main module file
+app.get('/index.*.mjs', (req, res, next) => {
+  res.set({
+    'Content-Type': 'application/javascript; charset=utf-8',
+    'Access-Control-Allow-Origin': 'https://www.ayaonsui.xyz',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': '*',
+    'Access-Control-Allow-Credentials': 'true',
+    'Cross-Origin-Resource-Policy': 'cross-origin'
+  });
+  next();
+});
+
 // Serve static files with correct MIME types
 app.use(express.static(path.join(__dirname, 'dist'), {
   setHeaders: (res, filePath) => {
@@ -57,10 +70,8 @@ app.use(express.static(path.join(__dirname, 'dist'), {
   }
 }));
 
-// All other routes
+// Handle all other routes
 app.get('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', 'https://www.ayaonsui.xyz');
-  res.header('Content-Type', 'text/html; charset=utf-8');
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
