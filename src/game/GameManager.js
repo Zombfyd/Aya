@@ -126,6 +126,17 @@ class GameManager {
     this.initGame();
     this.gameMode = mode;
 
+    // Get current mouse position and move bucket beneath it
+    const rect = this.canvas.getBoundingClientRect();
+    const mouseX = this.lastKnownMouseX || rect.left + (rect.width / 2); // fallback to center if no mouse position
+    const relativeX = mouseX - rect.left;
+    
+    // Position bucket under cursor, keeping it within canvas bounds
+    this.bucket.x = Math.min(
+      Math.max(relativeX - (this.bucket.width / 2), 0),
+      this.canvas.width - this.bucket.width
+    );
+
     // Start spawning tears with a delay
     setTimeout(() => {
       if (this.gameActive) {
@@ -179,10 +190,13 @@ class GameManager {
 
   // Event Handlers
   handlePointerMove(e) {
-    if (!this.gameActive || !this.bucket) return;
+    if (!this.gameActive && !this.bucket) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
+    
+    // Store last known mouse position
+    this.lastKnownMouseX = e.clientX;
     
     this.bucket.x = Math.min(
       Math.max(pointerX - this.bucket.width / 2, 0),
