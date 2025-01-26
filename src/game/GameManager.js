@@ -143,15 +143,9 @@ class GameManager {
     this.bucketClickable = true;
     this.mouseControlEnabled = false;
 
-    // Start spawning tears with a delay
-    setTimeout(() => {
-      if (this.gameActive) {
-        this.spawnTeardrop();
-        this.spawnGoldtear();
-        this.spawnRedtear();
-        this.spawnBlacktear();
-      }
-    }, 1000);
+    // Don't start spawning tears until bucket is clicked
+    this.waitForBucketClick = true;  // New flag
+    this.gameActive = true;  // Set game as active for rendering
 
     if (!this.gameLoopId) {
       this.gameLoop();
@@ -206,42 +200,45 @@ class GameManager {
 
   // Event Handlers
   handleCanvasClick(e) {
-    console.log('Canvas clicked', {
-      gameActive: this.gameActive,
-      bucketClickable: this.bucketClickable
-    });
-    
-    if (!this.gameActive || !this.bucketClickable) return;
+    if (!this.gameActive || !this.bucketClickable || !this.bucket) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
 
-    console.log('Click position:', {
-      clickX,
-      clickY,
-      bucketX: this.bucket.x,
-      bucketY: this.bucket.y,
-      bucketWidth: this.bucket.width,
-      bucketHeight: this.bucket.height
+    // Debug click position
+    console.log('Click detected:', {
+        clickX, clickY,
+        bucketX: this.bucket.x,
+        bucketY: this.bucket.y,
+        bucketWidth: this.bucket.width,
+        bucketHeight: this.bucket.height
     });
 
-    // Check if click is on bucket
-    if (clickX >= this.bucket.x && 
-        clickX <= this.bucket.x + this.bucket.width &&
-        clickY >= this.bucket.y && 
-        clickY <= this.bucket.y + this.bucket.height) {
-      
-      console.log('Bucket clicked - enabling mouse control');
-      this.mouseControlEnabled = true;
-      this.bucketClickable = false;
-      
-      // Move bucket to current mouse position
-      const pointerX = e.clientX - rect.left;
-      this.bucket.x = Math.min(
-        Math.max(pointerX - (this.bucket.width / 2), 0),
-        this.canvas.width - this.bucket.width
-      );
+    // Check if click is on bucket with a slightly larger hit area
+    const hitArea = 10; // pixels of extra hit area
+    if (clickX >= this.bucket.x - hitArea && 
+        clickX <= this.bucket.x + this.bucket.width + hitArea &&
+        clickY >= this.bucket.y - hitArea && 
+        clickY <= this.bucket.y + this.bucket.height + hitArea) {
+        
+        console.log('Bucket clicked - starting game');
+        this.mouseControlEnabled = true;
+        this.bucketClickable = false;
+        this.waitForBucketClick = false;
+
+        // Start spawning tears now that bucket is clicked
+        this.spawnTeardrop();
+        this.spawnGoldtear();
+        this.spawnRedtear();
+        this.spawnBlacktear();
+        
+        // Move bucket to current mouse position
+        const pointerX = e.clientX - rect.left;
+        this.bucket.x = Math.min(
+            Math.max(pointerX - (this.bucket.width / 2), 0),
+            this.canvas.width - this.bucket.width
+        );
     }
   }
 
@@ -301,26 +298,29 @@ class GameManager {
 
   // Game Update Methods
   updateGame() {
-    this.updateEntities(this.teardrops, false, false, false);
-    this.updateEntities(this.goldtears, true, false, false);
-    this.updateEntities(this.redtears, false, true, false);
-    this.updateEntities(this.blacktears, false, false, true);
+    // Only update game entities if bucket has been clicked
+    if (!this.waitForBucketClick) {
+        this.updateEntities(this.teardrops, false, false, false);
+        this.updateEntities(this.goldtears, true, false, false);
+        this.updateEntities(this.redtears, false, true, false);
+        this.updateEntities(this.blacktears, false, false, true);
 
-    this.splashes = this.splashes.filter(splash => {
-      splash.update();
-      return splash.opacity > 0;
-    });
+        this.splashes = this.splashes.filter(splash => {
+            splash.update();
+            return splash.opacity > 0;
+        });
 
-    if (this.score >= this.lastCheckpoint + 100) {
-      this.speedMultiplier *= 1.1;
-      this.lastCheckpoint = this.score;
-    }
+        if (this.score >= this.lastCheckpoint + 100) {
+            this.speedMultiplier *= 1.1;
+            this.lastCheckpoint = this.score;
+        }
 
-    if (this.lives <= 0 && this.gameActive) {
-      this.gameActive = false;
-      if (this.onGameOver) {
-        this.onGameOver(this.score);
-      }
+        if (this.lives <= 0 && this.gameActive) {
+            this.gameActive = false;
+            if (this.onGameOver) {
+                this.onGameOver(this.score);
+            }
+        }
     }
   }
 
@@ -374,48 +374,59 @@ class GameManager {
 
     // Draw background if available
     if (this.images.background) {
-      this.ctx.drawImage(
-        this.images.background,
-        0,
-        0,
-        this.canvas.width,
-        this.canvas.height
-      );
+        this.ctx.drawImage(
+            this.images.background,
+            0,
+            0,
+            this.canvas.width,
+            this.canvas.height
+        );
     }
 
     // Draw bucket
     if (this.bucket && this.images.bucket) {
-      this.ctx.drawImage(
-        this.images.bucket,
-        this.bucket.x,
-        this.bucket.y,
-        this.bucket.width,
-        this.bucket.height
-      );
+        this.ctx.drawImage(
+            this.images.bucket,
+            this.bucket.x,
+            this.bucket.y,
+            this.bucket.width,
+            this.bucket.height
+        );
+
+        // Add visual indicator that bucket needs to be clicked
+        if (this.bucketClickable) {
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 500) * 0.2; // Pulsing effect
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '20px Inconsolata';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Click bucket to start', 
+                this.bucket.x + this.bucket.width / 2, 
+                this.bucket.y - 20);
+            
+            // Draw hit area indicator (for debugging)
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.strokeRect(
+                this.bucket.x - 10,
+                this.bucket.y - 10,
+                this.bucket.width + 20,
+                this.bucket.height + 20
+            );
+            this.ctx.restore();
+        }
     }
 
-    // Draw all entities
-    this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
-    this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
-    this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
-    this.blacktears.forEach(tear => this.drawTear(tear, this.images.blacktear));
+    // Only draw tears if game has started (bucket has been clicked)
+    if (!this.waitForBucketClick) {
+        this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
+        this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
+        this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
+        this.blacktears.forEach(tear => this.drawTear(tear, this.images.blacktear));
 
-    // Draw splashes
-    this.splashes.forEach(splash => {
-      splash.draw(this.ctx);
-    });
-
-    // Add visual indicator that bucket needs to be clicked
-    if (this.bucketClickable && this.bucket) {
-      this.ctx.save();
-      this.ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 500) * 0.2; // Pulsing effect
-      this.ctx.fillStyle = 'white';
-      this.ctx.font = '14px Inconsolata';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText('Click bucket to start', 
-        this.bucket.x + this.bucket.width / 2, 
-        this.bucket.y - 10);
-      this.ctx.restore();
+        // Draw splashes
+        this.splashes.forEach(splash => {
+            splash.draw(this.ctx);
+        });
     }
 
     this.drawUI();

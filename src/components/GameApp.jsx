@@ -503,14 +503,30 @@ useEffect(() => {
     }
 
     try {
+      // Start countdown
+      setCountdown(3);
+      
+      await new Promise((resolve) => {
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              resolve();
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      });
+
+      // Set game state after countdown
       setGameState(prev => ({
         ...prev,
         gameStarted: true,
         score: 0,
         isGameOver: false,
+        waitingForBucketClick: true  // New state to track if we're waiting for bucket click
       }));
-
-      await new Promise(resolve => setTimeout(resolve, 100));
 
       if (window.gameManager) {
         console.log(`Starting game in ${gameMode} mode`);
@@ -849,12 +865,21 @@ useEffect(() => {
         </div>
       )}
 
+      {gameState.gameStarted && gameState.waitingForBucketClick && (
+        <div className="bucket-click-overlay">
+          <div className="bucket-click-instructions">
+            <h3>Click the bucket to begin!</h3>
+            <p>Once clicked, the bucket will follow your mouse</p>
+          </div>
+        </div>
+      )}
+
       {countdown !== null && (
         <div className="countdown-overlay">
           <div className="countdown-popup">
             <h2>Get Ready!</h2>
-            <p>1. Click the bucket to start controlling it</p>
-            <p>2. Move your mouse to catch the tears</p>
+            <p>1. Click the bucket when it appears</p>
+            <p>2. Move your mouse to control the bucket</p>
             <div className="countdown-number">{countdown}</div>
             <div className="countdown-progress">
               <div 
