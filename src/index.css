@@ -157,6 +157,39 @@ header {
   background: rgba(32, 84, 201, 0.1);
 }
 
+.start-button {
+  padding: 0.75rem 1rem;
+  border: 2px solid #2054c9;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-weight: 50;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.start-button:hover {
+  padding: 0.75rem 1rem;
+  border: 2px solid #2054c9;
+  border-radius: 8px;
+  background: transparent;
+  color: #2054c9;
+  font-weight: 50;
+  font-color:fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.start-button:disabled {
+  padding: 0.75rem 1rem;
+  border: 2px solid #555;
+  border-radius: 8px;
+  background: transparent;
+  color: #555;
+  font-weight: 50;
+  font-color:000;
+  cursor: pointer;
+  }
 /* Leaderboard styles merged */
 .leaderboards-container {
   display: flex;
