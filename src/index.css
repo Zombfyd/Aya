@@ -93,7 +93,6 @@ body {
 
 /* UI Elements from index.css */
 .wkit-connected-container {
-  position: absolute;
   top: 20px;
   z-index: 10;
 }
