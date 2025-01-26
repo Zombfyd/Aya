@@ -80,7 +80,6 @@ body {
 
 /* Wallet and UI elements */
 .wkit-connected-container {
-  top: 20px;
   z-index: 10;
 }
 
