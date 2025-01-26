@@ -51,7 +51,7 @@ class GameManager {
     this.mouseControlEnabled = false;  // New flag to track if mouse control is enabled
     
     // Bind the new click handler
-    this.handleCanvasClick = this.handleCanvasClick.bind(this);
+    this.handleBucketClick = this.handleBucketClick.bind(this);
   }
 
   // Image Loading Method
@@ -73,12 +73,12 @@ class GameManager {
     this.resizeCanvas();
 
     // Remove any existing listeners before adding new ones
-    this.canvas.removeEventListener('click', this.handleCanvasClick);
+    this.canvas.removeEventListener('click', this.handleBucketClick);
     window.removeEventListener('pointermove', this.handlePointerMove);
     window.removeEventListener('resize', this.handleResize);
 
     // Add event listeners
-    this.canvas.addEventListener('click', this.handleCanvasClick);
+    this.canvas.addEventListener('click', this.handleBucketClick);
     window.addEventListener('pointermove', this.handlePointerMove);
     window.addEventListener('resize', this.handleResize);
 
@@ -143,15 +143,27 @@ class GameManager {
     this.mouseControlEnabled = false;
     this.gameActive = true;
 
-    // Add click listener directly to canvas
-    this.canvas.addEventListener('click', (e) => {
+    // Remove any existing click listener
+    this.canvas.removeEventListener('click', this.handleBucketClick);
+    
+    // Add click listener with bound context
+    this.handleBucketClick = (e) => {
       if (!this.mouseControlEnabled && this.gameActive) {
         const rect = this.canvas.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
 
+        console.log('Click detected:', {
+          clickX,
+          clickY,
+          bucketX: this.bucket.x,
+          bucketY: this.bucket.y,
+          bucketWidth: this.bucket.width,
+          bucketHeight: this.bucket.height
+        });
+
         // Check if click is on bucket with larger hit area
-        const hitArea = 20;
+        const hitArea = 30; // Even larger hit area
         if (clickX >= this.bucket.x - hitArea && 
             clickX <= this.bucket.x + this.bucket.width + hitArea &&
             clickY >= this.bucket.y - hitArea && 
@@ -167,7 +179,9 @@ class GameManager {
           this.spawnBlacktear();
         }
       }
-    });
+    };
+
+    this.canvas.addEventListener('click', this.handleBucketClick);
 
     if (!this.gameLoopId) {
       this.gameLoop();
@@ -177,17 +191,14 @@ class GameManager {
   }
 
   cleanup() {
-    // Clear any running game loops
     if (this.gameLoopId) {
       cancelAnimationFrame(this.gameLoopId);
       this.gameLoopId = null;
     }
     
-    // Remove event listeners
-    if (this.canvas) {
-      this.canvas.removeEventListener('click', this.handleCanvasClick);
-      window.removeEventListener('pointermove', this.handlePointerMove);
-      window.removeEventListener('resize', this.handleResize);
+    // Remove click listener
+    if (this.canvas && this.handleBucketClick) {
+      this.canvas.removeEventListener('click', this.handleBucketClick);
     }
 
     // Clear spawn timers
@@ -221,48 +232,6 @@ class GameManager {
   }
 
   // Event Handlers
-  handleCanvasClick(e) {
-    if (!this.gameActive || !this.bucketClickable || !this.bucket) return;
-
-    const rect = this.canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    // Debug click position
-    console.log('Click detected:', {
-        clickX, clickY,
-        bucketX: this.bucket.x,
-        bucketY: this.bucket.y,
-        bucketWidth: this.bucket.width,
-        bucketHeight: this.bucket.height
-    });
-
-    // Check if click is on bucket with a slightly larger hit area
-    const hitArea = 10; // pixels of extra hit area
-    if (clickX >= this.bucket.x - hitArea && 
-        clickX <= this.bucket.x + this.bucket.width + hitArea &&
-        clickY >= this.bucket.y - hitArea && 
-        clickY <= this.bucket.y + this.bucket.height + hitArea) {
-        
-        console.log('Bucket clicked - starting game');
-        this.mouseControlEnabled = true;
-        this.bucketClickable = false;
-        
-        // Start spawning tears
-        this.spawnTeardrop();
-        this.spawnGoldtear();
-        this.spawnRedtear();
-        this.spawnBlacktear();
-        
-        // Move bucket to current mouse position
-        const pointerX = e.clientX - rect.left;
-        this.bucket.x = Math.min(
-            Math.max(pointerX - (this.bucket.width / 2), 0),
-            this.canvas.width - this.bucket.width
-        );
-    }
-  }
-
   handlePointerMove(e) {
     if (!this.gameActive || !this.bucket || !this.mouseControlEnabled) return;
 

@@ -226,7 +226,8 @@ useEffect(() => {
   // Modify handleGameStart
   const handleGameStart = async () => {
     if (gameMode === 'free' || !wallet.connected) {
-       setCountdown(3);
+      // Single countdown for free mode
+      setCountdown(3);
       await new Promise((resolve) => {
         const countdownInterval = setInterval(() => {
           setCountdown(prev => {
@@ -240,11 +241,11 @@ useEffect(() => {
         }, 1000);
       });
       
-      // Start the game after countdown is complete
       startGame();
       return;
     }
 
+    // Paid mode flow
     if (!gameState.hasValidPayment) {
       try {
         console.log('Starting payment process...');
@@ -474,46 +475,14 @@ useEffect(() => {
   };
 
   // Start game function
-  const startGame = async () => {
+  const startGame = () => {
     if (!window.gameManager) {
       console.error('Game manager not found');
       alert('Game initialization failed. Please refresh the page and try again.');
       return;
     }
 
-    if (!gameManagerInitialized) {
-      console.log('Attempting to initialize game manager...');
-      try {
-        const success = await window.gameManager.initialize();
-        if (!success) {
-          console.error('Game manager initialization failed');
-          alert('Failed to initialize game. Please refresh the page and try again.');
-          return;
-        }
-        setGameManagerInitialized(true);
-      } catch (error) {
-        console.error('Error initializing game manager:', error);
-        alert('Error initializing game. Please refresh the page and try again.');
-        return;
-      }
-    }
-
     try {
-      // Single countdown
-      setCountdown(3);
-      await new Promise((resolve) => {
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      });
-
       setGameState(prev => ({
         ...prev,
         gameStarted: true,
