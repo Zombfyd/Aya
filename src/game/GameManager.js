@@ -72,7 +72,12 @@ class GameManager {
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();
 
-    // Add click listener
+    // Remove any existing listeners before adding new ones
+    this.canvas.removeEventListener('click', this.handleCanvasClick);
+    window.removeEventListener('pointermove', this.handlePointerMove);
+    window.removeEventListener('resize', this.handleResize);
+
+    // Add event listeners
     this.canvas.addEventListener('click', this.handleCanvasClick);
     window.addEventListener('pointermove', this.handlePointerMove);
     window.addEventListener('resize', this.handleResize);
@@ -162,6 +167,13 @@ class GameManager {
       this.gameLoopId = null;
     }
     
+    // Remove event listeners
+    if (this.canvas) {
+      this.canvas.removeEventListener('click', this.handleCanvasClick);
+      window.removeEventListener('pointermove', this.handlePointerMove);
+      window.removeEventListener('resize', this.handleResize);
+    }
+
     // Clear spawn timers
     Object.values(this.spawnTimers).forEach(timer => {
       if (timer) clearTimeout(timer);
@@ -182,22 +194,37 @@ class GameManager {
     this.splashes = [];
     this.gameActive = false;
 
+    // Reset click controls
+    this.bucketClickable = true;
+    this.mouseControlEnabled = false;
+
     // Clear canvas if context exists
     if (this.ctx && this.canvas) {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
-
-    this.bucketClickable = true;
-    this.mouseControlEnabled = false;
   }
 
   // Event Handlers
   handleCanvasClick(e) {
+    console.log('Canvas clicked', {
+      gameActive: this.gameActive,
+      bucketClickable: this.bucketClickable
+    });
+    
     if (!this.gameActive || !this.bucketClickable) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
+
+    console.log('Click position:', {
+      clickX,
+      clickY,
+      bucketX: this.bucket.x,
+      bucketY: this.bucket.y,
+      bucketWidth: this.bucket.width,
+      bucketHeight: this.bucket.height
+    });
 
     // Check if click is on bucket
     if (clickX >= this.bucket.x && 
@@ -205,6 +232,7 @@ class GameManager {
         clickY >= this.bucket.y && 
         clickY <= this.bucket.y + this.bucket.height) {
       
+      console.log('Bucket clicked - enabling mouse control');
       this.mouseControlEnabled = true;
       this.bucketClickable = false;
       
