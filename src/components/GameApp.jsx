@@ -475,12 +475,6 @@ useEffect(() => {
 
   // Start game function
   const startGame = async () => {
-    console.log('Starting game with state:', {
-      gameManagerInitialized,
-      walletInitialized,
-      gameMode
-    });
-
     if (!window.gameManager) {
       console.error('Game manager not found');
       alert('Game initialization failed. Please refresh the page and try again.');
@@ -505,9 +499,8 @@ useEffect(() => {
     }
 
     try {
-      // Start countdown
+      // Single countdown
       setCountdown(3);
-      
       await new Promise((resolve) => {
         const countdownInterval = setInterval(() => {
           setCountdown(prev => {
@@ -521,20 +514,16 @@ useEffect(() => {
         }, 1000);
       });
 
-      // Set game state after countdown
       setGameState(prev => ({
         ...prev,
         gameStarted: true,
         score: 0,
         isGameOver: false,
-        waitingForBucketClick: true  // New state to track if we're waiting for bucket click
       }));
 
       if (window.gameManager) {
         console.log(`Starting game in ${gameMode} mode`);
         window.gameManager.startGame(gameMode);
-      } else {
-        throw new Error('Game manager not initialized');
       }
     } catch (error) {
       console.error('Error starting game:', error);
@@ -931,8 +920,7 @@ useEffect(() => {
         <div className="countdown-overlay">
           <div className="countdown-popup">
             <h2>Get Ready!</h2>
-            <p>1. Click the bucket when it appears</p>
-            <p>2. Move your mouse to control the bucket</p>
+            <p>Click the bucket to start playing!</p>
             <div className="countdown-number">{countdown}</div>
             <div className="countdown-progress">
               <div 
