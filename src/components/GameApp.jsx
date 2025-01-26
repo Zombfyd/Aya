@@ -503,11 +503,14 @@ useEffect(() => {
     }
 
     try {
-      // Get current mouse position before starting game
+      // Get current mouse position relative to canvas
       const canvas = document.getElementById('tearCatchGameCanvas');
       const rect = canvas.getBoundingClientRect();
-      const mouseX = window.gameManager.lastKnownMouseX || window.innerWidth / 2;
+      const mouseX = event?.clientX || window.innerWidth / 2;
       const relativeX = mouseX - rect.left;
+      
+      // Store the canvas-relative position
+      window.gameManager.lastKnownMouseX = relativeX;
 
       setGameState(prev => ({
         ...prev,
@@ -520,8 +523,6 @@ useEffect(() => {
 
       if (window.gameManager) {
         console.log(`Starting game in ${gameMode} mode`);
-        // Store the current mouse position before starting
-        window.gameManager.lastKnownMouseX = mouseX;
         window.gameManager.startGame(gameMode);
       } else {
         throw new Error('Game manager not initialized');
