@@ -46,6 +46,12 @@ class GameManager {
     this.gameLoop = this.gameLoop.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
     this.handleResize = this.handleResize.bind(this);
+
+    this.bucketClickable = true;  // New flag to track if bucket can be clicked
+    this.mouseControlEnabled = false;  // New flag to track if mouse control is enabled
+    
+    // Bind the new click handler
+    this.handleCanvasClick = this.handleCanvasClick.bind(this);
   }
 
   // Image Loading Method
@@ -66,7 +72,8 @@ class GameManager {
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();
 
-    // Set up event listeners
+    // Add click listener
+    this.canvas.addEventListener('click', this.handleCanvasClick);
     window.addEventListener('pointermove', this.handlePointerMove);
     window.addEventListener('resize', this.handleResize);
 
@@ -125,18 +132,11 @@ class GameManager {
     this.cleanup();
     this.initGame();
     this.gameMode = mode;
-
-    // Get current mouse position relative to canvas
-    const rect = this.canvas.getBoundingClientRect();
-    const relativeX = this.lastKnownMouseX 
-        ? this.lastKnownMouseX - rect.left  // Use stored position relative to canvas
-        : rect.width / 2;                   // fallback to center
     
-    // Position bucket under cursor, keeping it within canvas bounds
-    this.bucket.x = Math.min(
-      Math.max(relativeX - (this.bucket.width / 2), 0),
-      this.canvas.width - this.bucket.width
-    );
+    // Start with bucket in center and waiting for click
+    this.bucket.x = (this.canvas.width / 2) - (this.bucket.width / 2);
+    this.bucketClickable = true;
+    this.mouseControlEnabled = false;
 
     // Start spawning tears with a delay
     setTimeout(() => {
@@ -148,7 +148,6 @@ class GameManager {
       }
     }, 1000);
 
-    // Start the game loop
     if (!this.gameLoopId) {
       this.gameLoop();
     }
@@ -187,19 +186,43 @@ class GameManager {
     if (this.ctx && this.canvas) {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
+
+    this.bucketClickable = true;
+    this.mouseControlEnabled = false;
   }
 
   // Event Handlers
+  handleCanvasClick(e) {
+    if (!this.gameActive || !this.bucketClickable) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Check if click is on bucket
+    if (clickX >= this.bucket.x && 
+        clickX <= this.bucket.x + this.bucket.width &&
+        clickY >= this.bucket.y && 
+        clickY <= this.bucket.y + this.bucket.height) {
+      
+      this.mouseControlEnabled = true;
+      this.bucketClickable = false;
+      
+      // Move bucket to current mouse position
+      const pointerX = e.clientX - rect.left;
+      this.bucket.x = Math.min(
+        Math.max(pointerX - (this.bucket.width / 2), 0),
+        this.canvas.width - this.bucket.width
+      );
+    }
+  }
+
   handlePointerMove(e) {
-    if (!this.gameActive || !this.bucket) return;
+    if (!this.gameActive || !this.bucket || !this.mouseControlEnabled) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
     
-    // Store last known mouse position relative to window
-    this.lastKnownMouseX = pointerX;  // Store relative to canvas instead of window
-    
-    // Center the bucket under the cursor
     this.bucket.x = Math.min(
       Math.max(pointerX - (this.bucket.width / 2), 0),
       this.canvas.width - this.bucket.width
@@ -353,6 +376,19 @@ class GameManager {
     this.splashes.forEach(splash => {
       splash.draw(this.ctx);
     });
+
+    // Add visual indicator that bucket needs to be clicked
+    if (this.bucketClickable && this.bucket) {
+      this.ctx.save();
+      this.ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 500) * 0.2; // Pulsing effect
+      this.ctx.fillStyle = 'white';
+      this.ctx.font = '14px Inconsolata';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('Click bucket to start', 
+        this.bucket.x + this.bucket.width / 2, 
+        this.bucket.y - 10);
+      this.ctx.restore();
+    }
 
     this.drawUI();
   }

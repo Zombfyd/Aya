@@ -503,15 +503,6 @@ useEffect(() => {
     }
 
     try {
-      // Get current mouse position relative to canvas
-      const canvas = document.getElementById('tearCatchGameCanvas');
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = event?.clientX || window.innerWidth / 2;
-      const relativeX = mouseX - rect.left;
-      
-      // Store the canvas-relative position
-      window.gameManager.lastKnownMouseX = relativeX;
-
       setGameState(prev => ({
         ...prev,
         gameStarted: true,
@@ -861,8 +852,9 @@ useEffect(() => {
       {countdown !== null && (
         <div className="countdown-overlay">
           <div className="countdown-popup">
-            <h2>Payment Successful!</h2>
-            <p>Game starting in</p>
+            <h2>Get Ready!</h2>
+            <p>1. Click the bucket to start controlling it</p>
+            <p>2. Move your mouse to catch the tears</p>
             <div className="countdown-number">{countdown}</div>
             <div className="countdown-progress">
               <div 
