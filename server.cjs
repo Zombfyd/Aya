@@ -1,47 +1,37 @@
-const handler = require('serve-handler');
-const http = require('http');
-const path = require('path');
+const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://www.ayaonsui.xyz',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Credentials': 'true',
-  'Cross-Origin-Resource-Policy': 'cross-origin'
-};
 
-const server = http.createServer((request, response) => {
- // Handle preflight OPTIONS requests
- if (request.method === 'OPTIONS') {
-   response.writeHead(204, corsHeaders);
-   response.end();
-   return;
- }
+const app = express();
 
- // Add CORS headers to all responses
- Object.entries(corsHeaders).forEach(([key, value]) => {
-   response.setHeader(key, value);
- });
+// CORS configuration
+app.use(cors({
+ origin: 'https://www.ayaonsui.xyz',
+ methods: ['GET', 'POST', 'OPTIONS'],
+ allowedHeaders: ['Content-Type'],
+ credentials: true
+}));
 
- return handler(request, response, {
-   public: path.join(__dirname, 'dist'),
-   rewrites: [
-     { source: '/**', destination: '/index.html' }
-   ],
-   headers: [
-     {
-       source: '**',
-       headers: [{
-         key: 'Cache-Control',
-         value: 'public, max-age=0, must-revalidate'
-       }]
-     }
-   ]
- });
+// Serve static files from dist
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// Additional headers
+app.use((req, res, next) => {
+ res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+ res.header('Access-Control-Allow-Origin', 'https://www.ayaonsui.xyz');
+ res.header('Access-Control-Allow-Credentials', 'true');
+ next();
+});
+
+// Handle all routes
+app.get('*', (req, res) => {
+ res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const port = process.env.PORT || 3000;
-server.listen(port, () => {
+app.listen(port, () => {
  console.log(`Server running on port ${port}`);
 });
+
+module.exports = app;
