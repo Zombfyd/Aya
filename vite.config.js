@@ -9,14 +9,10 @@ export default defineConfig({
  build: {
    rollupOptions: {
      output: {
-       manualChunks: undefined,
-       format: 'es',
-       entryFileNames: '[name].[hash].mjs',
-       chunkFileNames: '[name].[hash].mjs',
-       assetFileNames: '[name].[hash][extname]'
+       entryFileNames: 'index.[hash].mjs',
      }
    },
-   assetsDir: 'assets',
+   assetsDir: '',
    manifest: true,
    outDir: 'dist',
    emptyOutDir: true
