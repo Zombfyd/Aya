@@ -11,6 +11,7 @@ import {
   useSuiClient,
   } from '@suiet/wallet-kit';
 import '@suiet/wallet-kit/style.css';
+import './App.css';
 import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 
