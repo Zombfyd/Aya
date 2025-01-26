@@ -4,18 +4,17 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
  plugins: [react()],
  server: {
-   cors: true,
-   headers: {
-     'Access-Control-Allow-Origin': '*',
-     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-     'Access-Control-Allow-Headers': 'Content-Type'
-   }
+   cors: true
  },
  build: {
    rollupOptions: {
      output: {
        manualChunks: undefined
      }
-   }
+   },
+   assetsDir: 'assets',
+   manifest: true,
+   outDir: 'dist',
+   emptyOutDir: true
  }
 });
