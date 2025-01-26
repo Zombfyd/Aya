@@ -305,13 +305,11 @@ useEffect(() => {
     }
 
     try {
-      // Create base request body
       let requestBody = {
         playerWallet: wallet.account.address,
         score: gameState.score
       };
 
-      // Add paid game specific data if in paid mode
       if (gameMode === 'paid') {
         if (!paymentStatus.verified || !paymentStatus.transactionId) {
           alert('Payment verification required for paid mode');
@@ -326,7 +324,8 @@ useEffect(() => {
 
       // Submit to both main and secondary leaderboards
       const submissions = ['main', 'secondary'].map(async (type) => {
-        const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}/${type}`;
+        // Updated endpoint URL structure
+        const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
@@ -344,11 +343,9 @@ useEffect(() => {
         return response.json();
       });
 
-      // Wait for both submissions to complete
       await Promise.all(submissions);
       console.log('Score submissions successful');
 
-      // Update game state and leaderboards
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
         setPaidGameAttempts(newAttempts);
@@ -568,7 +565,8 @@ window.gameManager.onGameOver = async (finalScore) => {
 
     // Submit to both main and secondary leaderboards
     const submissions = ['main', 'secondary'].map(async (type) => {
-      const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}/${type}`;
+      // Updated endpoint URL structure
+      const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -586,7 +584,6 @@ window.gameManager.onGameOver = async (finalScore) => {
       return response.json();
     });
 
-    // Wait for both submissions to complete
     await Promise.all(submissions);
     console.log('Score submissions successful');
 
