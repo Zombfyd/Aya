@@ -415,3 +415,24 @@ th, td {
     height: 400px;
   }
 }
+.bucket-click-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 20px;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.bucket-click-instructions {
+  font-size: 1.2em;
+}
+
+.bucket-click-instructions h3 {
+  margin-bottom: 10px;
+  color: #FFD700;
+}
