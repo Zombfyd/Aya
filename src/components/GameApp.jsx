@@ -473,232 +473,240 @@ useEffect(() => {
 
   // Start game function
   const startGame = async () => {
-  console.log('Starting game with state:', {
-    gameManagerInitialized,
-    walletInitialized,
-    gameMode
-  });
+    console.log('Starting game with state:', {
+      gameManagerInitialized,
+      walletInitialized,
+      gameMode
+    });
 
-  if (!window.gameManager) {
-    console.error('Game manager not found');
-    alert('Game initialization failed. Please refresh the page and try again.');
-    return;
-  }
+    if (!window.gameManager) {
+      console.error('Game manager not found');
+      alert('Game initialization failed. Please refresh the page and try again.');
+      return;
+    }
 
-  if (!gameManagerInitialized) {
-    console.log('Attempting to initialize game manager...');
+    if (!gameManagerInitialized) {
+      console.log('Attempting to initialize game manager...');
+      try {
+        const success = await window.gameManager.initialize();
+        if (!success) {
+          console.error('Game manager initialization failed');
+          alert('Failed to initialize game. Please refresh the page and try again.');
+          return;
+        }
+        setGameManagerInitialized(true);
+      } catch (error) {
+        console.error('Error initializing game manager:', error);
+        alert('Error initializing game. Please refresh the page and try again.');
+        return;
+      }
+    }
+
     try {
-      const success = await window.gameManager.initialize();
-      if (!success) {
-        console.error('Game manager initialization failed');
-        alert('Failed to initialize game. Please refresh the page and try again.');
-        return;
-      }
-      setGameManagerInitialized(true);
-    } catch (error) {
-      console.error('Error initializing game manager:', error);
-      alert('Error initializing game. Please refresh the page and try again.');
-      return;
-    }
-  }
+      // Get current mouse position before starting game
+      const canvas = document.getElementById('tearCatchGameCanvas');
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = window.gameManager.lastKnownMouseX || window.innerWidth / 2;
+      const relativeX = mouseX - rect.left;
 
-  try {
-    setGameState(prev => ({
-      ...prev,
-      gameStarted: true,
-      score: 0,
-      isGameOver: false,
-    }));
-
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    if (window.gameManager) {
-      console.log(`Starting game in ${gameMode} mode`);
-      window.gameManager.startGame(gameMode);
-    } else {
-      throw new Error('Game manager not initialized');
-    }
-  } catch (error) {
-    console.error('Error starting game:', error);
-    setGameState(prev => ({
-      ...prev,
-      gameStarted: false,
-      isGameOver: false,
-    }));
-    alert('Failed to start game. Please try again.');
-  }
-};
-
-// Modify window.gameManager.onGameOver to properly handle score submissions
-window.gameManager.onGameOver = async (finalScore) => {
-  console.log('Game Over triggered with score:', finalScore);
-  
-  setGameState(prev => ({
-    ...prev,
-    score: finalScore,
-    isGameOver: true,
-    gameStarted: false
-  }));
-
-  try {
-    if (!wallet.connected || !wallet.account) {
-      console.log('No wallet connected, skipping submission');
-      return;
-    }
-
-    let requestBody = {
-      playerWallet: wallet.account.address,
-      score: finalScore
-    };
-
-    if (gameMode === 'paid') {
-      if (!paymentStatus.verified || !paymentStatus.transactionId) {
-        console.error('Missing payment verification for paid mode');
-        return;
-      }
-      requestBody = {
-        ...requestBody,
-        sessionToken: paymentStatus.transactionId,
-        gameMode: 'paid'
-      };
-    }
-
-    // Submit to both main and secondary leaderboards
-    const submissions = ['main', 'secondary'].map(async (type) => {
-      // Updated endpoint URL structure
-      const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        mode: 'cors',
-        body: JSON.stringify({ ...requestBody, gameType: type })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`${type} submission failed: ${errorData.error}`);
-      }
-
-      return response.json();
-    });
-
-    await Promise.all(submissions);
-    console.log('Score submissions successful');
-
-    await fetchLeaderboards();
-    
-    if (gameMode === 'paid') {
-      setPaidGameAttempts(prev => prev + 1);
-      if (paidGameAttempts + 1 >= MAX_PAID_ATTEMPTS) {
-        setGameState(prev => ({ ...prev, hasValidPayment: false }));
-      }
-    }
-
-  } catch (error) {
-    console.error('Error in game over handler:', error);
-    alert(`Failed to submit score: ${error.message}`);
-  }
-};
-
-  const handleGamePayment = async () => {
-  if (!wallet.connected) {
-    alert('Please connect wallet first');
-    return;
-  }
-  try {
-    console.log('Starting game payment...');
-    const recipients = config.getCurrentRecipients();
-    const totalAmount = config.paymentConfig.totalAmount;
-    
-    // Calculate amounts based on shares
-    const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-    const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-    const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-    
-    console.log('Payment distribution:', {
-      total: totalAmount,
-      primary: { address: recipients.primary, amount: primaryAmount },
-      secondary: { address: recipients.secondary, amount: secondaryAmount },
-      tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
-    });
-    const txb = new TransactionBlock();
-    
-    // Split the coins for each recipient
-    const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
-      txb.gas,
-      [primaryAmount, secondaryAmount, tertiaryAmount]
-    );
-    // Transfer to primary recipient
-    txb.transferObjects(
-      [primaryCoin],
-      txb.pure(recipients.primary)
-    );
-    // Transfer to secondary recipient
-    txb.transferObjects(
-      [secondaryCoin],
-      txb.pure(recipients.secondary)
-    );
-    // Transfer to tertiary recipient
-    txb.transferObjects(
-      [tertiaryCoin],
-      txb.pure(recipients.tertiary)
-    );
-    const response = await wallet.signAndExecuteTransaction({
-      transaction: txb,
-      options: { showEffects: true }
-    });
-    console.log('Full Payment Response:', {
-      response,
-      digest: response.digest,
-      effects: response.effects,
-      status: response.effects?.status,
-      statusDetails: response.effects?.status?.status
-    });
-    
-    if (response.digest) {
-      console.log('Transaction submitted with digest:', response.digest);
-      setDigest(response.digest);
-      
-      setPaymentStatus(prev => ({
-        ...prev,
-        verified: true,
-        transactionId: response.digest,
-        timestamp: Date.now()
-      }));
       setGameState(prev => ({
         ...prev,
-        hasValidPayment: true,
-        currentSessionId: response.digest
+        gameStarted: true,
+        score: 0,
+        isGameOver: false,
       }));
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      if (window.gameManager) {
+        console.log(`Starting game in ${gameMode} mode`);
+        // Store the current mouse position before starting
+        window.gameManager.lastKnownMouseX = mouseX;
+        window.gameManager.startGame(gameMode);
+      } else {
+        throw new Error('Game manager not initialized');
+      }
+    } catch (error) {
+      console.error('Error starting game:', error);
+      setGameState(prev => ({
+        ...prev,
+        gameStarted: false,
+        isGameOver: false,
+      }));
+      alert('Failed to start game. Please try again.');
+    }
+  };
+
+  // Modify window.gameManager.onGameOver to properly handle score submissions
+  window.gameManager.onGameOver = async (finalScore) => {
+    console.log('Game Over triggered with score:', finalScore);
+    
+    setGameState(prev => ({
+      ...prev,
+      score: finalScore,
+      isGameOver: true,
+      gameStarted: false
+    }));
+
+    try {
+      if (!wallet.connected || !wallet.account) {
+        console.log('No wallet connected, skipping submission');
+        return;
+      }
+
+      let requestBody = {
+        playerWallet: wallet.account.address,
+        score: finalScore
+      };
+
+      if (gameMode === 'paid') {
+        if (!paymentStatus.verified || !paymentStatus.transactionId) {
+          console.error('Missing payment verification for paid mode');
+          return;
+        }
+        requestBody = {
+          ...requestBody,
+          sessionToken: paymentStatus.transactionId,
+          gameMode: 'paid'
+        };
+      }
+
+      // Submit to both main and secondary leaderboards
+      const submissions = ['main', 'secondary'].map(async (type) => {
+        // Updated endpoint URL structure
+        const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors',
+          body: JSON.stringify({ ...requestBody, gameType: type })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`${type} submission failed: ${errorData.error}`);
+        }
+
+        return response.json();
+      });
+
+      await Promise.all(submissions);
+      console.log('Score submissions successful');
+
+      await fetchLeaderboards();
       
-      // Set initial countdown and start the timer
-      setCountdown(3);
+      if (gameMode === 'paid') {
+        setPaidGameAttempts(prev => prev + 1);
+        if (paidGameAttempts + 1 >= MAX_PAID_ATTEMPTS) {
+          setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in game over handler:', error);
+      alert(`Failed to submit score: ${error.message}`);
+    }
+  };
+
+  const handleGamePayment = async () => {
+    if (!wallet.connected) {
+      alert('Please connect wallet first');
+      return;
+    }
+    try {
+      console.log('Starting game payment...');
+      const recipients = config.getCurrentRecipients();
+      const totalAmount = config.paymentConfig.totalAmount;
       
-      // Create a Promise that resolves after the countdown
-      await new Promise((resolve) => {
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
+      // Calculate amounts based on shares
+      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+      
+      console.log('Payment distribution:', {
+        total: totalAmount,
+        primary: { address: recipients.primary, amount: primaryAmount },
+        secondary: { address: recipients.secondary, amount: secondaryAmount },
+        tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
+      });
+      const txb = new TransactionBlock();
+      
+      // Split the coins for each recipient
+      const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
+        txb.gas,
+        [primaryAmount, secondaryAmount, tertiaryAmount]
+      );
+      // Transfer to primary recipient
+      txb.transferObjects(
+        [primaryCoin],
+        txb.pure(recipients.primary)
+      );
+      // Transfer to secondary recipient
+      txb.transferObjects(
+        [secondaryCoin],
+        txb.pure(recipients.secondary)
+      );
+      // Transfer to tertiary recipient
+      txb.transferObjects(
+        [tertiaryCoin],
+        txb.pure(recipients.tertiary)
+      );
+      const response = await wallet.signAndExecuteTransaction({
+        transaction: txb,
+        options: { showEffects: true }
+      });
+      console.log('Full Payment Response:', {
+        response,
+        digest: response.digest,
+        effects: response.effects,
+        status: response.effects?.status,
+        statusDetails: response.effects?.status?.status
       });
       
-      // Start the game after countdown is complete
-      startGame();
+      if (response.digest) {
+        console.log('Transaction submitted with digest:', response.digest);
+        setDigest(response.digest);
+        
+        setPaymentStatus(prev => ({
+          ...prev,
+          verified: true,
+          transactionId: response.digest,
+          timestamp: Date.now()
+        }));
+        setGameState(prev => ({
+          ...prev,
+          hasValidPayment: true,
+          currentSessionId: response.digest
+        }));
+        
+        // Set initial countdown and start the timer
+        setCountdown(3);
+        
+        // Create a Promise that resolves after the countdown
+        await new Promise((resolve) => {
+          const countdownInterval = setInterval(() => {
+            setCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(countdownInterval);
+                resolve();
+                return null;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        });
+        
+        // Start the game after countdown is complete
+        startGame();
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      setCountdown(null);
+      alert(`Payment failed: ${error.message}`);
     }
-  } catch (error) {
-    console.error('Payment error:', error);
-    setCountdown(null);
-    alert(`Payment failed: ${error.message}`);
-  }
-};
+  };
 
   // Add useEffect for periodic leaderboard updates
   useEffect(() => {
