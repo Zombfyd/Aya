@@ -474,7 +474,7 @@ useEffect(() => {
     }, 100);
   };
 
-  // Start game function
+  // Update startGame to track bucket click state
   const startGame = () => {
     if (!window.gameManager) {
       console.error('Game manager not found');
@@ -489,9 +489,23 @@ useEffect(() => {
         score: 0,
         isGameOver: false,
       }));
+      setBucketClicked(false);  // Reset bucket click state
 
       if (window.gameManager) {
         console.log(`Starting game in ${gameMode} mode`);
+        // Listen for bucket click
+        const originalGameActive = window.gameManager.gameActive;
+        const checkBucketClick = setInterval(() => {
+          if (window.gameManager.mouseControlEnabled && !bucketClicked) {
+            setBucketClicked(true);
+            clearInterval(checkBucketClick);
+          }
+          // Clear interval if game ends
+          if (!window.gameManager.gameActive && originalGameActive) {
+            clearInterval(checkBucketClick);
+          }
+        }, 100);
+
         window.gameManager.startGame(gameMode);
       }
     } catch (error) {
@@ -879,7 +893,7 @@ useEffect(() => {
       {gameState.gameStarted && gameState.waitingForBucketClick && (
         <div className="bucket-click-overlay">
           <div className="bucket-click-instructions">
-            <h3>Click the bucket to begin!</h3>
+            <h3>Click the bucket to start!</h3>
             <p>Once clicked, the bucket will follow your mouse</p>
           </div>
         </div>
@@ -889,7 +903,8 @@ useEffect(() => {
         <div className="countdown-overlay">
           <div className="countdown-popup">
             <h2>Get Ready!</h2>
-            <p>Click the bucket to start playing!</p>
+            <p>1. Click the bucket when it appears</p>
+            <p>2. Move your mouse to control the bucket</p>
             <div className="countdown-number">{countdown}</div>
             <div className="countdown-progress">
               <div 
