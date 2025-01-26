@@ -32,12 +32,35 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve static files with correct MIME types
+app.use(express.static(path.join(__dirname, 'dist'), {
+  setHeaders: (res, filePath) => {
+    // Set correct MIME types for different file extensions
+    if (filePath.endsWith('.js')) {
+      res.set('Content-Type', 'application/javascript; charset=utf-8');
+    }
+    if (filePath.endsWith('.mjs') || filePath.match(/\.js\?v=\d+$/)) {
+      res.set('Content-Type', 'application/javascript; charset=utf-8');
+    }
+    if (filePath.endsWith('.css')) {
+      res.set('Content-Type', 'text/css; charset=utf-8');
+    }
+    
+    // Set CORS headers
+    res.set({
+      'Access-Control-Allow-Origin': 'https://www.ayaonsui.xyz',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Credentials': 'true',
+      'Cross-Origin-Resource-Policy': 'cross-origin'
+    });
+  }
+}));
 
 // All other routes
 app.get('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', 'https://www.ayaonsui.xyz');
+  res.header('Content-Type', 'text/html; charset=utf-8');
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
