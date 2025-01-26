@@ -126,10 +126,11 @@ class GameManager {
     this.initGame();
     this.gameMode = mode;
 
-    // Get current mouse position and move bucket beneath it
+    // Get current mouse position relative to canvas
     const rect = this.canvas.getBoundingClientRect();
-    const mouseX = this.lastKnownMouseX || rect.left + (rect.width / 2); // fallback to center if no mouse position
-    const relativeX = mouseX - rect.left;
+    const relativeX = this.lastKnownMouseX 
+        ? this.lastKnownMouseX - rect.left  // Use stored position relative to canvas
+        : rect.width / 2;                   // fallback to center
     
     // Position bucket under cursor, keeping it within canvas bounds
     this.bucket.x = Math.min(
@@ -195,7 +196,7 @@ class GameManager {
     const rect = this.canvas.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
     
-    // Store last known mouse position
+    // Store last known mouse position relative to window
     this.lastKnownMouseX = e.clientX;
     
     this.bucket.x = Math.min(
@@ -216,7 +217,7 @@ class GameManager {
       
       if (this.bucket) {
         this.bucket.y = this.canvas.height - 80;
-        this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
+        this.bucket.x = this.canvas.width / 2 - 50;
       }
     }
   }
