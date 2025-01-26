@@ -10,6 +10,8 @@ export default defineConfig({
    rollupOptions: {
      output: {
        entryFileNames: 'index.[hash].mjs',
+       chunkFileNames: '[name].[hash].mjs',
+       assetFileNames: '[name].[hash][extname]'
      }
    },
    assetsDir: '',
