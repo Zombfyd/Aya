@@ -137,8 +137,15 @@ class GameManager {
     this.initGame();
     this.gameMode = mode;
     
-    // Start with bucket in center
-    this.bucket.x = (this.canvas.width / 2) - (this.bucket.width / 2);
+    // Calculate canvas-relative positions
+    const canvasHeight = this.canvas.height;
+    this.bucket = {
+        x: (this.canvas.width / 2) - 35, // half of bucket width
+        y: canvasHeight - 100,  // Position from bottom
+        width: 70,
+        height: 70
+    };
+
     this.mouseControlEnabled = false;
     this.gameActive = true;
 
@@ -147,43 +154,49 @@ class GameManager {
     
     // Add click listener with bound context
     this.handleBucketClick = (e) => {
-      if (!this.mouseControlEnabled && this.gameActive) {
-        const rect = this.canvas.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const clickY = e.clientY - rect.top;
+        if (!this.mouseControlEnabled && this.gameActive) {
+            const rect = this.canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            
+            // Convert click coordinates to canvas scale
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const canvasClickX = clickX * scaleX;
+            const canvasClickY = clickY * scaleY;
 
-        console.log('Click detected:', {
-          clickX,
-          clickY,
-          bucketX: this.bucket.x,
-          bucketY: this.bucket.y,
-          bucketWidth: this.bucket.width,
-          bucketHeight: this.bucket.height
-        });
+            console.log('Click detected:', {
+                clickX: canvasClickX,
+                clickY: canvasClickY,
+                bucketX: this.bucket.x,
+                bucketY: this.bucket.y,
+                bucketWidth: this.bucket.width,
+                bucketHeight: this.bucket.height
+            });
 
-        // Check if click is on bucket with larger hit area
-        const hitArea = 30; // Even larger hit area
-        if (clickX >= this.bucket.x - hitArea && 
-            clickX <= this.bucket.x + this.bucket.width + hitArea &&
-            clickY >= this.bucket.y - hitArea && 
-            clickY <= this.bucket.y + this.bucket.height + hitArea) {
-          
-          console.log('Bucket clicked - starting game');
-          this.mouseControlEnabled = true;
-          
-          // Start spawning tears
-          this.spawnTeardrop();
-          this.spawnGoldtear();
-          this.spawnRedtear();
-          this.spawnBlacktear();
+            // Check if click is on bucket with larger hit area
+            const hitArea = 50; // Even larger hit area
+            if (canvasClickX >= this.bucket.x - hitArea && 
+                canvasClickX <= this.bucket.x + this.bucket.width + hitArea &&
+                canvasClickY >= this.bucket.y - hitArea && 
+                canvasClickY <= this.bucket.y + this.bucket.height + hitArea) {
+                
+                console.log('Bucket clicked - starting game');
+                this.mouseControlEnabled = true;
+                
+                // Start spawning tears
+                this.spawnTeardrop();
+                this.spawnGoldtear();
+                this.spawnRedtear();
+                this.spawnBlacktear();
+            }
         }
-      }
     };
 
     this.canvas.addEventListener('click', this.handleBucketClick);
 
     if (!this.gameLoopId) {
-      this.gameLoop();
+        this.gameLoop();
     }
     
     return true;
@@ -234,11 +247,12 @@ class GameManager {
     if (!this.gameActive || !this.bucket || !this.mouseControlEnabled) return;
 
     const rect = this.canvas.getBoundingClientRect();
-    const pointerX = e.clientX - rect.left;
+    const scaleX = this.canvas.width / rect.width;
+    const pointerX = (e.clientX - rect.left) * scaleX;
     
     this.bucket.x = Math.min(
-      Math.max(pointerX - (this.bucket.width / 2), 0),
-      this.canvas.width - this.bucket.width
+        Math.max(pointerX - (this.bucket.width / 2), 0),
+        this.canvas.width - this.bucket.width
     );
   }
 
