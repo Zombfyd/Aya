@@ -217,7 +217,7 @@ class GameManager {
       
       if (this.bucket) {
         this.bucket.y = this.canvas.height - 80;
-        this.bucket.x = this.canvas.width / 2 - 50;
+        this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
       }
     }
   }
