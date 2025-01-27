@@ -699,6 +699,7 @@ useEffect(() => {
               </div>
             )}
             <ConnectButton
+              label="Connect SUI Wallet"
               onConnectError={(error) => {
                 if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
                   console.warn("User rejected connection to " + error.details?.wallet);
