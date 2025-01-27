@@ -52,8 +52,6 @@ const GameApp = () => {
   const MAX_PAID_ATTEMPTS = 4;
   // Add this to your state declarations
   const [countdown, setCountdown] = useState(null);
-  // Add new state for bucket control
-  const [bucketClicked, setBucketClicked] = useState(false);
    useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -489,7 +487,6 @@ useEffect(() => {
         score: 0,
         isGameOver: false,
       }));
-      setBucketClicked(false);
 
       if (window.gameManager) {
         console.log(`Starting game in ${gameMode} mode`);
@@ -686,57 +683,6 @@ useEffect(() => {
     return () => clearInterval(intervalId); // Cleanup on unmount
   }, []);
 
-  // Add canvas click handler
-  const handleCanvasClick = (e) => {
-    if (!gameState.gameStarted || bucketClicked) return;
-
-    const canvas = document.getElementById('tearCatchGameCanvas');
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    // Get bucket position from GameManager
-    const bucket = window.gameManager.bucket;
-    if (!bucket) return;
-
-    // Check if click is on bucket (with a small buffer for easier clicking)
-    const hitArea = 10;
-    if (clickX >= bucket.x - hitArea && 
-        clickX <= bucket.x + bucket.width + hitArea &&
-        clickY >= bucket.y - hitArea && 
-        clickY <= bucket.y + bucket.height + hitArea) {
-      
-      console.log('Bucket clicked - starting game movement');
-      setBucketClicked(true);
-      setGameState(prev => ({
-        ...prev,
-        waitingForBucketClick: false
-      }));
-
-      // Tell GameManager to start following mouse
-      window.gameManager.startMouseControl();
-    }
-  };
-
-  // Add click listener when game starts
-  useEffect(() => {
-    const canvas = document.getElementById('tearCatchGameCanvas');
-    if (gameState.gameStarted && !bucketClicked) {
-      canvas?.addEventListener('click', handleCanvasClick);
-    }
-    
-    return () => {
-      canvas?.removeEventListener('click', handleCanvasClick);
-    };
-  }, [gameState.gameStarted, bucketClicked]);
-
-  // Reset bucket click state when game ends
-  useEffect(() => {
-    if (!gameState.gameStarted) {
-      setBucketClicked(false);
-    }
-  }, [gameState.gameStarted]);
-
   // Render method
   return (
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
@@ -877,20 +823,11 @@ useEffect(() => {
         </div>
       )}
 
-      {gameState.gameStarted && gameState.waitingForBucketClick && (
-        <div className="bucket-click-overlay">
-          <div className="bucket-click-instructions">
-            <h3>Click the bucket to start!</h3>
-            <p>Once clicked, the bucket will follow your mouse</p>
-          </div>
-        </div>
-      )}
-
       {countdown !== null && (
         <div className="countdown-overlay">
           <div className="countdown-popup">
             <h2>Get Ready!</h2>
-            <p>Click and hold anywhere to move the bucket</p>
+            <p>Move your mouse to control the bucket</p>
             <p>Catch the tears to score points!</p>
             <div className="countdown-number">{countdown}</div>
             <div className="countdown-progress">
