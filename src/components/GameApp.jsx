@@ -761,32 +761,24 @@ useEffect(() => {
       <canvas id="tearCatchGameCanvas" className="game-canvas" />
 
       {gameState.isGameOver && (
-        <div className="score-popup">
-          <h2>Game Over!</h2>
-          <p>Your Score: <span>{gameState.score}</span></p>
-          {gameMode === 'paid' && (
-            <p>Round {paidGameAttempts + 1} of {MAX_PAID_ATTEMPTS}</p>
-          )}
-          <div className="score-popup-buttons">
-            {gameMode === 'free' && (
-              <button onClick={handleScoreSubmit}>Submit Score</button>
-            )}
-            {(paidGameAttempts < MAX_PAID_ATTEMPTS && gameState.hasValidPayment) && (
-              <button onClick={restartGame}>Play Again</button>
-            )}
-            {(paidGameAttempts >= MAX_PAID_ATTEMPTS || !gameState.hasValidPayment) && (
+        <div className="game-over-overlay">
+          <div className="game-over-popup">
+            <h2>Game Over!</h2>
+            <p>Final Score: {gameState.score}</p>
+            {gameMode === 'paid' && wallet.connected && (
               <button 
-                onClick={() => {
-                  setGameState({
-                    gameStarted: false,
-                    isGameOver: false,
-                    score: 0
-                  });
-                }}
+                onClick={handleScoreSubmit} 
+                className="submit-score-button"
               >
-                Back to Menu
+                Submit Score
               </button>
             )}
+            <button 
+              onClick={restartGame} 
+              className="restart-button"
+            >
+              Play Again
+            </button>
           </div>
         </div>
       )}
