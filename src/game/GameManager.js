@@ -1,3 +1,4 @@
+
 // GameManager.js - Main game controller class
 
 class GameManager {
@@ -23,15 +24,7 @@ class GameManager {
     this.speedMultiplier = 1;
     this.lastCheckpoint = 0;
     
-    // Control flags
-    this.mouseControlEnabled = false;
-    
-    // Bind methods to maintain correct 'this' context
-    this.gameLoop = this.gameLoop.bind(this);
-    this.handlePointerMove = this.handlePointerMove.bind(this);
-    this.handleResize = this.handleResize.bind(this);
-    
-    // Initialize spawnTimers
+    // Spawn timers for different tear types
     this.spawnTimers = {
       teardrop: null,
       goldtear: null,
@@ -39,7 +32,8 @@ class GameManager {
       blacktear: null
     };
 
-    // Load and manage game images
+    // Load and manage game images - using direct URLs for now
+    // In production, these should be moved to your CDN or static hosting
     this.images = {
       bucket: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/674fb166a33aa5af2e8be714_1faa3.svg"),
       teardrop: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png"),
@@ -49,8 +43,10 @@ class GameManager {
       background: this.loadImage("https://i.imgflip.com/4zei4c.jpg")
     };
 
-    // Initialize click handler as null
-    this.handleBucketClick = null;
+    // Bind methods to maintain correct 'this' context
+    this.gameLoop = this.gameLoop.bind(this);
+    this.handlePointerMove = this.handlePointerMove.bind(this);
+    this.handleResize = this.handleResize.bind(this);
   }
 
   // Image Loading Method
@@ -71,13 +67,7 @@ class GameManager {
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();
 
-    // Remove any existing listeners before adding new ones
-    this.canvas.removeEventListener('click', this.handleBucketClick);
-    window.removeEventListener('pointermove', this.handlePointerMove);
-    window.removeEventListener('resize', this.handleResize);
-
-    // Add event listeners
-    this.canvas.addEventListener('click', this.handleBucketClick);
+    // Set up event listeners
     window.addEventListener('pointermove', this.handlePointerMove);
     window.addEventListener('resize', this.handleResize);
 
@@ -136,83 +126,32 @@ class GameManager {
     this.cleanup();
     this.initGame();
     this.gameMode = mode;
-    
-    // Calculate canvas-relative positions
-    const canvasHeight = this.canvas.height;
-    this.bucket = {
-        x: (this.canvas.width / 2) - 35, // half of bucket width
-        y: canvasHeight - 100,  // Position from bottom
-        width: 70,
-        height: 70
-    };
 
-    this.mouseControlEnabled = false;
-    this.gameActive = true;
+    // Start spawning tears with a delay
+    setTimeout(() => {
+      if (this.gameActive) {
+        this.spawnTeardrop();
+        this.spawnGoldtear();
+        this.spawnRedtear();
+        this.spawnBlacktear();
+      }
+    }, 1000);
 
-    // Remove any existing click listener
-    this.canvas.removeEventListener('click', this.handleBucketClick);
-    
-    // Add click listener with bound context
-    this.handleBucketClick = (e) => {
-        if (!this.mouseControlEnabled && this.gameActive) {
-            const rect = this.canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-            
-            // Convert click coordinates to canvas scale
-            const scaleX = this.canvas.width / rect.width;
-            const scaleY = this.canvas.height / rect.height;
-            const canvasClickX = clickX * scaleX;
-            const canvasClickY = clickY * scaleY;
-
-            console.log('Click detected:', {
-                clickX: canvasClickX,
-                clickY: canvasClickY,
-                bucketX: this.bucket.x,
-                bucketY: this.bucket.y,
-                bucketWidth: this.bucket.width,
-                bucketHeight: this.bucket.height
-            });
-
-            // Check if click is on bucket with larger hit area
-            const hitArea = 50; // Even larger hit area
-            if (canvasClickX >= this.bucket.x - hitArea && 
-                canvasClickX <= this.bucket.x + this.bucket.width + hitArea &&
-                canvasClickY >= this.bucket.y - hitArea && 
-                canvasClickY <= this.bucket.y + this.bucket.height + hitArea) {
-                
-                console.log('Bucket clicked - starting game');
-                this.mouseControlEnabled = true;
-                
-                // Start spawning tears
-                this.spawnTeardrop();
-                this.spawnGoldtear();
-                this.spawnRedtear();
-                this.spawnBlacktear();
-            }
-        }
-    };
-
-    this.canvas.addEventListener('click', this.handleBucketClick);
-
+    // Start the game loop
     if (!this.gameLoopId) {
-        this.gameLoop();
+      this.gameLoop();
     }
     
     return true;
   }
 
   cleanup() {
+    // Clear any running game loops
     if (this.gameLoopId) {
       cancelAnimationFrame(this.gameLoopId);
       this.gameLoopId = null;
     }
     
-    // Remove click listener
-    if (this.canvas && this.handleBucketClick) {
-      this.canvas.removeEventListener('click', this.handleBucketClick);
-    }
-
     // Clear spawn timers
     Object.values(this.spawnTimers).forEach(timer => {
       if (timer) clearTimeout(timer);
@@ -233,9 +172,6 @@ class GameManager {
     this.splashes = [];
     this.gameActive = false;
 
-    // Reset click controls
-    this.mouseControlEnabled = false;
-
     // Clear canvas if context exists
     if (this.ctx && this.canvas) {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -244,15 +180,14 @@ class GameManager {
 
   // Event Handlers
   handlePointerMove(e) {
-    if (!this.gameActive || !this.bucket || !this.mouseControlEnabled) return;
+    if (!this.gameActive || !this.bucket) return;
 
     const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const pointerX = (e.clientX - rect.left) * scaleX;
+    const pointerX = e.clientX - rect.left;
     
     this.bucket.x = Math.min(
-        Math.max(pointerX - (this.bucket.width / 2), 0),
-        this.canvas.width - this.bucket.width
+      Math.max(pointerX - this.bucket.width / 2, 0),
+      this.canvas.width - this.bucket.width
     );
   }
 
@@ -300,29 +235,26 @@ class GameManager {
 
   // Game Update Methods
   updateGame() {
-    // Only update game entities if bucket has been clicked
-    if (!this.waitForBucketClick) {
-        this.updateEntities(this.teardrops, false, false, false);
-        this.updateEntities(this.goldtears, true, false, false);
-        this.updateEntities(this.redtears, false, true, false);
-        this.updateEntities(this.blacktears, false, false, true);
+    this.updateEntities(this.teardrops, false, false, false);
+    this.updateEntities(this.goldtears, true, false, false);
+    this.updateEntities(this.redtears, false, true, false);
+    this.updateEntities(this.blacktears, false, false, true);
 
-        this.splashes = this.splashes.filter(splash => {
-            splash.update();
-            return splash.opacity > 0;
-        });
+    this.splashes = this.splashes.filter(splash => {
+      splash.update();
+      return splash.opacity > 0;
+    });
 
-        if (this.score >= this.lastCheckpoint + 100) {
-            this.speedMultiplier *= 1.1;
-            this.lastCheckpoint = this.score;
-        }
+    if (this.score >= this.lastCheckpoint + 100) {
+      this.speedMultiplier *= 1.1;
+      this.lastCheckpoint = this.score;
+    }
 
-        if (this.lives <= 0 && this.gameActive) {
-            this.gameActive = false;
-            if (this.onGameOver) {
-                this.onGameOver(this.score);
-            }
-        }
+    if (this.lives <= 0 && this.gameActive) {
+      this.gameActive = false;
+      if (this.onGameOver) {
+        this.onGameOver(this.score);
+      }
     }
   }
 
@@ -376,60 +308,36 @@ class GameManager {
 
     // Draw background if available
     if (this.images.background) {
-        this.ctx.drawImage(
-            this.images.background,
-            0,
-            0,
-            this.canvas.width,
-            this.canvas.height
-        );
+      this.ctx.drawImage(
+        this.images.background,
+        0,
+        0,
+        this.canvas.width,
+        this.canvas.height
+      );
     }
 
     // Draw bucket
     if (this.bucket && this.images.bucket) {
-        this.ctx.drawImage(
-            this.images.bucket,
-            this.bucket.x,
-            this.bucket.y,
-            this.bucket.width,
-            this.bucket.height
-        );
-
-        // Add visual indicator that bucket needs to be clicked
-        if (this.bucketClickable) {
-            this.ctx.save();
-            this.ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 500) * 0.2; // Pulsing effect
-            this.ctx.fillStyle = 'white';
-            this.ctx.font = '20px Inconsolata';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText('Click bucket to start', 
-                this.bucket.x + this.bucket.width / 2, 
-                this.bucket.y - 20);
-            
-            // Draw hit area indicator (for debugging)
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            this.ctx.strokeRect(
-                this.bucket.x - 10,
-                this.bucket.y - 10,
-                this.bucket.width + 20,
-                this.bucket.height + 20
-            );
-            this.ctx.restore();
-        }
+      this.ctx.drawImage(
+        this.images.bucket,
+        this.bucket.x,
+        this.bucket.y,
+        this.bucket.width,
+        this.bucket.height
+      );
     }
 
-    // Only draw tears if game has started (bucket has been clicked)
-    if (!this.waitForBucketClick) {
-        this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
-        this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
-        this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
-        this.blacktears.forEach(tear => this.drawTear(tear, this.images.blacktear));
+    // Draw all entities
+    this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
+    this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
+    this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
+    this.blacktears.forEach(tear => this.drawTear(tear, this.images.blacktear));
 
-        // Draw splashes
-        this.splashes.forEach(splash => {
-            splash.draw(this.ctx);
-        });
-    }
+    // Draw splashes
+    this.splashes.forEach(splash => {
+      splash.draw(this.ctx);
+    });
 
     this.drawUI();
   }
@@ -494,15 +402,6 @@ class GameManager {
         this.onGameOver(this.score);
       }
     }
-  }
-
-  startMouseControl() {
-    this.mouseControlEnabled = true;
-    // Start spawning tears
-    this.spawnTeardrop();
-    this.spawnGoldtear();
-    this.spawnRedtear();
-    this.spawnBlacktear();
   }
 }
 
