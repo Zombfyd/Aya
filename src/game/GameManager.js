@@ -1,4 +1,3 @@
-
 // GameManager.js - Main game controller class
 
 class GameManager {
@@ -185,9 +184,14 @@ class GameManager {
     const rect = this.canvas.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
     
+    // Position bucket relative to canvas scale
+    const scaleX = this.canvas.width / rect.width;
+    const scaledX = pointerX * scaleX;
+    
+    // Center the bucket under the cursor
     this.bucket.x = Math.min(
-      Math.max(pointerX - this.bucket.width / 2, 0),
-      this.canvas.width - this.bucket.width
+        Math.max(scaledX - (this.bucket.width / 2), 0),
+        this.canvas.width - this.bucket.width
     );
   }
 
