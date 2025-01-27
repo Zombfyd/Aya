@@ -489,23 +489,10 @@ useEffect(() => {
         score: 0,
         isGameOver: false,
       }));
-      setBucketClicked(false);  // Reset bucket click state
+      setBucketClicked(false);
 
       if (window.gameManager) {
         console.log(`Starting game in ${gameMode} mode`);
-        // Listen for bucket click
-        const originalGameActive = window.gameManager.gameActive;
-        const checkBucketClick = setInterval(() => {
-          if (window.gameManager.mouseControlEnabled && !bucketClicked) {
-            setBucketClicked(true);
-            clearInterval(checkBucketClick);
-          }
-          // Clear interval if game ends
-          if (!window.gameManager.gameActive && originalGameActive) {
-            clearInterval(checkBucketClick);
-          }
-        }, 100);
-
         window.gameManager.startGame(gameMode);
       }
     } catch (error) {
@@ -903,8 +890,8 @@ useEffect(() => {
         <div className="countdown-overlay">
           <div className="countdown-popup">
             <h2>Get Ready!</h2>
-            <p>1. Click the bucket when it appears</p>
-            <p>2. Move your mouse to control the bucket</p>
+            <p>Click and hold anywhere to move the bucket</p>
+            <p>Catch the tears to score points!</p>
             <div className="countdown-number">{countdown}</div>
             <div className="countdown-progress">
               <div 
