@@ -206,7 +206,7 @@ class GameManager {
       this.canvas.height = this.canvas.parentNode.offsetHeight;
       
       if (this.bucket) {
-        this.bucket.y = this.canvas.height - 80;
+        this.bucket.y = this.canvas.height - 50;
         this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
       }
     }
