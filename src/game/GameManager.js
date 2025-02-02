@@ -331,7 +331,7 @@ class GameManager {
       );
     }
 
-    // Draw bucket
+    // Draw bucket with its actual dimensions
     if (this.bucket && this.images.bucket) {
       this.ctx.drawImage(
         this.images.bucket,
@@ -342,11 +342,46 @@ class GameManager {
       );
     }
 
-    // Draw all entities
-    this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
-    this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
-    this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
-    this.blacktears.forEach(tear => this.drawTear(tear, this.images.blacktear));
+    // Draw all entities using their actual dimensions
+    this.teardrops.forEach(tear => {
+      this.ctx.drawImage(
+        this.images.teardrop,
+        tear.x,
+        tear.y,
+        tear.width,
+        tear.height
+      );
+    });
+
+    this.goldtears.forEach(tear => {
+      this.ctx.drawImage(
+        this.images.goldtear,
+        tear.x,
+        tear.y,
+        tear.width,
+        tear.height
+      );
+    });
+
+    this.redtears.forEach(tear => {
+      this.ctx.drawImage(
+        this.images.redtear,
+        tear.x,
+        tear.y,
+        tear.width,
+        tear.height
+      );
+    });
+
+    this.blacktears.forEach(tear => {
+      this.ctx.drawImage(
+        this.images.blacktear,
+        tear.x,
+        tear.y,
+        tear.width,
+        tear.height
+      );
+    });
 
     // Draw splashes
     this.splashes.forEach(splash => {
@@ -354,11 +389,6 @@ class GameManager {
     });
 
     this.drawUI();
-  }
-
-  drawTear(tear, image) {
-    if (!this.ctx || !image) return;
-    this.ctx.drawImage(image, tear.x, tear.y, tear.width, tear.height);
   }
 
   drawUI() {
