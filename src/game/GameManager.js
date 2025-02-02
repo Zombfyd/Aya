@@ -51,6 +51,10 @@ class GameManager {
     this.baseHeight = 700; // Original design height
     this.baseEntitySize = 50; // Original entity size
     this.baseBucketSize = 70; // Original bucket size
+
+    // Fixed sizes for game entities - these won't scale
+    this.BUCKET_SIZE = 70;  // Fixed bucket size
+    this.TEAR_SIZE = 50;    // Fixed tear size
   }
 
   // Image Loading Method
@@ -103,16 +107,12 @@ class GameManager {
     this.lastCheckpoint = 0;
     this.gameActive = true;
 
-    // Calculate scaled sizes based on canvas height
-    const scale = this.canvas.height / this.baseHeight;
-    const scaledBucketSize = this.baseBucketSize * scale;
-
-    // Initialize bucket position with scaled dimensions
+    // Initialize bucket with fixed size
     this.bucket = {
-      x: this.canvas.width / 2 - scaledBucketSize / 2,
-      y: this.canvas.height - scaledBucketSize - 10,
-      width: scaledBucketSize,
-      height: scaledBucketSize,
+      x: this.canvas.width / 2 - this.BUCKET_SIZE / 2,
+      y: this.canvas.height - this.BUCKET_SIZE - 10,
+      width: this.BUCKET_SIZE,
+      height: this.BUCKET_SIZE,
       speed: 0
     };
 
@@ -224,25 +224,25 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier, this));
+    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
 
   spawnGoldtear() {
     if (!this.gameActive) return;
-    this.goldtears.push(new Teardrop(this.canvas.width, this.speedMultiplier, this));
+    this.goldtears.push(new Teardrop(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.goldtear = setTimeout(() => this.spawnGoldtear(), Math.random() * 3000 + 1500);
   }
 
   spawnRedtear() {
     if (!this.gameActive) return;
-    this.redtears.push(new Teardrop(this.canvas.width, this.speedMultiplier, this));
+    this.redtears.push(new Teardrop(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.redtear = setTimeout(() => this.spawnRedtear(), Math.random() * 12000 + 3000);
   }
 
   spawnBlacktear() {
     if (!this.gameActive) return;
-    this.blacktears.push(new Teardrop(this.canvas.width, this.speedMultiplier, this));
+    this.blacktears.push(new Teardrop(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
   }
 
@@ -455,15 +455,12 @@ class Entity {
  * Teardrop class - Base class for all falling tear objects
  */
 class Teardrop extends Entity {
-  constructor(canvasWidth, speedMultiplier, gameManager) {
-    const scale = gameManager.canvas.height / gameManager.baseHeight;
-    const scaledSize = gameManager.baseEntitySize * scale;
-    
+  constructor(canvasWidth, speedMultiplier) {
     super(
-      Math.random() * (canvasWidth - scaledSize), // x position
+      Math.random() * (canvasWidth - 50), // x position
       0, // y position
-      scaledSize, // width
-      scaledSize, // height
+      50, // fixed width
+      50, // fixed height
       Math.random() * 2 + 2 * speedMultiplier // speed
     );
   }
