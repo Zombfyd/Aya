@@ -724,6 +724,7 @@ useEffect(() => {
                 <p>To play on mobile:</p>
                 <ol>
                   <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
+                  <li>Make sure you're on Sui Mainnet</li>
                   <li>Connect your wallet using the button below</li>
                 </ol>
               </div>

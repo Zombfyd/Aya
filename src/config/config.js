@@ -6,15 +6,15 @@ const getEnvironmentFromNetwork = (walletNetwork) => {
         case 'mainnet':
             return 'mainnet';
         default:
-            console.warn('Unknown network, defaulting to testnet:', walletNetwork);
-            return 'testnet';
+            console.warn('Unknown network, defaulting to mainnet:', walletNetwork);
+            return 'mainnet';
     }
 };
 
 const config = {
     apiBaseUrl: 'https://ayagame.onrender.com',
-    // Initialize with testnet as default
-    network: 'testnet',
+    // Initialize with mainnet as default
+    network: 'mainnet',
     
     // Package IDs for different networks
     packageId: {
