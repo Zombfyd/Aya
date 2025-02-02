@@ -736,17 +736,7 @@ useEffect(() => {
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
       {(!gameState.gameStarted && (paidGameAttempts >= MAX_PAID_ATTEMPTS || !gameState.hasValidPayment)) && (
         <header>
-          <div className="creator-credit">
-            Created by <a 
-              href="https://x.com/Zombfyd" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="creator-name"
-            >
-             🎮 Zombfyd 🎮
-            </a>
-          </div>
-          <div className="wkit-connected-container">
+           <div className="wkit-connected-container">
             {isMobile && !wallet.connected && (
               <div className="mobile-wallet-guide">
                 <p>To play on mobile:</p>
