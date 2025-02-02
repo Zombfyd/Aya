@@ -505,3 +505,23 @@ th, td {
 .new-payment-button:hover {
   background: #2d8c2b !important;
 }
+.game-over-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.return-menu-button {
+  background: #666 !important;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.return-menu-button:hover {
+  background: #555 !important;
+}

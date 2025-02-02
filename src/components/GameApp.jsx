@@ -818,20 +818,42 @@ useEffect(() => {
           <div className="game-over-popup">
             <h2>Game Over!</h2>
             <p>Final Score: {gameState.score}</p>
-            {gameMode === 'paid' && wallet.connected && (
+            {gameMode === 'paid' && (
+              <p>Attempts remaining: {MAX_PAID_ATTEMPTS - paidGameAttempts}</p>
+            )}
+            
+            {(gameMode === 'free' || paidGameAttempts < MAX_PAID_ATTEMPTS) && (
               <button 
-                onClick={handleScoreSubmit} 
-                className="submit-score-button"
+                onClick={restartGame} 
+                className="restart-button"
               >
-                Submit Score
+                Play Again
               </button>
             )}
-            <button 
-              onClick={restartGame} 
-              className="restart-button"
-            >
-              Play Again
-            </button>
+            
+            {gameMode === 'paid' && paidGameAttempts >= MAX_PAID_ATTEMPTS && (
+              <div className="game-over-buttons">
+                <button 
+                  onClick={handleGamePayment}
+                  className="new-payment-button"
+                >
+                  Make New Payment
+                </button>
+                <button 
+                  onClick={() => {
+                    setGameState(prev => ({
+                      ...prev,
+                      isGameOver: false,
+                      hasValidPayment: false
+                    }));
+                    setPaidGameAttempts(0);
+                  }}
+                  className="return-menu-button"
+                >
+                  Return to Menu
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
