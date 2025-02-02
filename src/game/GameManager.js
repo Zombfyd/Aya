@@ -328,7 +328,7 @@ class GameManager {
     // Clear the canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw scalable background
+    // Draw background (still scaled to canvas)
     if (this.images.background) {
         this.ctx.drawImage(
             this.images.background,
@@ -342,40 +342,42 @@ class GameManager {
     // Save the current context state
     this.ctx.save();
     
-    // Reset the transform for assets (this removes scaling)
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // Reset scaling for fixed-size elements
+    const scaleX = this.canvas.width / this.canvas.offsetWidth;
+    const scaleY = this.canvas.height / this.canvas.offsetHeight;
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    this.ctx.scale(1/scaleX, 1/scaleY); // Counteract CSS scaling
 
-    // Draw bucket without scaling
+    // Draw all fixed-size elements
     if (this.bucket && this.images.bucket) {
         this.ctx.drawImage(
             this.images.bucket,
-            this.bucket.x,
-            this.bucket.y,
-            70,  // Fixed width
-            70   // Fixed height
+            this.bucket.x * scaleX,
+            this.bucket.y * scaleY,
+            70,
+            70
         );
     }
 
-    // Draw tears without scaling
-    this.teardrops.forEach(tear => {
-        this.ctx.drawImage(this.images.teardrop, tear.x, tear.y, 50, 50);
-    });
-    this.goldtears.forEach(tear => {
-        this.ctx.drawImage(this.images.goldtear, tear.x, tear.y, 50, 50);
-    });
-    this.redtears.forEach(tear => {
-        this.ctx.drawImage(this.images.redtear, tear.x, tear.y, 50, 50);
-    });
-    this.blacktears.forEach(tear => {
-        this.ctx.drawImage(this.images.blacktear, tear.x, tear.y, 50, 50);
+    // Draw tears with fixed size
+    [this.teardrops, this.goldtears, this.redtears, this.blacktears].forEach(arr => {
+        arr.forEach(tear => {
+            this.ctx.drawImage(
+                this.images[tear.constructor.name.toLowerCase()],
+                tear.x * scaleX,
+                tear.y * scaleY,
+                50,
+                50
+            );
+        });
     });
 
-    // Draw UI elements without scaling
+    // Draw UI elements with fixed size
     this.drawUI();
     
-    // Restore the context state (brings back scaling for other elements)
+    // Restore the context state
     this.ctx.restore();
-}
+  }
 
   drawUI() {
     if (!this.ctx) return;
