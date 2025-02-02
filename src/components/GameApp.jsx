@@ -704,10 +704,27 @@ useEffect(() => {
     if (gameState.gameStarted) {
       const canvas = document.getElementById("tearCatchGameCanvas");
       if (canvas) {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        
+        // Calculate margins to center the canvas
+        const marginLeft = (windowWidth - canvasWidth) / 2;
+        const marginTop = (windowHeight - canvasHeight) / 2;
+        
         canvas.style.position = "absolute";
-        canvas.style.top = "50%";
-        canvas.style.left = "50%";
-              }
+        canvas.style.left = `${marginLeft}px`;
+        canvas.style.top = `${marginTop}px`;
+      }
+    } else {
+      // Reset position when game is not started
+      const canvas = document.getElementById("tearCatchGameCanvas");
+      if (canvas) {
+        canvas.style.position = "";
+        canvas.style.left = "";
+        canvas.style.top = "";
+      }
     }
   }, [gameState.gameStarted]);
 
