@@ -49,7 +49,7 @@ const GameApp = () => {
 });
   // Add new state for paid game attempts
   const [paidGameAttempts, setPaidGameAttempts] = useState(0);
-  const MAX_PAID_ATTEMPTS = 4;
+  const MAX_PAID_ATTEMPTS = 3;
   // Add this to your state declarations
   const [countdown, setCountdown] = useState(null);
    useEffect(() => {
@@ -445,6 +445,14 @@ useEffect(() => {
       return;
     }
 
+    // Check if we can start another paid game
+    if (gameMode === 'paid') {
+      if (paidGameAttempts >= MAX_PAID_ATTEMPTS) {
+        alert('All paid attempts used. Please make a new payment to continue playing.');
+        return;
+      }
+    }
+
     setGameState(prev => ({
       ...prev,
       gameStarted: false,
@@ -522,7 +530,8 @@ useEffect(() => {
       ...prev,
       score: finalScore,
       isGameOver: true,
-      gameStarted: false
+      gameStarted: false,
+      // Don't reset hasValidPayment here since we still have attempts left
     }));
 
     try {
@@ -575,9 +584,18 @@ useEffect(() => {
       await fetchLeaderboards();
       
       if (gameMode === 'paid') {
-        setPaidGameAttempts(prev => prev + 1);
-        if (paidGameAttempts + 1 >= MAX_PAID_ATTEMPTS) {
-          setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        const newAttempts = paidGameAttempts + 1;
+        setPaidGameAttempts(newAttempts);
+        
+        // Only reset hasValidPayment if we've used all attempts
+        if (newAttempts >= MAX_PAID_ATTEMPTS) {
+          setGameState(prev => ({ 
+            ...prev, 
+            hasValidPayment: false 
+          }));
+          console.log('All paid attempts used, requiring new payment');
+        } else {
+          console.log(`${MAX_PAID_ATTEMPTS - newAttempts} paid attempts remaining`);
         }
       }
 
@@ -718,6 +736,9 @@ useEffect(() => {
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
       {(!gameState.gameStarted && (paidGameAttempts >= MAX_PAID_ATTEMPTS || !gameState.hasValidPayment)) && (
         <header>
+          <div className="creator-credit">
+            Created by <span className="creator-name">Zombfyd</span>
+          </div>
           <div className="wkit-connected-container">
             {isMobile && !wallet.connected && (
               <div className="mobile-wallet-guide">
