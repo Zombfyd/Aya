@@ -776,6 +776,16 @@ useEffect(() => {
               <p>Address: {wallet.account?.address}</p>
               <p>Network: {chainName(wallet.chain?.id)}</p>
               <p>Balance: {formatSUI(balance ?? 0, { withAbbr: false })} SUI</p>
+              <p className="creator-credit">
+            Created by <a 
+              href="https://x.com/Zombfyd" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="creator-name"
+            >
+             🎮 Zombfyd 🎮
+            </a>
+          </p>
             </div>
           )}
 
