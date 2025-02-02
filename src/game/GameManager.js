@@ -2,6 +2,9 @@
 
 class GameManager {
   constructor() {
+    // Add fixed height constant
+    this.CANVAS_HEIGHT = 700; // You can adjust this value
+    
     // Initialize game state variables
     this.canvas = null;
     this.ctx = null;
@@ -201,55 +204,54 @@ class GameManager {
 
   // Canvas Management
   resizeCanvas() {
-  if (!this.canvas) return;
-
-  const parent = this.canvas.parentNode;
-  const targetWidth = parent.offsetWidth;
-  const targetHeight = parent.offsetHeight;
-  const aspectRatio = 16/9; // Match your game's intended aspect ratio
-
-  // Calculate dimensions while maintaining aspect ratio
-  let canvasWidth = targetWidth;
-  let canvasHeight = targetWidth / aspectRatio;
-
-  // If too tall, adjust width instead
-  if (canvasHeight > targetHeight) {
-    canvasHeight = targetHeight;
-    canvasWidth = targetHeight * aspectRatio;
+    if (this.canvas) {
+      // Keep height fixed, only update width
+      this.canvas.height = this.CANVAS_HEIGHT;
+      this.canvas.width = this.canvas.parentNode.offsetWidth;
+      
+      // Calculate scale factor based on a reference width (e.g., 1920px)
+      this.scale = this.canvas.width / 1920;
+      
+      // Update bucket position and size
+      if (this.bucket) {
+        const baseBucketSize = 70; // Original bucket size
+        this.bucket.width = baseBucketSize * this.scale;
+        this.bucket.height = baseBucketSize * this.scale;
+        this.bucket.y = this.canvas.height - this.bucket.height - 10;
+        this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
+      }
+    }
   }
-
-  // Handle high-DPI displays
-  const dpr = window.devicePixelRatio || 1;
-  this.canvas.width = canvasWidth * dpr;
-  this.canvas.height = canvasHeight * dpr;
-  this.canvas.style.width = `${canvasWidth}px`;
-  this.canvas.style.height = `${canvasHeight}px`;
-  
-  // Scale context for crisp rendering
-  this.ctx.scale(dpr, dpr);
-}
 
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier));
+    const baseSize = 50; // Original tear size
+    const scaledSize = baseSize * this.scale;
+    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier, scaledSize));
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
 
   spawnGoldtear() {
     if (!this.gameActive) return;
+    const baseSize = 50; // Original tear size
+    const scaledSize = baseSize * this.scale;
     this.goldtears.push(new Goldtear(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.goldtear = setTimeout(() => this.spawnGoldtear(), Math.random() * 3000 + 1500);
   }
 
   spawnRedtear() {
     if (!this.gameActive) return;
+    const baseSize = 50; // Original tear size
+    const scaledSize = baseSize * this.scale;
     this.redtears.push(new Redtear(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.redtear = setTimeout(() => this.spawnRedtear(), Math.random() * 12000 + 3000);
   }
 
   spawnBlacktear() {
     if (!this.gameActive) return;
+    const baseSize = 50; // Original tear size
+    const scaledSize = baseSize * this.scale;
     this.blacktears.push(new Blacktear(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
   }
@@ -447,12 +449,12 @@ class Entity {
  * Teardrop class - Base class for all falling tear objects
  */
 class Teardrop extends Entity {
-  constructor(canvasWidth, speedMultiplier) {
+  constructor(canvasWidth, speedMultiplier, size) {
     super(
-      Math.random() * (canvasWidth - 50), // x position
+      Math.random() * (canvasWidth - size), // x position
       0, // y position
-      50, // width
-      50, // height
+      size, // width
+      size, // height
       Math.random() * 2 + 2 * speedMultiplier // speed
     );
   }
