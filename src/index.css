@@ -118,6 +118,7 @@ header {
 .wallet-info {
   color: #2054c9;
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 /* Mode selector styles merged */
