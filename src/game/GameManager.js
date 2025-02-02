@@ -201,16 +201,33 @@ class GameManager {
 
   // Canvas Management
   resizeCanvas() {
-    if (this.canvas) {
-      this.canvas.width = this.canvas.parentNode.offsetWidth;
-      this.canvas.height = this.canvas.parentNode.offsetHeight;
-      
-      if (this.bucket) {
-        this.bucket.y = this.canvas.height - 50;
-        this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
-      }
-    }
+  if (!this.canvas) return;
+
+  const parent = this.canvas.parentNode;
+  const targetWidth = parent.offsetWidth;
+  const targetHeight = parent.offsetHeight;
+  const aspectRatio = 16/9; // Match your game's intended aspect ratio
+
+  // Calculate dimensions while maintaining aspect ratio
+  let canvasWidth = targetWidth;
+  let canvasHeight = targetWidth / aspectRatio;
+
+  // If too tall, adjust width instead
+  if (canvasHeight > targetHeight) {
+    canvasHeight = targetHeight;
+    canvasWidth = targetHeight * aspectRatio;
   }
+
+  // Handle high-DPI displays
+  const dpr = window.devicePixelRatio || 1;
+  this.canvas.width = canvasWidth * dpr;
+  this.canvas.height = canvasHeight * dpr;
+  this.canvas.style.width = `${canvasWidth}px`;
+  this.canvas.style.height = `${canvasHeight}px`;
+  
+  // Scale context for crisp rendering
+  this.ctx.scale(dpr, dpr);
+}
 
   // Spawn Methods
   spawnTeardrop() {
