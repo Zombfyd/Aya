@@ -205,11 +205,12 @@ class GameManager {
   // Canvas Management
   resizeCanvas() {
     if (this.canvas) {
+      // Keep height fixed, only update width
+      this.canvas.height = this.CANVAS_HEIGHT;
       this.canvas.width = this.canvas.parentNode.offsetWidth;
-      this.canvas.height = this.canvas.parentNode.offsetHeight;
       
+      // Only update bucket's x position if it would go off screen
       if (this.bucket) {
-        this.bucket.y = this.canvas.height - 80;
         this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
       }
     }
