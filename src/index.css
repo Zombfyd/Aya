@@ -452,3 +452,56 @@ th, td {
   font-weight: bold;
   color: #333;
 }
+.game-over-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.game-over-popup {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.game-over-popup h2 {
+  margin-top: 0;
+  color: #2054c9;
+}
+
+.game-over-popup button {
+  margin: 10px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  background: #2054c9;
+  color: white;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.game-over-popup button:hover {
+  background: #1643a0;
+}
+
+.game-over-popup button:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+.new-payment-button {
+  background: #39B037 !important;
+}
+
+.new-payment-button:hover {
+  background: #2d8c2b !important;
+}
