@@ -202,8 +202,8 @@ class GameManager {
   // Canvas Management
   resizeCanvas() {
     if (this.canvas) {
-      this.canvas.width = this.canvas.parentNode.offsetWidth;  // Flexible width
-      this.canvas.height = 700;  // Fixed height
+      this.canvas.width = this.canvas.parentNode.offsetWidth;
+      this.canvas.height = this.canvas.parentNode.offsetHeight;
       
       if (this.bucket) {
         this.bucket.y = this.canvas.height - 80;
@@ -310,9 +310,9 @@ class GameManager {
     // Clear the canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background with proper aspect ratio
+    // Draw background
     if (this.images.background) {
-      this.drawImageMaintainAspectRatio(
+      this.ctx.drawImage(
         this.images.background,
         0,
         0,
@@ -321,26 +321,27 @@ class GameManager {
       );
     }
 
-    // Draw bucket with proper aspect ratio
+    // Draw bucket with preserved aspect ratio
     if (this.bucket && this.images.bucket) {
-      const originalAspectRatio = this.images.bucket.width / this.images.bucket.height;
-      const bucketHeight = this.bucket.height;
-      const bucketWidth = bucketHeight * originalAspectRatio;
+      const bucketImg = this.images.bucket;
+      const aspectRatio = bucketImg.naturalWidth / bucketImg.naturalHeight;
+      const height = this.bucket.height;
+      const width = height * aspectRatio;
       
       this.ctx.drawImage(
-        this.images.bucket,
+        bucketImg,
         this.bucket.x,
         this.bucket.y,
-        bucketWidth,
-        bucketHeight
+        width,
+        height
       );
     }
 
-    // Draw all entities with proper aspect ratios
-    this.teardrops.forEach(tear => this.drawTearMaintainAspectRatio(tear, this.images.teardrop));
-    this.goldtears.forEach(tear => this.drawTearMaintainAspectRatio(tear, this.images.goldtear));
-    this.redtears.forEach(tear => this.drawTearMaintainAspectRatio(tear, this.images.redtear));
-    this.blacktears.forEach(tear => this.drawTearMaintainAspectRatio(tear, this.images.blacktear));
+    // Draw tears with preserved aspect ratio
+    this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
+    this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
+    this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
+    this.blacktears.forEach(tear => this.drawTear(tear, this.images.blacktear));
 
     // Draw splashes
     this.splashes.forEach(splash => {
@@ -350,39 +351,20 @@ class GameManager {
     this.drawUI();
   }
 
-  drawTearMaintainAspectRatio(tear, image) {
+  drawTear(tear, image) {
     if (!this.ctx || !image) return;
-    const originalAspectRatio = image.width / image.height;
-    const tearHeight = tear.height;
-    const tearWidth = tearHeight * originalAspectRatio;
+    
+    const aspectRatio = image.naturalWidth / image.naturalHeight;
+    const height = tear.height;
+    const width = height * aspectRatio;
     
     this.ctx.drawImage(
-        image,
-        tear.x,
-        tear.y,
-        tearWidth,
-        tearHeight
+      image,
+      tear.x,
+      tear.y,
+      width,
+      height
     );
-  }
-
-  drawImageMaintainAspectRatio(image, x, y, width, height) {
-    if (!image) return;
-    const originalAspectRatio = image.width / image.height;
-    const containerAspectRatio = width / height;
-    let drawWidth = width;
-    let drawHeight = height;
-    let drawX = x;
-    let drawY = y;
-
-    if (containerAspectRatio > originalAspectRatio) {
-        drawWidth = height * originalAspectRatio;
-        drawX = x + (width - drawWidth) / 2;
-    } else {
-        drawHeight = width / originalAspectRatio;
-        drawY = y + (height - drawHeight) / 2;
-    }
-
-    this.ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
   }
 
   drawUI() {
