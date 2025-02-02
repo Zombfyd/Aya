@@ -131,6 +131,9 @@ class GameManager {
 
   // Game Control Methods
   startGame(mode = 'free') {
+    // Force a canvas resize before starting the game
+    this.resizeCanvas();
+    
     this.cleanup();
     this.initGame();
     this.gameMode = mode;
@@ -214,8 +217,11 @@ class GameManager {
   // Canvas Management
   resizeCanvas() {
     if (this.canvas) {
-      this.canvas.width = this.canvas.parentNode.offsetWidth;
-      this.canvas.height = this.canvas.parentNode.offsetHeight;
+      // Force layout recalculation to get accurate parent dimensions
+      this.canvas.parentNode.offsetHeight; // trigger reflow
+      
+      this.canvas.width = this.canvas.parentNode.offsetWidth;  // Flexible width
+      this.canvas.height = 700;  // Fixed height
       
       if (this.bucket) {
         this.bucket.y = this.canvas.height - 80;
