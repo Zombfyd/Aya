@@ -437,10 +437,29 @@ th, td {
   margin-bottom: 10px;
   color: #FFD700;
 }
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+@keyframes sparkle {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+@keyframes sheen {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
 .creator-credit {
   position: absolute;
   top: 95%;
-  right: 5px;
+  right: 10px;
   font-size: 14px;
   color: #666;
   padding: 5px 10px;
@@ -450,7 +469,31 @@ th, td {
 
 .creator-name {
   font-weight: bold;
+  text-decoration: none;
+  padding: 2px 5px;
+  border-radius: 3px;
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
   color: #2f9a08;
+  animation: sheen 3s ease-in-out infinite;
+  text-shadow: 0 0 5px rgba(32, 84, 201, 0.3);
+}
+
+.creator-name:hover {
+  color: #434343;
+  text-shadow: 0 0 5px rgba(32, 84, 201, 0.5);
+  animation: blink 1s infinite, sparkle 1s infinite;
+  letter-spacing: 1px;
+  transform-origin: center;
 }
 .game-over-overlay {
   position: fixed;
