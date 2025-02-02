@@ -683,6 +683,23 @@ useEffect(() => {
     return () => clearInterval(intervalId); // Cleanup on unmount
   }, []);
 
+  useEffect(() => {
+    // Prevent scrolling on touch devices during gameplay
+    const preventScroll = (e) => {
+      if (gameState.gameStarted) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+    document.addEventListener('touchstart', preventScroll, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchmove', preventScroll);
+      document.removeEventListener('touchstart', preventScroll);
+    };
+  }, [gameState.gameStarted]);
+
   // Render method
   return (
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
