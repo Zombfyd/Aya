@@ -488,6 +488,17 @@ useEffect(() => {
         isGameOver: false,
       }));
 
+      // Add smooth scrolling to center the canvas
+      const canvas = document.getElementById('tearCatchGameCanvas');
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const scrollTop = rect.top + window.scrollY - (window.innerHeight - rect.height) / 2;
+        window.scrollTo({
+          top: scrollTop,
+          behavior: 'smooth'
+        });
+      }
+
       if (window.gameManager) {
         console.log(`Starting game in ${gameMode} mode`);
         window.gameManager.startGame(gameMode);
@@ -700,25 +711,7 @@ useEffect(() => {
     };
   }, [gameState.gameStarted]);
 
-  useEffect(() => {
-    if (gameState.gameStarted) {
-      const canvas = document.getElementById("tearCatchGameCanvas");
-      if (canvas) {
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        
-        // Calculate margins to center the canvas
-        const marginLeft = (windowWidth - canvasWidth) / 2;
-        const marginTop = (windowHeight - canvasHeight) / 2;
-        
-        canvas.style.position = "absolute";
-        canvas.style.left = `${marginLeft}px`;
-        canvas.style.top = `${marginTop}px`;
-      }
-    } 
-  }, [gameState.gameStarted]);
+
 
   // Render method
   return (
