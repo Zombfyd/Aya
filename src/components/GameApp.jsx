@@ -818,26 +818,20 @@ useEffect(() => {
           <div className="game-over-popup">
             <h2>Game Over!</h2>
             <p>Final Score: {gameState.score}</p>
-            {gameMode === 'paid' && (
-              <p>Attempts remaining: {MAX_PAID_ATTEMPTS - paidGameAttempts}</p>
+            {gameMode === 'paid' && wallet.connected && (
+              <button 
+                onClick={handleScoreSubmit} 
+                className="submit-score-button"
+              >
+                Submit Score
+              </button>
             )}
             <button 
               onClick={restartGame} 
               className="restart-button"
-              disabled={gameMode === 'paid' && paidGameAttempts >= MAX_PAID_ATTEMPTS}
             >
-              {gameMode === 'paid' && paidGameAttempts >= MAX_PAID_ATTEMPTS 
-                ? 'No attempts remaining' 
-                : 'Play Again'}
+              Play Again
             </button>
-            {gameMode === 'paid' && paidGameAttempts >= MAX_PAID_ATTEMPTS && (
-              <button 
-                onClick={handleGamePayment}
-                className="new-payment-button"
-              >
-                Make New Payment
-              </button>
-            )}
           </div>
         </div>
       )}
