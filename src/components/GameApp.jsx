@@ -700,6 +700,18 @@ useEffect(() => {
     };
   }, [gameState.gameStarted]);
 
+  useEffect(() => {
+    if (gameState.gameStarted) {
+      const canvas = document.getElementById("tearCatchGameCanvas");
+      if (canvas) {
+        canvas.style.position = "absolute";
+        canvas.style.top = "50%";
+        canvas.style.left = "50%";
+        canvas.style.transform = "translate(-50%, -50%)";
+      }
+    }
+  }, [gameState.gameStarted]);
+
   // Render method
   return (
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
@@ -776,7 +788,7 @@ useEffect(() => {
         </header>
       )}
 
-      <canvas id="tearCatchGameCanvas" className="game-canvas" />
+      <canvas id="tearCatchGameCanvas" className={`game-canvas ${gameState.gameStarted ? 'centered-canvas' : ''}`} />
 
       {gameState.isGameOver && (
         <div className="game-over-overlay">
