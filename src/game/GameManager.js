@@ -339,23 +339,18 @@ class GameManager {
       );
     }
 
-    // Draw bucket with preserved aspect ratio
+    // Draw bucket with fixed size
     if (this.bucket && this.images.bucket) {
-      const bucketImg = this.images.bucket;
-      const aspectRatio = bucketImg.naturalWidth / bucketImg.naturalHeight;
-      const height = this.bucket.height;
-      const width = height * aspectRatio;
-      
       this.ctx.drawImage(
-        bucketImg,
+        this.images.bucket,
         this.bucket.x,
         this.bucket.y,
-        width,
-        height
+        this.bucket.width,
+        this.bucket.height
       );
     }
 
-    // Draw tears with preserved aspect ratio
+    // Draw tears with fixed size
     this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
     this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
     this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
@@ -372,16 +367,12 @@ class GameManager {
   drawTear(tear, image) {
     if (!this.ctx || !image) return;
     
-    const aspectRatio = image.naturalWidth / image.naturalHeight;
-    const height = tear.height;
-    const width = height * aspectRatio;
-    
     this.ctx.drawImage(
       image,
       tear.x,
       tear.y,
-      width,
-      height
+      tear.width,
+      tear.height
     );
   }
 
