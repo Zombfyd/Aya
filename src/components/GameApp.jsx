@@ -717,15 +717,7 @@ useEffect(() => {
         canvas.style.left = `${marginLeft}px`;
         canvas.style.top = `${marginTop}px`;
       }
-    } else {
-      // Reset position when game is not started
-      const canvas = document.getElementById("tearCatchGameCanvas");
-      if (canvas) {
-        canvas.style.position = "";
-        canvas.style.left = "";
-        canvas.style.top = "";
-      }
-    }
+    } 
   }, [gameState.gameStarted]);
 
   // Render method
