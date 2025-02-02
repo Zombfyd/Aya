@@ -328,7 +328,7 @@ class GameManager {
     // Clear the canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background
+    // Draw background (this one can scale with canvas)
     if (this.images.background) {
       this.ctx.drawImage(
         this.images.background,
@@ -339,22 +339,30 @@ class GameManager {
       );
     }
 
-    // Draw bucket with fixed size
+    // Draw bucket with FIXED size (70x70)
     if (this.bucket && this.images.bucket) {
       this.ctx.drawImage(
         this.images.bucket,
         this.bucket.x,
         this.bucket.y,
-        this.bucket.width,
-        this.bucket.height
+        70,  // Fixed width
+        70   // Fixed height
       );
     }
 
-    // Draw tears with fixed size
-    this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
-    this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
-    this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
-    this.blacktears.forEach(tear => this.drawTear(tear, this.images.blacktear));
+    // Draw tears with FIXED size (50x50)
+    this.teardrops.forEach(tear => {
+      this.ctx.drawImage(this.images.teardrop, tear.x, tear.y, 50, 50);
+    });
+    this.goldtears.forEach(tear => {
+      this.ctx.drawImage(this.images.goldtear, tear.x, tear.y, 50, 50);
+    });
+    this.redtears.forEach(tear => {
+      this.ctx.drawImage(this.images.redtear, tear.x, tear.y, 50, 50);
+    });
+    this.blacktears.forEach(tear => {
+      this.ctx.drawImage(this.images.blacktear, tear.x, tear.y, 50, 50);
+    });
 
     // Draw splashes
     this.splashes.forEach(splash => {
@@ -364,34 +372,24 @@ class GameManager {
     this.drawUI();
   }
 
-  drawTear(tear, image) {
-    if (!this.ctx || !image) return;
-    
-    this.ctx.drawImage(
-      image,
-      tear.x,
-      tear.y,
-      tear.width,
-      tear.height
-    );
-  }
-
   drawUI() {
     if (!this.ctx) return;
 
+    // Fixed font sizes
     this.ctx.font = "25px Inconsolata";
     this.ctx.fillStyle = "#2054c9";
     
-    // Draw score
+    // Draw score with fixed size
+    this.ctx.font = "25px Inconsolata";
     this.ctx.fillText(`Score: ${this.score}`, 20, 30);
     
-    // Draw lives
+    // Draw lives with fixed size
     this.ctx.font = "18px Inconsolata";
     if (this.bucket) {
-      this.ctx.fillText(`${this.lives}`, this.bucket.x + (this.bucket.width / 2) - 10, this.bucket.y + 40);
+      this.ctx.fillText(`${this.lives}`, this.bucket.x + 25, this.bucket.y + 40);
     }
     
-    // Draw speed
+    // Draw speed with fixed size
     this.ctx.font = "25px Inconsolata";
     this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
     
@@ -401,6 +399,7 @@ class GameManager {
   drawLegend() {
     if (!this.ctx) return;
 
+    // Fixed font size for legend
     this.ctx.font = "18px Inconsolata";
     
     this.ctx.fillStyle = "#2054c9";
