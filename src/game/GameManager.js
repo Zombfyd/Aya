@@ -203,7 +203,8 @@ class GameManager {
   resizeCanvas() {
     if (this.canvas) {
       this.canvas.width = this.canvas.parentNode.offsetWidth;
-            
+      this.canvas.height = this.canvas.parentNode.offsetHeight;
+      
       if (this.bucket) {
         this.bucket.y = this.canvas.height - 80;
         this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
