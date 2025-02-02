@@ -216,7 +216,7 @@ class GameManager {
       if (this.bucket) {
         this.bucket.width = 70 * ratio;
         this.bucket.height = 70 * ratio;
-        this.bucket.y = this.canvas.height - this.bucket.height - 10;
+        this.bucket.y = this.canvas.height - this.bucket.height;
         this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
       }
     }
@@ -225,33 +225,25 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
-    const tearSize = 50 * ratio;
-    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier, tearSize));
+    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
 
   spawnGoldtear() {
     if (!this.gameActive) return;
-    const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
-    const tearSize = 50 * ratio;
-    this.goldtears.push(new Goldtear(this.canvas.width, this.speedMultiplier, tearSize));
+    this.goldtears.push(new Goldtear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
     this.spawnTimers.goldtear = setTimeout(() => this.spawnGoldtear(), Math.random() * 3000 + 1500);
   }
 
   spawnRedtear() {
     if (!this.gameActive) return;
-    const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
-    const tearSize = 50 * ratio;
-    this.redtears.push(new Redtear(this.canvas.width, this.speedMultiplier, tearSize));
+    this.redtears.push(new Redtear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
     this.spawnTimers.redtear = setTimeout(() => this.spawnRedtear(), Math.random() * 12000 + 3000);
   }
 
   spawnBlacktear() {
     if (!this.gameActive) return;
-    const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
-    const tearSize = 50 * ratio;
-    this.blacktears.push(new Blacktear(this.canvas.width, this.speedMultiplier, tearSize));
+    this.blacktears.push(new Blacktear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
     this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
   }
 
