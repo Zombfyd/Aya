@@ -328,49 +328,54 @@ class GameManager {
     // Clear the canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background (this one can scale with canvas)
+    // Draw scalable background
     if (this.images.background) {
-      this.ctx.drawImage(
-        this.images.background,
-        0,
-        0,
-        this.canvas.width,
-        this.canvas.height
-      );
+        this.ctx.drawImage(
+            this.images.background,
+            0,
+            0,
+            this.canvas.width,
+            this.canvas.height
+        );
     }
 
-    // Draw bucket with FIXED size (70x70)
+    // Save the current context state
+    this.ctx.save();
+    
+    // Reset the transform for assets (this removes scaling)
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    // Draw bucket without scaling
     if (this.bucket && this.images.bucket) {
-      this.ctx.drawImage(
-        this.images.bucket,
-        this.bucket.x,
-        this.bucket.y,
-        70,  // Fixed width
-        70   // Fixed height
-      );
+        this.ctx.drawImage(
+            this.images.bucket,
+            this.bucket.x,
+            this.bucket.y,
+            70,  // Fixed width
+            70   // Fixed height
+        );
     }
 
-    // Draw tears with FIXED size (50x50)
+    // Draw tears without scaling
     this.teardrops.forEach(tear => {
-      this.ctx.drawImage(this.images.teardrop, tear.x, tear.y, 50, 50);
+        this.ctx.drawImage(this.images.teardrop, tear.x, tear.y, 50, 50);
     });
     this.goldtears.forEach(tear => {
-      this.ctx.drawImage(this.images.goldtear, tear.x, tear.y, 50, 50);
+        this.ctx.drawImage(this.images.goldtear, tear.x, tear.y, 50, 50);
     });
     this.redtears.forEach(tear => {
-      this.ctx.drawImage(this.images.redtear, tear.x, tear.y, 50, 50);
+        this.ctx.drawImage(this.images.redtear, tear.x, tear.y, 50, 50);
     });
     this.blacktears.forEach(tear => {
-      this.ctx.drawImage(this.images.blacktear, tear.x, tear.y, 50, 50);
+        this.ctx.drawImage(this.images.blacktear, tear.x, tear.y, 50, 50);
     });
 
-    // Draw splashes
-    this.splashes.forEach(splash => {
-      splash.draw(this.ctx);
-    });
-
+    // Draw UI elements without scaling
     this.drawUI();
-  }
+    
+    // Restore the context state (brings back scaling for other elements)
+    this.ctx.restore();
+}
 
   drawUI() {
     if (!this.ctx) return;
