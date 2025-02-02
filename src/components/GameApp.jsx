@@ -737,7 +737,14 @@ useEffect(() => {
       {(!gameState.gameStarted && (paidGameAttempts >= MAX_PAID_ATTEMPTS || !gameState.hasValidPayment)) && (
         <header>
           <div className="creator-credit">
-            Created by <span className="creator-name">Zombfyd</span>
+            Created by <a 
+              href="https://x.com/Zombfyd" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="creator-name"
+            >
+             🎮 Zombfyd 🎮
+            </a>
           </div>
           <div className="wkit-connected-container">
             {isMobile && !wallet.connected && (
