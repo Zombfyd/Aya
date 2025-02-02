@@ -190,6 +190,9 @@ class GameManager {
   handlePointerMove(e) {
     if (!this.gameActive || !this.bucket) return;
 
+    // Prevent default behavior to stop scrolling
+    e.preventDefault();
+
     const rect = this.canvas.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
     
