@@ -46,6 +46,9 @@ class GameManager {
     this.gameLoop = this.gameLoop.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
     this.handleResize = this.handleResize.bind(this);
+
+    // Fixed bucket size
+    this.BUCKET_SIZE = 70;
   }
 
   // Image Loading Method
@@ -98,12 +101,12 @@ class GameManager {
     this.lastCheckpoint = 0;
     this.gameActive = true;
 
-    // Initialize bucket position
+    // Initialize bucket with fixed size
     this.bucket = {
-      x: this.canvas.width / 2 - 50,
+      x: this.canvas.width / 2 - 35,
       y: this.canvas.height - 80,
-      width: 70,
-      height: 70,
+      width: this.BUCKET_SIZE,
+      height: this.BUCKET_SIZE,
       speed: 0
     };
 
@@ -354,6 +357,7 @@ class GameManager {
   drawUI() {
     if (!this.ctx) return;
 
+    // Fixed font sizes
     this.ctx.font = "25px Inconsolata";
     this.ctx.fillStyle = "#2054c9";
     
@@ -376,6 +380,7 @@ class GameManager {
   drawLegend() {
     if (!this.ctx) return;
 
+    // Fixed font size for legend
     this.ctx.font = "18px Inconsolata";
     
     this.ctx.fillStyle = "#2054c9";
@@ -413,16 +418,15 @@ class GameManager {
  * Base Entity class for game objects
  */
 class Entity {
-  constructor(x, y, width, height, speed) {
+  constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.width = width;
-    this.height = height;
-    this.speed = speed;
+    this.width = 50;  // Fixed width for tears
+    this.height = 50; // Fixed height for tears
   }
 
   update() {
-    this.y += this.speed;
+    this.y += 2; // Fixed speed
   }
 }
 
@@ -433,11 +437,9 @@ class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
       Math.random() * (canvasWidth - 50), // x position
-      0, // y position
-      50, // width
-      50, // height
-      Math.random() * 2 + 2 * speedMultiplier // speed
+      0 // y position
     );
+    this.speed = 2 * speedMultiplier;
   }
 }
 
