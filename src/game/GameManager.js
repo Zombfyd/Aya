@@ -354,6 +354,11 @@ class GameManager {
         this.ctx.drawImage(this.images.blacktear, tear.x, tear.y, 50, 50);
     });
 
+    // Add this section to draw splashes
+    this.splashes.forEach(splash => {
+        splash.draw(this.ctx);
+    });
+
     // Draw text at fixed size
     this.drawUI();
 }
