@@ -104,7 +104,7 @@ class GameManager {
     // Initialize bucket position
     this.bucket = {
       x: this.canvas.width / 2 - 50,
-      y: this.canvas.height - 70,
+      y: this.canvas.height - 80,
       width: 70,
       height: 70,
       speed: 0
@@ -209,10 +209,13 @@ class GameManager {
       this.canvas.height = this.CANVAS_HEIGHT;
       this.canvas.width = this.canvas.parentNode.offsetWidth;
       
+      // Only scale if width exceeds height
+      const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
+      
       // Update bucket position and size
       if (this.bucket) {
-        this.bucket.width = 70;  // Keep original size
-        this.bucket.height = 70; // Keep original size
+        this.bucket.width = 70 * ratio;
+        this.bucket.height = 70 * ratio;
         this.bucket.y = this.canvas.height - this.bucket.height - 10;
         this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
       }
@@ -222,25 +225,33 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
+    const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
+    const tearSize = 50 * ratio;
+    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier, tearSize));
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
 
   spawnGoldtear() {
     if (!this.gameActive) return;
-    this.goldtears.push(new Goldtear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
+    const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
+    const tearSize = 50 * ratio;
+    this.goldtears.push(new Goldtear(this.canvas.width, this.speedMultiplier, tearSize));
     this.spawnTimers.goldtear = setTimeout(() => this.spawnGoldtear(), Math.random() * 3000 + 1500);
   }
 
   spawnRedtear() {
     if (!this.gameActive) return;
-    this.redtears.push(new Redtear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
+    const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
+    const tearSize = 50 * ratio;
+    this.redtears.push(new Redtear(this.canvas.width, this.speedMultiplier, tearSize));
     this.spawnTimers.redtear = setTimeout(() => this.spawnRedtear(), Math.random() * 12000 + 3000);
   }
 
   spawnBlacktear() {
     if (!this.gameActive) return;
-    this.blacktears.push(new Blacktear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
+    const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
+    const tearSize = 50 * ratio;
+    this.blacktears.push(new Blacktear(this.canvas.width, this.speedMultiplier, tearSize));
     this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
   }
 
