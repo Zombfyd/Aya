@@ -457,9 +457,6 @@ th, td {
   }
 }
 .creator-credit {
-  position: absolute;
-  top: 95%;
-  right: 10px;
   font-size: 14px;
   color: #666;
   padding: 5px 10px;
