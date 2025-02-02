@@ -48,13 +48,13 @@ class GameManager {
     this.handleResize = this.handleResize.bind(this);
 
     // Add base dimensions for scaling
-    this.baseHeight = 700; // Original design height
+    this.BASE_HEIGHT = 700; // The original design height
     this.baseEntitySize = 70; // Original entity size
     this.baseBucketSize = 70; // Original bucket size
 
-    // Fixed sizes for game entities - these won't scale
-    this.BUCKET_SIZE = 70;  // Fixed bucket size
-    this.TEAR_SIZE = 50;    // Fixed tear size
+    // Remove fixed sizes and make them height-dependent
+    this.BUCKET_SIZE = 70 * (this.canvas ? this.canvas.height / this.BASE_HEIGHT : 1);
+    this.TEAR_SIZE = 50 * (this.canvas ? this.canvas.height / this.BASE_HEIGHT : 1);
   }
 
   // Image Loading Method
@@ -217,17 +217,23 @@ class GameManager {
   // Canvas Management
   resizeCanvas() {
     if (this.canvas) {
-        // Get parent width to set canvas width dynamically
-        this.canvas.width = this.canvas.parentNode.offsetWidth;
-        this.canvas.height = 700; // Keep height fixed
+        // Calculate aspect ratio based on height
+        const aspectRatio = this.canvas.width / this.canvas.height;
+        this.canvas.width = aspectRatio * 700; // Maintain aspect ratio
+        this.canvas.height = 700; // Fixed height
+
+        // Update sizes based on current height
+        this.BUCKET_SIZE = 70 * (this.canvas.height / this.BASE_HEIGHT);
+        this.TEAR_SIZE = 50 * (this.canvas.height / this.BASE_HEIGHT);
 
         // Ensure bucket stays within bounds
         if (this.bucket) {
-            this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
+            this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.BUCKET_SIZE);
+            this.bucket.width = this.BUCKET_SIZE;
+            this.bucket.height = this.BUCKET_SIZE;
         }
     }
-}
-
+  }
 
   // Spawn Methods
   spawnTeardrop() {
@@ -324,40 +330,57 @@ class GameManager {
   drawGame() {
     if (!this.ctx) return;
 
-    // Clear canvas
+    // Clear the canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background without scaling
+    // Draw background (scaled to canvas)
     if (this.images.background) {
-        this.ctx.drawImage(this.images.background, 0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.drawImage(
+            this.images.background,
+            0,
+            0,
+            this.canvas.width,
+            this.canvas.height
+        );
     }
 
-    // Reset transform to prevent automatic scaling
+    // Save the current context state
+    this.ctx.save();
+    
+    // Reset transform to identity matrix
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Draw bucket at fixed size
+    // Draw all elements with height-dependent scaling
     if (this.bucket && this.images.bucket) {
-        this.ctx.drawImage(this.images.bucket, this.bucket.x, this.bucket.y, 70, 70);
+        this.ctx.drawImage(
+            this.images.bucket,
+            this.bucket.x,
+            this.bucket.y,
+            this.BUCKET_SIZE,
+            this.BUCKET_SIZE
+        );
     }
 
-    // Draw teardrops at fixed size
+    // Draw tears with height-dependent size
     this.teardrops.forEach(tear => {
-        this.ctx.drawImage(this.images.teardrop, tear.x, tear.y, 50, 50);
+        this.ctx.drawImage(this.images.teardrop, tear.x, tear.y, this.TEAR_SIZE, this.TEAR_SIZE);
     });
     this.goldtears.forEach(tear => {
-        this.ctx.drawImage(this.images.goldtear, tear.x, tear.y, 50, 50);
+        this.ctx.drawImage(this.images.goldtear, tear.x, tear.y, this.TEAR_SIZE, this.TEAR_SIZE);
     });
     this.redtears.forEach(tear => {
-        this.ctx.drawImage(this.images.redtear, tear.x, tear.y, 50, 50);
+        this.ctx.drawImage(this.images.redtear, tear.x, tear.y, this.TEAR_SIZE, this.TEAR_SIZE);
     });
     this.blacktears.forEach(tear => {
-        this.ctx.drawImage(this.images.blacktear, tear.x, tear.y, 50, 50);
+        this.ctx.drawImage(this.images.blacktear, tear.x, tear.y, this.TEAR_SIZE, this.TEAR_SIZE);
     });
 
-    // Draw text at fixed size
+    // Draw UI elements with fixed size
     this.drawUI();
-}
-
+    
+    // Restore the context state
+    this.ctx.restore();
+  }
 
   drawUI() {
     if (!this.ctx) return;
