@@ -46,9 +46,6 @@ class GameManager {
     this.gameLoop = this.gameLoop.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
     this.handleResize = this.handleResize.bind(this);
-
-    // Fixed bucket size
-    this.BUCKET_SIZE = 70;
   }
 
   // Image Loading Method
@@ -101,12 +98,12 @@ class GameManager {
     this.lastCheckpoint = 0;
     this.gameActive = true;
 
-    // Initialize bucket with fixed size
+    // Initialize bucket position
     this.bucket = {
-      x: this.canvas.width / 2 - 35,
+      x: this.canvas.width / 2 - 50,
       y: this.canvas.height - 80,
-      width: this.BUCKET_SIZE,
-      height: this.BUCKET_SIZE,
+      width: 70,
+      height: 70,
       speed: 0
     };
 
@@ -205,12 +202,11 @@ class GameManager {
   // Canvas Management
   resizeCanvas() {
     if (this.canvas) {
-      // Keep height fixed, only update width
-      this.canvas.height = this.CANVAS_HEIGHT;
-      this.canvas.width = this.canvas.parentNode.offsetWidth;
+      this.canvas.width = this.canvas.parentNode.offsetWidth;  // Flexible width
+      this.canvas.height = 700;  // Fixed height
       
-      // Only update bucket's x position if it would go off screen
       if (this.bucket) {
+        this.bucket.y = this.canvas.height - 80;
         this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
       }
     }
@@ -314,9 +310,9 @@ class GameManager {
     // Clear the canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background if available
+    // Draw background with proper aspect ratio
     if (this.images.background) {
-      this.ctx.drawImage(
+      this.drawImageMaintainAspectRatio(
         this.images.background,
         0,
         0,
@@ -325,22 +321,26 @@ class GameManager {
       );
     }
 
-    // Draw bucket
+    // Draw bucket with proper aspect ratio
     if (this.bucket && this.images.bucket) {
+      const originalAspectRatio = this.images.bucket.width / this.images.bucket.height;
+      const bucketHeight = this.bucket.height;
+      const bucketWidth = bucketHeight * originalAspectRatio;
+      
       this.ctx.drawImage(
         this.images.bucket,
         this.bucket.x,
         this.bucket.y,
-        this.bucket.width,
-        this.bucket.height
+        bucketWidth,
+        bucketHeight
       );
     }
 
-    // Draw all entities
-    this.teardrops.forEach(tear => this.drawTear(tear, this.images.teardrop));
-    this.goldtears.forEach(tear => this.drawTear(tear, this.images.goldtear));
-    this.redtears.forEach(tear => this.drawTear(tear, this.images.redtear));
-    this.blacktears.forEach(tear => this.drawTear(tear, this.images.blacktear));
+    // Draw all entities with proper aspect ratios
+    this.teardrops.forEach(tear => this.drawTearMaintainAspectRatio(tear, this.images.teardrop));
+    this.goldtears.forEach(tear => this.drawTearMaintainAspectRatio(tear, this.images.goldtear));
+    this.redtears.forEach(tear => this.drawTearMaintainAspectRatio(tear, this.images.redtear));
+    this.blacktears.forEach(tear => this.drawTearMaintainAspectRatio(tear, this.images.blacktear));
 
     // Draw splashes
     this.splashes.forEach(splash => {
@@ -350,15 +350,44 @@ class GameManager {
     this.drawUI();
   }
 
-  drawTear(tear, image) {
+  drawTearMaintainAspectRatio(tear, image) {
     if (!this.ctx || !image) return;
-    this.ctx.drawImage(image, tear.x, tear.y, tear.width, tear.height);
+    const originalAspectRatio = image.width / image.height;
+    const tearHeight = tear.height;
+    const tearWidth = tearHeight * originalAspectRatio;
+    
+    this.ctx.drawImage(
+        image,
+        tear.x,
+        tear.y,
+        tearWidth,
+        tearHeight
+    );
+  }
+
+  drawImageMaintainAspectRatio(image, x, y, width, height) {
+    if (!image) return;
+    const originalAspectRatio = image.width / image.height;
+    const containerAspectRatio = width / height;
+    let drawWidth = width;
+    let drawHeight = height;
+    let drawX = x;
+    let drawY = y;
+
+    if (containerAspectRatio > originalAspectRatio) {
+        drawWidth = height * originalAspectRatio;
+        drawX = x + (width - drawWidth) / 2;
+    } else {
+        drawHeight = width / originalAspectRatio;
+        drawY = y + (height - drawHeight) / 2;
+    }
+
+    this.ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
   }
 
   drawUI() {
     if (!this.ctx) return;
 
-    // Fixed font sizes
     this.ctx.font = "25px Inconsolata";
     this.ctx.fillStyle = "#2054c9";
     
@@ -381,7 +410,6 @@ class GameManager {
   drawLegend() {
     if (!this.ctx) return;
 
-    // Fixed font size for legend
     this.ctx.font = "18px Inconsolata";
     
     this.ctx.fillStyle = "#2054c9";
@@ -419,15 +447,16 @@ class GameManager {
  * Base Entity class for game objects
  */
 class Entity {
-  constructor(x, y) {
+  constructor(x, y, width, height, speed) {
     this.x = x;
     this.y = y;
-    this.width = 50;  // Fixed width for tears
-    this.height = 50; // Fixed height for tears
+    this.width = width;
+    this.height = height;
+    this.speed = speed;
   }
 
   update() {
-    this.y += 2; // Fixed speed
+    this.y += this.speed;
   }
 }
 
@@ -438,9 +467,11 @@ class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
       Math.random() * (canvasWidth - 50), // x position
-      0 // y position
+      0, // y position
+      50, // width
+      50, // height
+      Math.random() * 2 + 2 * speedMultiplier // speed
     );
-    this.speed = 2 * speedMultiplier;
   }
 }
 
