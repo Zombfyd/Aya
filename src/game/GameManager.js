@@ -315,7 +315,7 @@ class GameManager {
     // Clear the canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background if available
+    // Draw background to fit canvas
     if (this.images.background) {
       this.ctx.drawImage(
         this.images.background,
@@ -326,25 +326,21 @@ class GameManager {
       );
     }
 
-    // Draw bucket with its actual dimensions
+    // Draw bucket with its natural dimensions
     if (this.bucket && this.images.bucket) {
       this.ctx.drawImage(
         this.images.bucket,
         this.bucket.x,
-        this.bucket.y,
-        this.bucket.width,
-        this.bucket.height
+        this.bucket.y
       );
     }
 
-    // Draw all entities using their actual dimensions
+    // Draw all entities with their natural dimensions
     this.teardrops.forEach(tear => {
       this.ctx.drawImage(
         this.images.teardrop,
         tear.x,
-        tear.y,
-        tear.width,
-        tear.height
+        tear.y
       );
     });
 
@@ -352,9 +348,7 @@ class GameManager {
       this.ctx.drawImage(
         this.images.goldtear,
         tear.x,
-        tear.y,
-        tear.width,
-        tear.height
+        tear.y
       );
     });
 
@@ -362,9 +356,7 @@ class GameManager {
       this.ctx.drawImage(
         this.images.redtear,
         tear.x,
-        tear.y,
-        tear.width,
-        tear.height
+        tear.y
       );
     });
 
@@ -372,9 +364,7 @@ class GameManager {
       this.ctx.drawImage(
         this.images.blacktear,
         tear.x,
-        tear.y,
-        tear.width,
-        tear.height
+        tear.y
       );
     });
 
