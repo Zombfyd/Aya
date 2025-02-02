@@ -209,14 +209,9 @@ class GameManager {
       this.canvas.height = this.CANVAS_HEIGHT;
       this.canvas.width = this.canvas.parentNode.offsetWidth;
       
-      // Only scale if width exceeds height
-      const ratio = this.canvas.width > this.canvas.height ? this.canvas.width / 700 : 1;
-      
-      // Update bucket position and size
+      // Update bucket position only
       if (this.bucket) {
-        this.bucket.width = 70 * ratio;
-        this.bucket.height = 70 * ratio;
-        this.bucket.y = this.canvas.height - this.bucket.height;
+        this.bucket.y = this.canvas.height - this.bucket.height - 10;
         this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
       }
     }
@@ -225,25 +220,25 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
+    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
 
   spawnGoldtear() {
     if (!this.gameActive) return;
-    this.goldtears.push(new Goldtear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
+    this.goldtears.push(new Goldtear(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.goldtear = setTimeout(() => this.spawnGoldtear(), Math.random() * 3000 + 1500);
   }
 
   spawnRedtear() {
     if (!this.gameActive) return;
-    this.redtears.push(new Redtear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
+    this.redtears.push(new Redtear(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.redtear = setTimeout(() => this.spawnRedtear(), Math.random() * 12000 + 3000);
   }
 
   spawnBlacktear() {
     if (!this.gameActive) return;
-    this.blacktears.push(new Blacktear(this.canvas.width, this.speedMultiplier, 50)); // Use fixed size 50
+    this.blacktears.push(new Blacktear(this.canvas.width, this.speedMultiplier));
     this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
   }
 
@@ -470,12 +465,12 @@ class Entity {
  * Teardrop class - Base class for all falling tear objects
  */
 class Teardrop extends Entity {
-  constructor(canvasWidth, speedMultiplier, size) {
+  constructor(canvasWidth, speedMultiplier) {
     super(
-      Math.random() * (canvasWidth - size), // x position
+      Math.random() * (canvasWidth - 50), // x position
       0, // y position
-      size, // width
-      size, // height
+      50, // width
+      50, // height
       Math.random() * 2 + 2 * speedMultiplier // speed
     );
   }
