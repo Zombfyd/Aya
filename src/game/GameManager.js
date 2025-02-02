@@ -49,7 +49,7 @@ class GameManager {
 
     // Add base dimensions for scaling
     this.baseHeight = 700; // Original design height
-    this.baseEntitySize = 50; // Original entity size
+    this.baseEntitySize = 70; // Original entity size
     this.baseBucketSize = 70; // Original bucket size
 
     // Fixed sizes for game entities - these won't scale
