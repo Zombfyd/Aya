@@ -64,17 +64,17 @@ const config = {
         tier3: {
           amount: 400000000,   // 0.4 SUI in MIST
           plays: 1,
-          label: "Trial"
+          label: "A Quickie"
         },
         tier2: {
           amount: 800000000,   // 0.8 SUI in MIST
           plays: 2,
-          label: "Popular"
+          label: "Short Brake"
         },
         tier1: {
           amount: 1000000000,  // 1.0 SUI in MIST
           plays: 3,
-          label: "Best Value!"
+          label: "Degen Time!"
         }
       },
     
