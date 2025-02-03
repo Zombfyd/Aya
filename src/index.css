@@ -153,11 +153,11 @@ header {
 .start-button {
   border: 2px solid #2054c9;
   border-radius: 8px;
-  background: #424242ed;
+  background: #2054c9;
   color: #e4e4e4;
   font-weight: 50;
   cursor: pointer;
-  animation: blink 1s infinite, sparkle 1s infinite;
+  animation: blink 2s infinite, sparkle 2s infinite;
   transition: all .3s ease;
 }
 
@@ -171,6 +171,7 @@ header {
   font-color: #e4e4e4;
   cursor: pointer;
   transition: all 0.3s ease;
+  animation: none;
 }
 
 .start-button:disabled {
@@ -581,12 +582,13 @@ th, td {
   min-width: 200px;
   cursor: pointer;
   transition: all 0.3s ease;
-  color: #e4e4e4;
+  color: #2054c9;
 }
 
 .tier-button:hover:not(.disabled) {
   background: transparent;
   color: #2054c9;
+  animation: sheen 3s ease-in-out infinite;
   transform: translateY(-2px);
 }
 
@@ -622,4 +624,9 @@ th, td {
   color: #ff4444;
   font-size: 0.8rem;
   margin-top: 0.5rem;
+}
+.tier-label.selected:not(.disabled) {
+  font-weight: bold;
+  color: #e2e2e2;
+  margin-bottom: 0.5rem;
 }
