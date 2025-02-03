@@ -157,6 +157,7 @@ header {
   color: #e4e4e4;
   font-weight: 50;
   cursor: pointer;
+  animation: blink 1s infinite, sparkle 1s infinite;
   transition: all .3s ease;
 }
 
@@ -573,7 +574,7 @@ th, td {
 }
 
 .tier-button {
-  background: #424242ed;
+  background: #42424200;
   border: 2px solid #2054c9;
   border-radius: 8px;
   padding: 1rem;
@@ -591,8 +592,8 @@ th, td {
 
 .tier-button.selected:not(.disabled) {
   border-color: #2054c9;
-  background: transparent;
-  color: #2054c9;
+  background: #2054c9;
+  color: #e9e9e9;
 }
 
 .tier-button.disabled {
