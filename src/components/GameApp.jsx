@@ -862,20 +862,31 @@ useEffect(() => {
             </div>
           )}
 
-          {wallet.connected && gameMode === 'paid' && !gameState.hasValidPayment && (
-            <>
-              <div className="payment-section">
-                <h3>Select Payment Tier</h3>
-                {renderPaymentTiers()}
-              </div>
+          {wallet.connected && (
+            gameMode === 'free' ? (
               <button 
-                onClick={handleGamePayment}
-                disabled={paying || !selectedTier}
+                onClick={handleGameStart}
                 className="start-button"
               >
-                {paying ? 'Processing...' : `Pay for ${config.paymentTiers[selectedTier]?.plays || ''} Games`}
+                Start Free Game
               </button>
-            </>
+            ) : (
+              !gameState.hasValidPayment && (
+                <>
+                  <div className="payment-section">
+                    <h3>Select Payment Tier</h3>
+                    {renderPaymentTiers()}
+                  </div>
+                  <button 
+                    onClick={handleGamePayment}
+                    disabled={paying || !selectedTier}
+                    className="start-button"
+                  >
+                    {paying ? 'Processing...' : `Pay for ${config.paymentTiers[selectedTier]?.plays || ''} Games`}
+                  </button>
+                </>
+              )
+            )
           )}
         </header>
       )}
