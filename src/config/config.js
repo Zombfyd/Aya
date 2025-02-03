@@ -60,6 +60,23 @@ const config = {
         totalAmount: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT),
         minBalance: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) + 50000000, // Adding 0.05 SUI for gas
     },
+    paymentTiers: {
+        tier1: {
+          amount: 1000000000,  // 1.0 SUI in MIST
+          plays: 3,
+          label: "Degen time"
+        },
+        tier2: {
+          amount: 800000000,   // 0.8 SUI in MIST
+          plays: 2,
+          label: "Short brake"
+        },
+        tier3: {
+          amount: 400000000,   // 0.4 SUI in MIST
+          plays: 1,
+          label: "In a hurry"
+        }
+      },
     
     debug: {
         enabled: import.meta.env.VITE_APP_DEBUG_MODE === 'true',

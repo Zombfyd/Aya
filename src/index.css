@@ -565,3 +565,60 @@ th, td {
 .return-menu-button:hover {
   background: #555 !important;
 }
+.payment-tiers {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.tier-button {
+  background: #424242ed;
+  border: 2px solid #2054c9;
+  border-radius: 8px;
+  padding: 1rem;
+  min-width: 200px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #e4e4e4;
+}
+
+.tier-button:hover:not(.disabled) {
+  background: transparent;
+  color: #2054c9;
+  transform: translateY(-2px);
+}
+
+.tier-button.selected:not(.disabled) {
+  border-color: #2054c9;
+  background: transparent;
+  color: #2054c9;
+}
+
+.tier-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-color: #555;
+  color: #555;
+}
+
+.tier-label {
+  font-weight: bold;
+  color: #2054c9;
+  margin-bottom: 0.5rem;
+}
+
+.tier-price {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.tier-plays {
+  color: #e4e4e4;
+}
+
+.insufficient-funds {
+  color: #ff4444;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
