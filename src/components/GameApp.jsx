@@ -49,10 +49,15 @@ const GameApp = () => {
 });
   // Add new state for paid game attempts
   const [paidGameAttempts, setPaidGameAttempts] = useState(0);
-  const MAX_PAID_ATTEMPTS = 3;
+  const [maxAttempts, setMaxAttempts] = useState(0);
   // Add this to your state declarations
   const [countdown, setCountdown] = useState(null);
-   useEffect(() => {
+  // Add new state for selected tier
+  const [selectedTier, setSelectedTier] = useState(null);
+  // Add this to fetch SUI price (you might want to add this to your dependencies)
+  const [suiPrice, setSuiPrice] = useState(null);
+  
+  useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       setIsMobile(mobile);
@@ -291,7 +296,7 @@ useEffect(() => {
         setTransactionInProgress(false);
       }
     } else {
-      if (paidGameAttempts >= MAX_PAID_ATTEMPTS) {
+      if (paidGameAttempts >= maxAttempts) {
         setGameState(prev => ({ ...prev, hasValidPayment: false }));
         return;
       }
@@ -350,7 +355,7 @@ useEffect(() => {
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
         setPaidGameAttempts(newAttempts);
-        if (newAttempts >= MAX_PAID_ATTEMPTS) {
+        if (newAttempts >= maxAttempts) {
           setGameState(prev => ({ ...prev, hasValidPayment: false }));
         }
       }
@@ -447,7 +452,7 @@ useEffect(() => {
 
     // Check if we can start another paid game
     if (gameMode === 'paid') {
-      if (paidGameAttempts >= MAX_PAID_ATTEMPTS) {
+      if (paidGameAttempts >= maxAttempts) {
         alert('All paid attempts used. Please make a new payment to continue playing.');
         return;
       }
@@ -588,14 +593,14 @@ useEffect(() => {
         setPaidGameAttempts(newAttempts);
         
         // Only reset hasValidPayment if we've used all attempts
-        if (newAttempts >= MAX_PAID_ATTEMPTS) {
+        if (newAttempts >= maxAttempts) {
           setGameState(prev => ({ 
             ...prev, 
             hasValidPayment: false 
           }));
           console.log('All paid attempts used, requiring new payment');
         } else {
-          console.log(`${MAX_PAID_ATTEMPTS - newAttempts} paid attempts remaining`);
+          console.log(`${maxAttempts - newAttempts} paid attempts remaining`);
         }
       }
 
@@ -605,15 +610,42 @@ useEffect(() => {
     }
   };
 
+  // Add this function to check if user can afford a tier
+  const canAffordTier = (tierAmount) => {
+    const balanceInMist = BigInt(balance ?? 0);
+    return balanceInMist >= BigInt(tierAmount);
+  };
+
+  // Add this to fetch SUI price (you might want to add this to your dependencies)
+  useEffect(() => {
+    const fetchSuiPrice = async () => {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd');
+        const data = await response.json();
+        setSuiPrice(data.sui.usd);
+      } catch (error) {
+        console.error('Error fetching SUI price:', error);
+      }
+    };
+    
+    fetchSuiPrice();
+    const interval = setInterval(fetchSuiPrice, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Modify handleGamePayment to use selected tier
   const handleGamePayment = async () => {
-    if (!wallet.connected) {
-      alert('Please connect wallet first');
+    if (!wallet.connected || !selectedTier) {
+      alert('Please connect wallet and select a payment tier');
       return;
     }
+
+    const tierConfig = config.paymentTiers[selectedTier];
+    
     try {
-      console.log('Starting game payment...');
+      console.log('Starting game payment for tier:', selectedTier);
       const recipients = config.getCurrentRecipients();
-      const totalAmount = config.paymentConfig.totalAmount;
+      const totalAmount = tierConfig.amount;
       
       // Calculate amounts based on shares
       const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
@@ -696,6 +728,11 @@ useEffect(() => {
         // Start the game after countdown is complete
         startGame();
       }
+
+      // Update maxAttempts based on selected tier
+      setMaxAttempts(tierConfig.plays);
+      setPaidGameAttempts(0);
+      
     } catch (error) {
       console.error('Payment error:', error);
       setCountdown(null);
@@ -729,12 +766,35 @@ useEffect(() => {
     };
   }, [gameState.gameStarted]);
 
-
+  // Add this to your render method where you have the payment button
+  const renderPaymentTiers = () => (
+    <div className="payment-tiers">
+      {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
+        const suiAmount = tier.amount / 1000000000;
+        const usdAmount = suiPrice ? (suiAmount * suiPrice).toFixed(2) : '---';
+        const canAfford = canAffordTier(tier.amount);
+        
+        return (
+          <button
+            key={tierId}
+            className={`tier-button ${selectedTier === tierId ? 'selected' : ''} ${canAfford ? '' : 'disabled'}`}
+            onClick={() => setSelectedTier(tierId)}
+            disabled={!canAfford}
+          >
+            <div className="tier-label">{tier.label}</div>
+            <div className="tier-price">{suiAmount} SUI (${usdAmount})</div>
+            <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
+            {!canAfford && <div className="insufficient-funds">Insufficient Balance</div>}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   // Render method
   return (
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {(!gameState.gameStarted && (paidGameAttempts >= MAX_PAID_ATTEMPTS || !gameState.hasValidPayment)) && (
+      {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
            <div className="wkit-connected-container">
             {isMobile && !wallet.connected && (
@@ -798,22 +858,24 @@ useEffect(() => {
 
           {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
             <div className="attempts-info">
-              <p>Attempts remaining: {MAX_PAID_ATTEMPTS - paidGameAttempts}</p>
+              <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
             </div>
           )}
 
-          {wallet.connected && (
-            <button 
-              onClick={gameMode === 'paid' && !gameState.hasValidPayment ? handleGamePayment : handleGameStart}
-              disabled={gameMode === 'paid' && paying}
-              className="start-button"
-            >
-              {gameMode === 'paid' 
-                ? (gameState.hasValidPayment 
-                    ? `Start Paid Game (${MAX_PAID_ATTEMPTS - paidGameAttempts} attempts left)`
-                    : `Pay ${formatSUI(config.paymentConfig.totalAmount)} SUI for ${MAX_PAID_ATTEMPTS} Games`) 
-                : 'Start Free Game'}
-            </button>
+          {wallet.connected && gameMode === 'paid' && !gameState.hasValidPayment && (
+            <>
+              <div className="payment-section">
+                <h3>Select Payment Tier</h3>
+                {renderPaymentTiers()}
+              </div>
+              <button 
+                onClick={handleGamePayment}
+                disabled={paying || !selectedTier}
+                className="start-button"
+              >
+                {paying ? 'Processing...' : `Pay for ${config.paymentTiers[selectedTier]?.plays || ''} Games`}
+              </button>
+            </>
           )}
         </header>
       )}
@@ -826,10 +888,10 @@ useEffect(() => {
             <h2>Game Over!</h2>
             <p>Final Score: {gameState.score}</p>
             {gameMode === 'paid' && (
-              <p>Attempts remaining: {MAX_PAID_ATTEMPTS - paidGameAttempts}</p>
+              <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
             )}
             
-            {(gameMode === 'free' || paidGameAttempts < MAX_PAID_ATTEMPTS) && (
+            {(gameMode === 'free' || paidGameAttempts < maxAttempts) && (
               <button 
                 onClick={restartGame} 
                 className="restart-button"
@@ -838,7 +900,7 @@ useEffect(() => {
               </button>
             )}
             
-            {gameMode === 'paid' && paidGameAttempts >= MAX_PAID_ATTEMPTS && (
+            {gameMode === 'paid' && paidGameAttempts >= maxAttempts && (
               <div className="game-over-buttons">
                 <button 
                   onClick={handleGamePayment}
