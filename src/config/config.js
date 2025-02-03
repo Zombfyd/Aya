@@ -76,7 +76,7 @@ const config = {
           plays: 3,
           label: "Best Value!"
         }
-      }
+      },
     
     debug: {
         enabled: import.meta.env.VITE_APP_DEBUG_MODE === 'true',
