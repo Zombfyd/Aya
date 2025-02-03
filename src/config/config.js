@@ -62,21 +62,21 @@ const config = {
     },
     paymentTiers: {
         tier3: {
-          amount: 1000000000,  // 1.0 SUI in MIST
-          plays: 3,
-          label: "Degen time"
+          amount: 400000000,   // 0.4 SUI in MIST
+          plays: 1,
+          label: "Trial"
         },
         tier2: {
           amount: 800000000,   // 0.8 SUI in MIST
           plays: 2,
-          label: "Short brake"
+          label: "Popular"
         },
         tier1: {
-          amount: 400000000,   // 0.4 SUI in MIST
-          plays: 1,
-          label: "In a hurry"
+          amount: 1000000000,  // 1.0 SUI in MIST
+          plays: 3,
+          label: "Best Value!"
         }
-      },
+      }
     
     debug: {
         enabled: import.meta.env.VITE_APP_DEBUG_MODE === 'true',
