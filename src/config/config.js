@@ -69,7 +69,7 @@ const config = {
         tier2: {
           amount: 800000000,   // 0.8 SUI in MIST
           plays: 2,
-          label: "Short Brake"
+          label: "Short Break"
         },
         tier1: {
           amount: 1000000000,  // 1.0 SUI in MIST
