@@ -807,7 +807,7 @@ useEffect(() => {
                 </ol>
               </div>
             )}
-             <div classname="title">Tears of Aya</div>
+             <div className="title">Tears of Aya</div>
             <ConnectButton
               label="Connect SUI Wallet"
               onConnectError={(error) => {
