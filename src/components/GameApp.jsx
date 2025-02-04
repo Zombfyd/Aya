@@ -807,6 +807,7 @@ useEffect(() => {
                 </ol>
               </div>
             )}
+             <div classname="title">Tears of Aya</div>
             <ConnectButton
               label="Connect SUI Wallet"
               onConnectError={(error) => {
@@ -821,11 +822,6 @@ useEffect(() => {
 
           {wallet.connected && (
             <div className="wallet-info">
-              <p>Wallet: {wallet.adapter?.name}</p>
-              <p>Status: {wallet.connecting ? "connecting" : wallet.connected ? "connected" : "disconnected"}</p>
-              <p>Address: {wallet.account?.address}</p>
-              <p>Network: {chainName(wallet.chain?.id)}</p>
-              <p>Balance: {formatSUI(balance ?? 0, { withAbbr: false })} SUI</p>
               <p className="creator-credit">
             Created by <a 
               href="https://x.com/Zombfyd" 
