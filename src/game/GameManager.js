@@ -337,18 +337,22 @@ class GameManager {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background once without tiling
+    // Draw background with fixed height and crop from right side
     if (this.images.background) {
-      // Calculate scaling to cover the canvas width while maintaining aspect ratio
-      const scale = this.canvas.width / this.images.background.width;
-      const scaledHeight = this.images.background.height * scale;
+      const height = this.canvas.height;
+      const aspectRatio = this.images.background.width / this.images.background.height;
+      const desiredWidth = height * aspectRatio;
       
       this.ctx.drawImage(
         this.images.background,
-        0,  // x position
-        0,  // y position
-        this.canvas.width,
-        scaledHeight
+        0,                    // source x (start from left)
+        0,                    // source y
+        this.images.background.width,  // source width
+        this.images.background.height, // source height
+        0,                    // destination x (start from left)
+        0,                    // destination y
+        desiredWidth,         // destination width
+        height               // destination height
       );
     }
 
