@@ -20,9 +20,7 @@ class GameManager {
     this.score = 0;
     this.lives = 10;
     this.onGameOver = null;
-
-        
-      
+    
     // Initialize arrays for game entities
     this.teardrops = [];
     this.goldtears = [];
@@ -112,14 +110,14 @@ class GameManager {
   }
 
   initGame() {
-    // Reset game variables
+    // Keep all your existing reset code
     this.score = 0;
     this.lives = 10;
     this.speedMultiplier = 1;
     this.lastCheckpoint = 0;
     this.gameActive = true;
 
-    // Initialize bucket with fixed size
+    // Replace the bucket initialization with this:
     this.bucket = {
       x: this.canvas.width / 2 - this.UI_SIZES.BUCKET_WIDTH / 2,
       y: this.canvas.height - this.UI_SIZES.BUCKET_HEIGHT - 10,
@@ -128,18 +126,18 @@ class GameManager {
       speed: 0
     };
 
-    // Initialize arrays
+    // Keep all your existing array initializations
     this.teardrops = [];
     this.goldtears = [];
     this.redtears = [];
     this.blacktears = [];
     this.splashes = [];
 
-    // Clear any existing timers
+    // Keep your existing timer clearing code
     Object.values(this.spawnTimers).forEach(timer => {
       if (timer) clearTimeout(timer);
     });
-  }
+}
 
   // Game Control Methods
   startGame(mode = 'free') {
@@ -229,24 +227,17 @@ class GameManager {
   // Canvas Management
   resizeCanvas() {
     if (this.canvas) {
-      // Store the current transformation matrix
-      const currentTransform = this.ctx.getTransform();
-      
-      // Reset any transformations
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-      
-      // Set new canvas dimensions
-      this.canvas.width = this.canvas.parentNode.offsetWidth;
-      this.canvas.height = 700; // Keep height fixed
-      
-      // Ensure bucket stays within bounds while maintaining its fixed size
-      if (this.bucket) {
-        this.bucket.width = this.UI_SIZES.BUCKET_WIDTH;
-        this.bucket.height = this.UI_SIZES.BUCKET_HEIGHT;
-        this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
-      }
+        // Get parent width to set canvas width dynamically
+        this.canvas.width = this.canvas.parentNode.offsetWidth;
+        this.canvas.height = 700; // Keep height fixed
+
+        // Ensure bucket stays within bounds
+        if (this.bucket) {
+            this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
+        }
     }
-  }
+}
+
 
   // Spawn Methods
   spawnTeardrop() {
@@ -403,28 +394,29 @@ class GameManager {
     this.drawUI();
 }
 
-  drawUI() {
-    if (!this.ctx) return;
 
-    // Reset transform before drawing text
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+drawUI() {
+  if (!this.ctx) return;
 
-    // Draw score
-    this.ctx.font = this.UI_SIZES.SCORE_FONT;
-    this.ctx.fillStyle = "#2054c9";
-    this.ctx.fillText(`Score: ${this.score}`, 20, 30);
+  // Reset transform before drawing text
+  this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Draw lives
-    this.ctx.font = this.UI_SIZES.LIVES_FONT;
-    if (this.bucket) {
-      this.ctx.fillText(`${this.lives}`, this.bucket.x + 25, this.bucket.y + 40);
-    }
+  // Draw score
+  this.ctx.font = this.UI_SIZES.SCORE_FONT;
+  this.ctx.fillStyle = "#2054c9";
+  this.ctx.fillText(`Score: ${this.score}`, 20, 30);
 
-    // Draw speed
-    this.ctx.font = this.UI_SIZES.SCORE_FONT;
-    this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+  // Draw lives
+  this.ctx.font = this.UI_SIZES.LIVES_FONT;
+  if (this.bucket) {
+    this.ctx.fillText(`${this.lives}`, this.bucket.x + 25, this.bucket.y + 40);
+  }
 
-    this.drawLegend();
+  // Draw speed
+  this.ctx.font = this.UI_SIZES.SCORE_FONT;
+  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+
+  this.drawLegend();
 }
 
   drawLegend() {
@@ -446,23 +438,46 @@ class GameManager {
       this.ctx.fillStyle = color;
       this.ctx.fillText(text, 20, y);
     });
-  }
+}
 
+  // Game Loop
   gameLoop() {
     if (!this.gameActive) return;
 
-    // Update game state
-    this.updateGame();
-    
-    // Draw everything
-    this.drawGame();
-    
-    // Schedule next frame
-    this.gameLoopId = requestAnimationFrame(this.gameLoop);
+    try {
+      this.updateGame();
+      this.drawGame();
+      this.gameLoopId = requestAnimationFrame(this.gameLoop);
+    } catch (error) {
+      console.error('Error in game loop:', error);
+      this.gameActive = false;
+      if (this.onGameOver) {
+        this.onGameOver(this.score);
+      }
+    }
   }
 }
 
-// Update Teardrop class
+/**
+ * Base Entity class for game objects
+ */
+class Entity {
+  constructor(x, y, width, height, speed) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.speed = speed;
+  }
+
+  update() {
+    this.y += this.speed;
+  }
+}
+
+/**
+ * Teardrop class - Base class for all falling tear objects
+ */
 class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
@@ -478,19 +493,7 @@ class Teardrop extends Entity {
     this.height = 50;
   }
 }
-class Entity {
-  constructor(x, y, width, height, speed) {
-    this.x = x;
-    this.y = y;
-    this.width = width;
-    this.height = height;
-    this.speed = speed;
-  }
 
-  update() {
-    this.y += this.speed;
-  }
-}
 /**
  * Special tear types extending base Teardrop
  */
@@ -509,9 +512,9 @@ class Splash {
     this.x = x;
     this.y = y;
     this.opacity = 1;
-    this.fillColor = "rgba(48, 81, 255";
-    this.radius = 5; // Initial size of the splash
-    this.growthRate = 1.5; // Amount to increase the radius each update
+    this.fillColor = "rgba(255, 255, 255";
+    this.radius = 20; // Initial size of the splash
+    this.growthRate = 0.5; // Amount to increase the radius each update
   }
 
   update() {
