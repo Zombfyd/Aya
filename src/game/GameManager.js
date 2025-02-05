@@ -544,7 +544,7 @@ class Teardrop extends Entity {
     this.width = this.fullWidth * 1.5; // Start stretched
     this.fullHeight = gameManager.UI_SIZES.TEAR_HEIGHT;
     this.height = this.fullHeight * 0.2; // Start flat
-    this.initialY = 0;
+    this.initialY = -5;
     
     // State properties
     this.state = 'sliding';
