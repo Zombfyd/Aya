@@ -10,7 +10,17 @@ class GameManager {
     this.score = 0;
     this.lives = 10;
     this.onGameOver = null;
-    
+
+    this.UI_SIZES = {
+      BUCKET_WIDTH: 70,
+      BUCKET_HEIGHT: 70,
+      TEAR_WIDTH: 50,
+      TEAR_HEIGHT: 50,
+      SCORE_FONT: "25px Inconsolata",
+      LIVES_FONT: "18px Inconsolata",
+      LEGEND_FONT: "18px Inconsolata"
+    };
+  }
     // Initialize arrays for game entities
     this.teardrops = [];
     this.goldtears = [];
@@ -216,30 +226,24 @@ class GameManager {
 
   // Canvas Management
   resizeCanvas() {
-    if (!this.canvas) return;
-
-    const parentWidth = this.canvas.parentNode.offsetWidth;
-    const minWidth = 1057; // Minimum width based on background image
-    const fixedHeight = 700; // Fixed height
-
-    // Set canvas size
-    this.canvas.width = Math.max(parentWidth, minWidth);
-    this.canvas.height = fixedHeight;
-
-    // Calculate scale factors
-    this.scaleX = this.canvas.width / minWidth;
-    this.scaleY = 1; // Keep vertical scale at 1 since height is fixed
-
-    // Update bucket position if it exists
-    if (this.bucket) {
-        // Keep bucket within bounds while maintaining its fixed size
-        const maxX = this.canvas.width - this.BUCKET_SIZE;
-        this.bucket.x = Math.min(this.bucket.x * this.scaleX, maxX);
-        this.bucket.y = this.canvas.height - this.BUCKET_SIZE - 10; // Fixed distance from bottom
+    if (this.canvas) {
+      // Store the current transformation matrix
+      const currentTransform = this.ctx.getTransform();
+      
+      // Reset any transformations
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      
+      // Set new canvas dimensions
+      this.canvas.width = this.canvas.parentNode.offsetWidth;
+      this.canvas.height = 700; // Keep height fixed
+      
+      // Ensure bucket stays within bounds while maintaining its fixed size
+      if (this.bucket) {
+        this.bucket.width = this.UI_SIZES.BUCKET_WIDTH;
+        this.bucket.height = this.UI_SIZES.BUCKET_HEIGHT;
+        this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
+      }
     }
-
-    // Store the canvas center for spawning entities
-    this.centerX = this.canvas.width / 2;
   }
 
   // Spawn Methods
@@ -340,118 +344,125 @@ class GameManager {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background without scaling
+    // Draw background
     if (this.images.background) {
-        this.ctx.drawImage(this.images.background, 0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.drawImage(this.images.background, 0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // Reset transform to prevent automatic scaling
+    // Reset transform before drawing UI elements
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Draw bucket at fixed size
+    // Draw bucket with fixed size
     if (this.bucket && this.images.bucket) {
-        this.ctx.drawImage(this.images.bucket, this.bucket.x, this.bucket.y, 70, 70);
+      this.ctx.drawImage(
+        this.images.bucket,
+        this.bucket.x,
+        this.bucket.y,
+        this.UI_SIZES.BUCKET_WIDTH,
+        this.UI_SIZES.BUCKET_HEIGHT
+      );
     }
 
-    // Draw teardrops at fixed size
-    this.teardrops.forEach(tear => {
-        this.ctx.drawImage(this.images.teardrop, tear.x, tear.y, 50, 50);
-    });
-    this.goldtears.forEach(tear => {
-        this.ctx.drawImage(this.images.goldtear, tear.x, tear.y, 50, 50);
-    });
-    this.redtears.forEach(tear => {
-        this.ctx.drawImage(this.images.redtear, tear.x, tear.y, 50, 50);
-    });
-    this.blacktears.forEach(tear => {
-        this.ctx.drawImage(this.images.blacktear, tear.x, tear.y, 50, 50);
-    });
+    // Draw teardrops with fixed sizes
+    const drawTear = (tear, image) => {
+      this.ctx.drawImage(
+        image,
+        tear.x,
+        tear.y,
+        this.UI_SIZES.TEAR_WIDTH,
+        this.UI_SIZES.TEAR_HEIGHT
+      );
+    };
 
-    // Add this section to draw splashes
+    this.teardrops.forEach(tear => drawTear(tear, this.images.teardrop));
+    this.goldtears.forEach(tear => drawTear(tear, this.images.goldtear));
+    this.redtears.forEach(tear => drawTear(tear, this.images.redtear));
+    this.blacktears.forEach(tear => drawTear(tear, this.images.blacktear));
+
+    // Draw splashes with fixed sizing
     this.splashes.forEach(splash => {
-        splash.draw(this.ctx);
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for each splash
+      splash.draw(this.ctx);
     });
 
-    // Draw text at fixed size
+    // Draw UI with fixed fonts
     this.drawUI();
-}
-
+  }
 
   drawUI() {
     if (!this.ctx) return;
 
-    // Fixed font sizes
-    this.ctx.font = "25px Inconsolata";
+    // Reset transform before drawing text
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    // Draw score
+    this.ctx.font = this.UI_SIZES.SCORE_FONT;
     this.ctx.fillStyle = "#2054c9";
-    
-    // Draw score with fixed size
-    this.ctx.font = "25px Inconsolata";
     this.ctx.fillText(`Score: ${this.score}`, 20, 30);
-    
-    // Draw lives with fixed size
-    this.ctx.font = "18px Inconsolata";
+
+    // Draw lives
+    this.ctx.font = this.UI_SIZES.LIVES_FONT;
     if (this.bucket) {
       this.ctx.fillText(`${this.lives}`, this.bucket.x + 25, this.bucket.y + 40);
     }
-    
-    // Draw speed with fixed size
-    this.ctx.font = "25px Inconsolata";
+
+    // Draw speed
+    this.ctx.font = this.UI_SIZES.SCORE_FONT;
     this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
-    
+
     this.drawLegend();
   }
 
   drawLegend() {
     if (!this.ctx) return;
 
-    // Fixed font size for legend
-    this.ctx.font = "18px Inconsolata";
+    // Reset transform before drawing legend
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     
-    this.ctx.fillStyle = "#2054c9";
-    this.ctx.fillText('Blue Tear = 1 point', 20, 50);
-    
-    this.ctx.fillStyle = "#FFD04D";
-    this.ctx.fillText('Gold Tear = 15 points', 20, 70);
-    
-    this.ctx.fillStyle = "#FF4D6D";
-    this.ctx.fillText('Red Tear = -1 life', 20, 90);
-    
-    this.ctx.fillStyle = "#39B037";
-    this.ctx.fillText('Green Tear = +1 life', 20, 110);
+    this.ctx.font = this.UI_SIZES.LEGEND_FONT;
+
+    const legends = [
+      { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
+      { text: 'Gold Tear = 15 points', color: '#FFD04D', y: 70 },
+      { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
+      { text: 'Green Tear = +1 life', color: '#39B037', y: 110 }
+    ];
+
+    legends.forEach(({ text, color, y }) => {
+      this.ctx.fillStyle = color;
+      this.ctx.fillText(text, 20, y);
+    });
   }
 
-  // Game Loop
-  gameLoop() {
-    if (!this.gameActive) return;
+  // Update Teardrop class constructor
+  initGame() {
+    // ... (previous initGame code)
 
-    try {
-      this.updateGame();
-      this.drawGame();
-      this.gameLoopId = requestAnimationFrame(this.gameLoop);
-    } catch (error) {
-      console.error('Error in game loop:', error);
-      this.gameActive = false;
-      if (this.onGameOver) {
-        this.onGameOver(this.score);
-      }
-    }
+    // Initialize bucket with fixed size
+    this.bucket = {
+      x: this.canvas.width / 2 - this.UI_SIZES.BUCKET_WIDTH / 2,
+      y: this.canvas.height - this.UI_SIZES.BUCKET_HEIGHT - 10,
+      width: this.UI_SIZES.BUCKET_WIDTH,
+      height: this.UI_SIZES.BUCKET_HEIGHT,
+      speed: 0
+    };
   }
 }
 
-/**
- * Base Entity class for game objects
- */
-class Entity {
-  constructor(x, y, width, height, speed) {
-    this.x = x;
-    this.y = y;
-    this.width = width;
-    this.height = height;
-    this.speed = speed;
-  }
-
-  update() {
-    this.y += this.speed;
+// Update Teardrop class
+class Teardrop extends Entity {
+  constructor(canvasWidth, speedMultiplier) {
+    super(
+      Math.random() * (canvasWidth - 50), // x position
+      0, // y position
+      50, // fixed width
+      50, // fixed height
+      Math.random() * 2 + 2 * speedMultiplier // speed
+    );
+    
+    // Ensure tear dimensions stay fixed
+    this.width = 50;
+    this.height = 50;
   }
 }
 
