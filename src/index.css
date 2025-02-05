@@ -16,10 +16,11 @@
 
 #root {
   width: 100%;
-  max-width: 1111px:
+  max-width: 1111px;
   height: 100vh;
   margin: 0 auto;
   text-align: center;
+  box-shadow: 0 2px 10px #2054c9;
 }
 
 .app-container {
@@ -77,11 +78,12 @@
   height: 700px;
   display: block;
   border-radius: 15px;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 8px #000000f2;
   margin: 2rem 0;
   background: url('https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/674fa00dfaa922f1c9d76f9c_black-and-white-anime-2560-x-1600-background-d8u8u9i7yoalq57c.webp');
   background-repeat: no-repeat;
   background-size: cover;
+  
 }
 #tearCatchGameCanvas {
   width: 100%;
