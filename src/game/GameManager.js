@@ -512,20 +512,23 @@ class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
       Math.random() * (canvasWidth - 50), // x position
-      -50, // Start above screen
+      20, // Start slightly below top of screen to be visible
       50, // fixed width
       50, // fixed height
       Math.random() * 2 + 2 * speedMultiplier // speed
     );
     
-    // Formation state properties
+    // Add formation state properties
     this.forming = true;
     this.formationProgress = 0;
-    this.formationSpeed = 0.02; // Speed of formation animation
-    this.initialY = 0; // Target Y position for formation
-    this.scale = 0.1; // Start very small
+    this.formationSpeed = 0.02; // Controls how fast the tear forms
+    this.initialY = 20; // Where the tear should form - slightly below top
     
-    // Ensure tear dimensions stay fixed for collision purposes
+    // Separate scales for width and height to create flat effect
+    this.scaleX = 1; // Start full width
+    this.scaleY = 0.2; // Start very flat
+    
+    // Keep tear dimensions fixed for collision purposes
     this.width = 50;
     this.height = 50;
   }
@@ -534,14 +537,16 @@ class Teardrop extends Entity {
     if (this.forming) {
       // Update formation progress
       this.formationProgress += this.formationSpeed;
-      this.scale = Math.min(1, this.formationProgress * 2);
+      
+      // Keep width constant but grow height
+      this.scaleY = 0.2 + (this.formationProgress * 0.8); // Grow from 0.2 to 1.0
       
       if (this.formationProgress >= 1) {
         this.forming = false;
-        this.scale = 1;
+        this.scaleY = 1;
       }
       
-      // Gradually move to initial position during formation
+      // Stay at initial position during formation
       this.y = this.initialY;
     } else {
       // Normal falling behavior once formed
@@ -554,8 +559,8 @@ class Teardrop extends Entity {
 
     if (this.forming) {
       // Draw forming animation
-      const currentWidth = this.width * this.scale;
-      const currentHeight = this.height * this.scale;
+      const currentWidth = this.width * this.scaleX;
+      const currentHeight = this.height * this.scaleY;
       const xOffset = (this.width - currentWidth) / 2;
       const yOffset = (this.height - currentHeight) / 2;
 
