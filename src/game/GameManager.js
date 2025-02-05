@@ -242,11 +242,18 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
+    console.log('Spawning new teardrop');
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
+    // Explicitly set initial state
     tear.state = 'sliding';
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
+    console.log('Teardrop spawned with properties:', {
+      state: tear.state,
+      scaleY: tear.scaleY,
+      y: tear.y
+    });
     this.teardrops.push(tear);
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
@@ -524,11 +531,17 @@ class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
       Math.random() * (canvasWidth - 50),
-      20, // Start slightly below top of screen
+      20,
       gameManager.UI_SIZES.TEAR_WIDTH,
       gameManager.UI_SIZES.TEAR_HEIGHT,
       Math.random() * 2 + 2 * speedMultiplier
     );
+    
+    console.log('Creating new teardrop with initial state:', {
+      state: 'sliding',
+      scaleY: 0.2,
+      y: 20
+    });
     
     // Basic properties
     this.canvasWidth = canvasWidth;
@@ -558,6 +571,9 @@ class Teardrop extends Entity {
   }
 
   update() {
+    // Add state transition logging
+    const previousState = this.state;
+    
     switch (this.state) {
       case 'sliding':
         this.updateSliding();
@@ -571,6 +587,15 @@ class Teardrop extends Entity {
       case 'falling':
         this.y += this.speed;
         break;
+    }
+    
+    if (previousState !== this.state) {
+      console.log('Teardrop state changed:', {
+        from: previousState,
+        to: this.state,
+        scaleY: this.scaleY,
+        formationProgress: this.formationProgress
+      });
     }
   }
 
