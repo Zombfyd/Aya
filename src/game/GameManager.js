@@ -1,10 +1,4 @@
 // GameManager.js - Main game controller class
-import bucketImage from './assets/bucket.svg';
-import tearImage from './assets/BlueTear.png';
-import goldTearImage from './assets/GoldTear.png';
-import redTearImage from './assets/RedTear.png';
-import greenTearImage from './assets/GreenTear.png';
-import backgroundImage from './assets/AyaBG.png';
 
 class GameManager {
   constructor() {
@@ -50,12 +44,12 @@ class GameManager {
     // Load and manage game images - using direct URLs for now
     // In production, these should be moved to your CDN or static hosting
     this.images = {
-      bucket: this.loadImage(bucketImage),
-      teardrop: this.loadImage(tearImage),
-      goldtear: this.loadImage(goldTearImage),
-      redtear: this.loadImage(redTearImage),
-      blacktear: this.loadImage(greenTearImage),
-      background: this.loadImage(backgroundImage)
+      bucket: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/674fb166a33aa5af2e8be714_1faa3.svg"),
+      teardrop: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png"),
+      goldtear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b32a8d6f25cb51c70748a_GoldTear.2.png"),
+      redtear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256456275e1857d4646_RedTear.2.png"),
+      blacktear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b225c9f972035e5189e4b_GreenTear.2.png"),
+      background: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/674fa00dfaa922f1c9d76f9c_black-and-white-anime-2560-x-1600-background-d8u8u9i7yoalq57c.webp")
     };
 
     // Bind methods to maintain correct 'this' context
