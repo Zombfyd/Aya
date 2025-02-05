@@ -329,15 +329,16 @@ class GameManager {
 
     // Draw background without scaling
     if (this.images.background) {
-    if (this.canvas.width <= 500) {
-        // For small screens, center the image without scaling
-        const xPosition = (this.canvas.width - this.images.background.width) / 2;
-        this.ctx.drawImage(this.images.background, xPosition, 0);
-    } else {
-        // For larger screens, scale as before
-        this.ctx.drawImage(this.images.background, 0, 0, this.canvas.width, this.canvas.height);
-    }
-    }
+    // Set fixed background size
+    const bgWidth = 1057;  // or whatever your original image width is
+    const bgHeight = 700; // or whatever your original image height is
+    
+    // Calculate position to center the background
+    const xPosition = (this.canvas.width - bgWidth) / 2;
+    
+    // Draw background with fixed size, centered horizontally
+    this.ctx.drawImage(this.images.background, xPosition, 0, bgWidth, bgHeight);
+}
 
     // Reset transform to prevent automatic scaling
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
