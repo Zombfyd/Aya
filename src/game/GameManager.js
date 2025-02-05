@@ -514,14 +514,14 @@ class Splash {
     this.x = x;
     this.y = y;
     this.opacity = 1;
-    this.fillColor = "rgba(32, 84, 201";
+    this.fillColor = "rgba(32, 84, 201)";
     this.radius = 5; // Initial size of the splash
     this.growthRate = 1.5; // Amount to increase the radius each update
   }
 
   update() {
     this.radius += this.growthRate; // Increase radius over time
-    this.opacity = Math.max(0, this.opacity - 0.06); // Fade out
+    this.opacity = Math.max(0, this.opacity - 0.3); // Fade out
   }
 
   draw(ctx) {
@@ -542,21 +542,21 @@ class Splash {
 class GoldSplash extends Splash {
   constructor(x, y) {
     super(x, y);
-    this.fillColor = "rgba(255, 204, 51";
+    this.fillColor = "rgba(255, 204, 51)";
   }
 }
 
 class RedSplash extends Splash {
   constructor(x, y) {
     super(x, y);
-    this.fillColor = "rgba(255, 0, 0";
+    this.fillColor = "rgba(255, 0, 0)";
   }
 }
 
 class GreenSplash extends Splash {
   constructor(x, y) {
     super(x, y);
-    this.fillColor = "rgba(0, 255, 0";
+    this.fillColor = "rgba(0, 255, 0)";
   }
 }
 
