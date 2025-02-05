@@ -244,6 +244,7 @@ class GameManager {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
     tear.state = 'sliding';
+    tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
     this.teardrops.push(tear);
@@ -254,6 +255,7 @@ class GameManager {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
     tear.state = 'sliding';
+    tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
     this.goldtears.push(tear);
@@ -264,6 +266,7 @@ class GameManager {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
     tear.state = 'sliding';
+    tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
     this.redtears.push(tear);
@@ -274,6 +277,7 @@ class GameManager {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
     tear.state = 'sliding';
+    tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
     this.blacktears.push(tear);
@@ -630,17 +634,23 @@ class Teardrop extends Entity {
   draw(ctx, image) {
     if (!ctx || !image) return;
 
+    console.log('Drawing tear:', {
+        state: this.state,
+        scaleY: this.scaleY,
+        formationProgress: this.formationProgress
+    });
+
     const currentWidth = this.width * this.scaleX;
     const currentHeight = this.height * this.scaleY;
     const xOffset = (this.width - currentWidth) / 2;
     const yOffset = (this.height - currentHeight) / 2;
 
     ctx.drawImage(
-      image,
-      this.x + xOffset,
-      this.y + yOffset,
-      currentWidth,
-      currentHeight
+        image,
+        this.x + xOffset,
+        this.y + yOffset,
+        currentWidth,
+        currentHeight
     );
   }
 }
