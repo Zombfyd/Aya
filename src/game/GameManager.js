@@ -4,7 +4,7 @@ import tearImage from './assets/BlueTear.png';
 import goldTearImage from './assets/GoldTear.png';
 import redTearImage from './assets/RedTear.png';
 import greenTearImage from './assets/GreenTear.png';
-import backgroundImage from './assets/background.webp';
+import backgroundImage from './assets/background.png';
 
 class GameManager {
   constructor() {
