@@ -243,7 +243,7 @@ class GameManager {
   spawnTeardrop() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.forming = true;
+    tear.state = 'forming';
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
@@ -254,7 +254,7 @@ class GameManager {
   spawnGoldtear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.forming = true;
+    tear.state = 'forming';
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
@@ -265,7 +265,7 @@ class GameManager {
   spawnRedtear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.forming = true;
+    tear.state = 'forming';
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
@@ -276,7 +276,7 @@ class GameManager {
   spawnBlacktear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.forming = true;
+    tear.state = 'forming';
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
@@ -524,69 +524,139 @@ class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
       Math.random() * (canvasWidth - 50), // x position
-      20, // Start slightly below top of screen to be visible
-      50, // fixed width
-      50, // fixed height
+      20, // Start slightly below top of screen
+      gameManager.UI_SIZES.TEAR_WIDTH,  // Use UI_SIZES for width
+      gameManager.UI_SIZES.TEAR_HEIGHT, // Use UI_SIZES for height
       Math.random() * 2 + 2 * speedMultiplier // speed
     );
     
-    // Add formation state properties
-    this.forming = true;
+    // Basic properties
+    this.canvasWidth = canvasWidth;
+    this.width = gameManager.UI_SIZES.TEAR_WIDTH;
+    this.height = gameManager.UI_SIZES.TEAR_HEIGHT;
+    
+    // Formation and fake-out properties
+    this.state = 'forming'; // states: 'forming', 'faking', 'sliding', 'falling'
     this.formationProgress = 0;
-    this.formationSpeed = 0.02; // Controls how fast the tear forms
-    this.initialY = 20; // Where the tear should form - slightly below top
+    this.formationSpeed = 0.02;
+    this.initialY = 20;
     
-    // Separate scales for width and height to create flat effect
-    this.scaleX = 1; // Start full width
-    this.scaleY = 0.2; // Start very flat
+    // Scaling properties
+    this.scaleX = 1;
+    this.scaleY = 0.2;
+    this.targetScaleY = 1;
     
-    // Keep tear dimensions fixed for collision purposes
-    this.width = 50;
-    this.height = 50;
+    // Sliding properties
+    this.slideDirection = Math.random() < 0.5 ? -1 : 1;
+    this.slideSpeed = 3;
+    this.slideDuration = 0;
+    this.maxSlideDuration = Math.random() * 100 + 50;
+    
+    // Fake-out properties
+    this.fakeOutCount = 0;
+    this.maxFakeOuts = Math.floor(Math.random() * 3) + 1;
+    this.willFakeOut = Math.random() < 0.3;
   }
 
   update() {
-    if (this.forming) {
-      // Update formation progress
-      this.formationProgress += this.formationSpeed;
+    switch (this.state) {
+      case 'forming':
+        this.updateForming();
+        break;
+      case 'faking':
+        this.updateFaking();
+        break;
+      case 'sliding':
+        this.updateSliding();
+        break;
+      case 'falling':
+        this.y += this.speed;
+        break;
+    }
+  }
+
+  updateForming() {
+    this.formationProgress += this.formationSpeed;
+    this.scaleY = 0.2 + (this.formationProgress * 0.8);
+
+    if (this.formationProgress >= 1) {
+      // Log the conditions for debugging
+      console.log('Formation complete:', {
+        willFakeOut: this.willFakeOut,
+        fakeOutCount: this.fakeOutCount,
+        maxFakeOuts: this.maxFakeOuts
+      });
       
-      // Keep width constant but grow height
-      this.scaleY = 0.2 + (this.formationProgress * 0.8); // Grow from 0.2 to 1.0
-      
-      if (this.formationProgress >= 1) {
-        this.forming = false;
+      if (this.willFakeOut && this.fakeOutCount < this.maxFakeOuts) {
+        console.log('Starting fake-out!');
+        this.startFakeOut();
+      } else {
+        console.log('Starting to fall');
+        this.state = 'falling';
         this.scaleY = 1;
       }
-      
-      // Stay at initial position during formation
-      this.y = this.initialY;
-    } else {
-      // Normal falling behavior once formed
-      this.y += this.speed;
     }
+  }
+
+  updateFaking() {
+    console.log('Faking update:', {
+      formationProgress: this.formationProgress,
+      scaleY: this.scaleY
+    });
+    
+    this.formationProgress -= this.formationSpeed * 1.5; // Faster retraction
+    this.scaleY = 0.2 + (this.formationProgress * 0.8);
+
+    if (this.formationProgress <= 0) {
+      console.log('Fake-out complete, starting to slide');
+      this.state = 'sliding';
+      this.formationProgress = 0;
+      this.scaleY = 0.2;
+      this.fakeOutCount++;
+    }
+  }
+
+  updateSliding() {
+    // Update horizontal position
+    this.x += this.slideSpeed * this.slideDirection;
+
+    // Bounce off screen edges
+    if (this.x <= 0 || this.x >= this.canvasWidth - this.width) {
+      this.slideDirection *= -1;
+    }
+
+    // Update slide duration
+    this.slideDuration++;
+
+    // Check if sliding should end
+    if (this.slideDuration >= this.maxSlideDuration) {
+      this.state = 'forming';
+      this.slideDuration = 0;
+      this.maxSlideDuration = Math.random() * 100 + 50; // Reset for potential next slide
+    }
+  }
+
+  startFakeOut() {
+    this.state = 'faking';
+    this.formationProgress = 1;
+    console.log('Fake-out started, new state:', this.state);
   }
 
   draw(ctx, image) {
     if (!ctx || !image) return;
 
-    if (this.forming) {
-      // Draw forming animation
-      const currentWidth = this.width * this.scaleX;
-      const currentHeight = this.height * this.scaleY;
-      const xOffset = (this.width - currentWidth) / 2;
-      const yOffset = (this.height - currentHeight) / 2;
+    const currentWidth = this.width * this.scaleX;
+    const currentHeight = this.height * this.scaleY;
+    const xOffset = (this.width - currentWidth) / 2;
+    const yOffset = (this.height - currentHeight) / 2;
 
-      ctx.drawImage(
-        image,
-        this.x + xOffset,
-        this.y + yOffset,
-        currentWidth,
-        currentHeight
-      );
-    } else {
-      // Normal draw
-      ctx.drawImage(image, this.x, this.y, this.width, this.height);
-    }
+    ctx.drawImage(
+      image,
+      this.x + xOffset,
+      this.y + yOffset,
+      currentWidth,
+      currentHeight
+    );
   }
 }
 
