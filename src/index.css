@@ -20,7 +20,7 @@
   height: 100vh;
   margin: 0 auto;
   text-align: center;
-  box-shadow: 0 2px 10px #2054c9;
+  
 }
 
 .app-container {
@@ -65,10 +65,12 @@
   background: #505050c9;
   border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0px 0px 17px 6px #2054c9;
 }
 
 .game-container.active {
   background: transparent;
+  box-shadow: none;
 }
 
 /* Game canvas styles merged */
@@ -78,7 +80,7 @@
   height: 700px;
   display: block;
   border-radius: 15px;
-  box-shadow: 0 4px 8px #000000f2;
+  box-shadow: 10px 6px 11px 5px #00000082;
   margin: 2rem 0;
   background: url('https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/674fa00dfaa922f1c9d76f9c_black-and-white-anime-2560-x-1600-background-d8u8u9i7yoalq57c.webp');
   background-repeat: no-repeat;
@@ -90,7 +92,7 @@
   height: 700px; /* your fixed height */
   max-width: 100%;
   display: block;
-}
+  }
 /* UI Elements from index.css */
 .wkit-connected-container {
   z-index: 10;
