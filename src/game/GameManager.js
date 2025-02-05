@@ -4,7 +4,7 @@ import tearImage from './assets/BlueTear.png';
 import goldTearImage from './assets/GoldTear.png';
 import redTearImage from './assets/RedTear.png';
 import greenTearImage from './assets/GreenTear.png';
-import backgroundImage from './assets/background.webp';
+import backgroundImage from './assets/AyaBG.png';
 
 class GameManager {
   constructor(baseUrl = 'https://aya-3i9c.onrender.com/assets/') {
@@ -54,7 +54,7 @@ class GameManager {
       goldtear: this.loadImage(`${baseUrl}GoldTear.png`),
       redtear: this.loadImage(`${baseUrl}RedTear.png`),
       blacktear: this.loadImage(`${baseUrl}GreenTear.png`),
-      background: this.loadImage(`${baseUrl}background.webp`)
+      background: this.loadImage(`${baseUrl}AyaBG.png`)
     };
 
     // Bind methods to maintain correct 'this' context
