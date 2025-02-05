@@ -78,7 +78,7 @@
   border-radius: 15px;
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
   margin: 2rem 0;
-  background: url('https://aya-3i9c.onrender.com/assets/AyaBG.png');
+  background: url('../assets/AyaBG.png');
 }
 
 /* UI Elements from index.css */
