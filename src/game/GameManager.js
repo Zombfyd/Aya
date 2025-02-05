@@ -521,7 +521,7 @@ class Splash {
 
   update() {
     this.radius += this.growthRate; // Increase radius over time
-    this.opacity = Math.max(0, this.opacity - 0.3); // Fade out
+    this.opacity = Math.max(0, this.opacity - 0.06); // Fade out
   }
 
   draw(ctx) {
