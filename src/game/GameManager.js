@@ -290,19 +290,37 @@ class GameManager {
   }
 
   updateEntities(entities, isGold, isRed, isBlack) {
-    for (let i = entities.length - 1; i >= 0; i--) {
-      const entity = entities[i];
-      entity.update();
+  for (let i = entities.length - 1; i >= 0; i--) {
+    const entity = entities[i];
+    entity.update();
 
-      if (this.checkCollision(entity, this.bucket)) {
-        entities.splice(i, 1);
-        this.handleCollision(entity, isGold, isRed, isBlack);
-      } else if (entity.y > this.canvas.height) {
-        entities.splice(i, 1);
-        if (!isRed) this.lives--;
+    if (this.checkCollision(entity, this.bucket)) {
+      entities.splice(i, 1);
+      this.handleCollision(entity, isGold, isRed, isBlack);
+    } else if (entity.y > this.canvas.height) {
+      entities.splice(i, 1);
+      
+      // Create ground splash effect
+      const splashX = entity.x + entity.width / 2;
+      const splashY = this.canvas.height;
+      
+      if (isGold) {
+        this.splashes.push(new GoldSplash(splashX, splashY));
+      } else if (isRed) {
+        this.splashes.push(new RedSplash(splashX, splashY));
+      } else if (isBlack) {
+        this.splashes.push(new GreenSplash(splashX, splashY));
+      } else {
+        this.splashes.push(new BlueSplash(splashX, splashY));
+      }
+      
+      // Handle life reduction for non-red tears
+      if (!isRed) {
+        this.lives--;
       }
     }
   }
+}
 
   // Collision Detection
   checkCollision(entity, bucket) {
@@ -315,20 +333,23 @@ class GameManager {
   }
 
   handleCollision(entity, isGold, isRed, isBlack) {
-    if (isGold) {
-      this.score += 15;
-      this.splashes.push(new GoldSplash(entity.x + entity.width / 2, this.bucket.y));
-    } else if (isRed) {
-      this.lives--;
-      this.splashes.push(new RedSplash(entity.x + entity.width / 2, this.bucket.y));
-    } else if (isBlack) {
-      this.lives++;
-      this.splashes.push(new GreenSplash(entity.x + entity.width / 2, this.bucket.y));
-    } else {
-      this.score += 1;
-      this.splashes.push(new Splash(entity.x + entity.width / 2, this.bucket.y));
-    }
+  const splashX = entity.x + entity.width / 2;
+  const splashY = this.bucket.y;
+
+  if (isGold) {
+    this.score += 15;
+    this.splashes.push(new GoldSplash(splashX, splashY));
+  } else if (isRed) {
+    this.lives--;
+    this.splashes.push(new RedSplash(splashX, splashY));
+  } else if (isBlack) {
+    this.lives++;
+    this.splashes.push(new GreenSplash(splashX, splashY));
+  } else {
+    this.score += 1;
+    this.splashes.push(new BlueSplash(splashX, splashY));  // Changed from base Splash to BlueSplash
   }
+}
 
   // Drawing Methods
   drawGame() {
@@ -506,24 +527,23 @@ class Blacktear extends Teardrop {}
 /**
  * Splash effect base class
  */
-class Splash {
-  constructor(x, y) {
+class BaseSplash {
+  constructor(x, y, color) {
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
       throw new Error("Invalid coordinates for splash effect");
     }
     this.x = x;
     this.y = y;
     this.opacity = 1;
-    this.fillColor = "rgba(32, 84, 201, "; // Keep the alpha separate for easier updates
-    this.radius = 10 + Math.random() * 10; // Randomized initial size
-    this.growthRate = 1 + Math.random() * 0.5; // Slight variation in growth speed
+    this.fillColor = color;
+    this.radius = 10 + Math.random() * 10;
+    this.growthRate = 1 + Math.random() * 0.5;
     this.splashes = this.createDroplets();
   }
 
   createDroplets() {
-    // Generate small droplets around the main splash
     let droplets = [];
-    let count = Math.floor(Math.random() * 5) + 3; // 3-7 droplets
+    let count = Math.floor(Math.random() * 5) + 3;
 
     for (let i = 0; i < count; i++) {
       let angle = Math.random() * Math.PI * 2;
@@ -540,32 +560,28 @@ class Splash {
   }
 
   update() {
-    this.radius += this.growthRate; // Increase the size over time
-    this.opacity = Math.max(0, this.opacity - 0.05); // Slow fade-out
+    this.radius += this.growthRate;
+    this.opacity = Math.max(0, this.opacity - 0.05);
 
-    // Update droplets
     this.splashes.forEach((drop) => {
       drop.x += drop.vx;
       drop.y += drop.vy;
-      drop.vy += 0.05; // Simulate gravity
-      drop.radius *= 0.95; // Shrinking effect
+      drop.vy += 0.05;
+      drop.radius *= 0.95;
     });
 
-    // Remove tiny droplets
     this.splashes = this.splashes.filter((drop) => drop.radius > 0.5);
   }
 
   draw(ctx) {
     if (!ctx) return;
 
-    // Draw main splash
     ctx.beginPath();
-    ctx.fillStyle = `${this.fillColor}${this.opacity})`; // Corrected RGBA formatting
+    ctx.fillStyle = `${this.fillColor}${this.opacity})`;
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.closePath();
 
-    // Draw droplets
     this.splashes.forEach((drop) => {
       ctx.beginPath();
       ctx.fillStyle = `${this.fillColor}${this.opacity * 0.8})`;
@@ -580,24 +596,27 @@ class Splash {
 /**
  * Specialized splash effects for different tear types
  */
-class GoldSplash extends Splash {
+class BlueSplash extends BaseSplash {
   constructor(x, y) {
-    super(x, y);
-    this.fillColor = "rgba(255, 204, 51, "; // Keep the alpha part separate
+    super(x, y, "rgba(32, 84, 201, ");
   }
 }
 
-class RedSplash extends Splash {
+class GoldSplash extends BaseSplash {
   constructor(x, y) {
-    super(x, y);
-    this.fillColor = "rgba(255, 0, 0, ";
+    super(x, y, "rgba(255, 204, 51, ");
   }
 }
 
-class GreenSplash extends Splash {
+class RedSplash extends BaseSplash {
   constructor(x, y) {
-    super(x, y);
-    this.fillColor = "rgba(0, 255, 0, ";
+    super(x, y, "rgba(255, 0, 0, ");
+  }
+}
+
+class GreenSplash extends BaseSplash {
+  constructor(x, y) {
+    super(x, y, "rgba(0, 255, 0, ");
   }
 }
 
