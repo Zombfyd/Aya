@@ -536,55 +536,50 @@ class BaseSplash {
     this.y = y;
     this.opacity = 1;
     this.fillColor = color;
-    this.radius = 10 + Math.random() * 10;
-    this.growthRate = 1 + Math.random() * 0.5;
-    this.splashes = this.createDroplets();
+    this.droplets = this.createDroplets();
   }
 
   createDroplets() {
     let droplets = [];
-    let count = Math.floor(Math.random() * 5) + 3;
-
+    // Create more droplets since they're now the main visual element
+    let count = Math.floor(Math.random() * 8) + 6; // 6-13 droplets
+    
     for (let i = 0; i < count; i++) {
-      let angle = Math.random() * Math.PI * 2;
-      let speed = Math.random() * 2 + 1;
+      let angle = (Math.PI * (i / count * 2 - 1)) + (Math.random() * 0.5 - 0.25); // More controlled spread
+      let speed = Math.random() * 4 + 3; // Increased speed for more dramatic effect
       droplets.push({
-        x: this.x + Math.cos(angle) * 5,
-        y: this.y + Math.sin(angle) * 5,
+        x: this.x,
+        y: this.y,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        radius: Math.random() * 5 + 2,
+        vy: Math.sin(angle) * speed - 2, // Added upward boost
+        radius: Math.random() * 4 + 2, // Slightly smaller droplets
+        opacity: 1
       });
     }
     return droplets;
   }
 
   update() {
-    this.radius += this.growthRate;
-    this.opacity = Math.max(0, this.opacity - 0.05);
+    this.opacity = Math.max(0, this.opacity - 0.03); // Slower fade
 
-    this.splashes.forEach((drop) => {
+    this.droplets.forEach((drop) => {
       drop.x += drop.vx;
       drop.y += drop.vy;
-      drop.vy += 0.05;
-      drop.radius *= 0.95;
+      drop.vy += 0.2; // Increased gravity effect
+      drop.vx *= 0.99; // Slight horizontal slowdown
+      drop.opacity = this.opacity; // Match main opacity
     });
 
-    this.splashes = this.splashes.filter((drop) => drop.radius > 0.5);
+    // Remove drops that have faded out
+    return this.opacity > 0;
   }
 
   draw(ctx) {
     if (!ctx) return;
 
-    ctx.beginPath();
-    ctx.fillStyle = `${this.fillColor}${this.opacity})`;
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.closePath();
-
-    this.splashes.forEach((drop) => {
+    this.droplets.forEach((drop) => {
       ctx.beginPath();
-      ctx.fillStyle = `${this.fillColor}${this.opacity * 0.8})`;
+      ctx.fillStyle = `${this.fillColor}${drop.opacity})`;
       ctx.arc(drop.x, drop.y, drop.radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.closePath();
