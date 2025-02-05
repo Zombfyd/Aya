@@ -886,7 +886,18 @@ useEffect(() => {
                 <>
                   <div className="payment-section">
                     <h3>Select Payment Tier</h3>
-                    {renderPaymentTiers()}
+                   <div className="payment-tiers-mobile">
+  <select 
+    className="tier-select"
+    value={selectedTier || ''}
+    onChange={(e) => setSelectedTier(e.target.value)}
+  >
+    <option value="">Select Payment Tier</option>
+    <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
+    <option value="tier2">Short Brake - 0.8 SUI (2 Plays)</option>
+    <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
+  </select>
+</div>
                   </div>
                   <button 
                     onClick={handleGamePayment}
