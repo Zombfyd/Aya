@@ -243,8 +243,7 @@ class GameManager {
   spawnTeardrop() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.state = 'forming';
-    tear.formationProgress = 0;
+    tear.state = 'sliding';
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
     this.teardrops.push(tear);
@@ -254,8 +253,7 @@ class GameManager {
   spawnGoldtear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.state = 'forming';
-    tear.formationProgress = 0;
+    tear.state = 'sliding';
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
     this.goldtears.push(tear);
@@ -265,8 +263,7 @@ class GameManager {
   spawnRedtear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.state = 'forming';
-    tear.formationProgress = 0;
+    tear.state = 'sliding';
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
     this.redtears.push(tear);
@@ -276,8 +273,7 @@ class GameManager {
   spawnBlacktear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.state = 'forming';
-    tear.formationProgress = 0;
+    tear.state = 'sliding';
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
     this.blacktears.push(tear);
@@ -523,11 +519,11 @@ class Entity {
 class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
-      Math.random() * (canvasWidth - 50), // x position
+      Math.random() * (canvasWidth - 50),
       20, // Start slightly below top of screen
-      gameManager.UI_SIZES.TEAR_WIDTH,  // Use UI_SIZES for width
-      gameManager.UI_SIZES.TEAR_HEIGHT, // Use UI_SIZES for height
-      Math.random() * 2 + 2 * speedMultiplier // speed
+      gameManager.UI_SIZES.TEAR_WIDTH,
+      gameManager.UI_SIZES.TEAR_HEIGHT,
+      Math.random() * 2 + 2 * speedMultiplier
     );
     
     // Basic properties
@@ -535,16 +531,15 @@ class Teardrop extends Entity {
     this.width = gameManager.UI_SIZES.TEAR_WIDTH;
     this.height = gameManager.UI_SIZES.TEAR_HEIGHT;
     
-    // Formation and fake-out properties
-    this.state = 'forming'; // states: 'forming', 'faking', 'sliding', 'falling'
+    // Always start in sliding state
+    this.state = 'sliding';
     this.formationProgress = 0;
     this.formationSpeed = 0.02;
-    this.initialY = 10;
+    this.initialY = 5;
     
     // Scaling properties
     this.scaleX = 1;
-    this.scaleY = 0.2;
-    this.targetScaleY = 1;
+    this.scaleY = 0.2; // Start flat
     
     // Sliding properties
     this.slideDirection = Math.random() < 0.5 ? -1 : 1;
@@ -560,59 +555,18 @@ class Teardrop extends Entity {
 
   update() {
     switch (this.state) {
+      case 'sliding':
+        this.updateSliding();
+        break;
       case 'forming':
         this.updateForming();
         break;
       case 'faking':
         this.updateFaking();
         break;
-      case 'sliding':
-        this.updateSliding();
-        break;
       case 'falling':
         this.y += this.speed;
         break;
-    }
-  }
-
-  updateForming() {
-    this.formationProgress += this.formationSpeed;
-    this.scaleY = 0.2 + (this.formationProgress * 0.8);
-
-    if (this.formationProgress >= 1) {
-      // Log the conditions for debugging
-      console.log('Formation complete:', {
-        willFakeOut: this.willFakeOut,
-        fakeOutCount: this.fakeOutCount,
-        maxFakeOuts: this.maxFakeOuts
-      });
-      
-      if (this.willFakeOut && this.fakeOutCount < this.maxFakeOuts) {
-        console.log('Starting fake-out!');
-        this.startFakeOut();
-      } else {
-        console.log('Starting to fall');
-        this.state = 'falling';
-        this.scaleY = 1;
-      }
-    }
-  }
-
-  updateFaking() {
-    console.log('Faking update:', {
-      formationProgress: this.formationProgress,
-      scaleY: this.scaleY
-    });
-    
-    this.formationProgress -= this.formationSpeed * 1.5; // Faster retraction
-    this.scaleY = 0.2 + (this.formationProgress * 0.8);
-
-    if (this.formationProgress <= 0) {
-      console.log('Fake-out complete, starting to slide');
-      this.state = 'sliding';
-      this.formationProgress = 0;
-      this.scaleY = 0.2;
-      this.fakeOutCount++;
     }
   }
 
@@ -628,18 +582,49 @@ class Teardrop extends Entity {
     // Update slide duration
     this.slideDuration++;
 
-    // Check if sliding should end
+    // When sliding duration is up, start forming or faking
     if (this.slideDuration >= this.maxSlideDuration) {
-      this.state = 'forming';
+      if (this.willFakeOut && this.fakeOutCount < this.maxFakeOuts) {
+        this.state = 'forming'; // Will lead to fake-out
+      } else {
+        this.state = 'forming'; // Will lead to real formation
+      }
       this.slideDuration = 0;
-      this.maxSlideDuration = Math.random() * 100 + 50; // Reset for potential next slide
+      this.formationProgress = 0;
+    }
+  }
+
+  updateForming() {
+    this.formationProgress += this.formationSpeed;
+    this.scaleY = 0.2 + (this.formationProgress * 0.8);
+
+    if (this.formationProgress >= 1) {
+      if (this.willFakeOut && this.fakeOutCount < this.maxFakeOuts) {
+        this.startFakeOut();
+      } else {
+        this.state = 'falling';
+        this.scaleY = 1;
+      }
+    }
+  }
+
+  updateFaking() {
+    this.formationProgress -= this.formationSpeed * 1.5;
+    this.scaleY = 0.2 + (this.formationProgress * 0.8);
+
+    if (this.formationProgress <= 0) {
+      this.state = 'sliding';
+      this.formationProgress = 0;
+      this.scaleY = 0.2;
+      this.fakeOutCount++;
+      this.maxSlideDuration = Math.random() * 100 + 50; // New random slide duration
+      this.slideDirection = Math.random() < 0.5 ? -1 : 1; // New random direction
     }
   }
 
   startFakeOut() {
     this.state = 'faking';
     this.formationProgress = 1;
-    console.log('Fake-out started, new state:', this.state);
   }
 
   draw(ctx, image) {
