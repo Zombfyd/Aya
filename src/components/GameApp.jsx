@@ -892,49 +892,63 @@ useEffect(() => {
       <canvas id="tearCatchGameCanvas" className={`game-canvas ${gameState.gameStarted ? 'centered-canvas' : ''}`} />
 
       {gameState.isGameOver && (
-        <div className="game-over-overlay">
-          <div className="game-over-popup">
-            <h2>Game Over!</h2>
-            <p>Final Score: {gameState.score}</p>
-            {gameMode === 'paid' && (
-              <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-            )}
-            
-            {(gameMode === 'free' || paidGameAttempts < maxAttempts) && (
-              <button 
-                onClick={restartGame} 
-                className="restart-button"
-              >
-                Play Again
-              </button>
-            )}
-            
-            {gameMode === 'paid' && paidGameAttempts >= maxAttempts && (
-              <div className="game-over-buttons">
-                <button 
-                  onClick={handleGamePayment}
-                  className="new-payment-button"
-                >
-                  Make New Payment
-                </button>
-                <button 
-                  onClick={() => {
-                    setGameState(prev => ({
-                      ...prev,
-                      isGameOver: false,
-                      hasValidPayment: false
-                    }));
-                    setPaidGameAttempts(0);
-                  }}
-                  className="return-menu-button"
-                >
-                  Return to Menu
-                </button>
-              </div>
-            )}
-          </div>
+  <div className="game-over-overlay">
+    <div className="game-over-popup">
+      <h2>Game Over!</h2>
+      <p>Final Score: {gameState.score}</p>
+      {gameMode === 'paid' && (
+        <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
+      )}
+      
+      {(gameMode === 'free' || paidGameAttempts < maxAttempts) && (
+        <div className="game-over-buttons">  {/* Added wrapper div */}
+          <button 
+            onClick={restartGame} 
+            className="restart-button"
+          >
+            Play Again
+          </button>
+          <button 
+            onClick={() => {
+              setGameState(prev => ({
+                ...prev,
+                isGameOver: false,
+                hasValidPayment: false
+              }));
+            }}
+            className="return-menu-button"
+          >
+            Return to Menu
+          </button>
         </div>
       )}
+      
+      {gameMode === 'paid' && paidGameAttempts >= maxAttempts && (
+        <div className="game-over-buttons">
+          <button 
+            onClick={handleGamePayment}
+            className="new-payment-button"
+          >
+            Make New Payment
+          </button>
+          <button 
+            onClick={() => {
+              setGameState(prev => ({
+                ...prev,
+                isGameOver: false,
+                hasValidPayment: false
+              }));
+              setPaidGameAttempts(0);
+            }}
+            className="return-menu-button"
+          >
+            Return to Menu
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+)}
       
       {process.env.NODE_ENV === 'development' && (
         <div className="debug-info">
