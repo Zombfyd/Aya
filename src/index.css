@@ -89,7 +89,7 @@
 }
 .title {
   text-align: center;
-  background: rgba(0, 0, 0, 0.0);
+  background: transparent;
   margin: 1rem 0;
   width: 100%;
   color: #2054c9;
