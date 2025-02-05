@@ -537,12 +537,6 @@ class Teardrop extends Entity {
       Math.random() * 2 + 2 * speedMultiplier
     );
     
-    console.log('Creating new teardrop with initial state:', {
-      state: 'sliding',
-      scaleY: 0.2,
-      y: 20
-    });
-    
     // Basic properties
     this.canvasWidth = canvasWidth;
     this.width = gameManager.UI_SIZES.TEAR_WIDTH;
@@ -552,11 +546,11 @@ class Teardrop extends Entity {
     this.state = 'sliding';
     this.formationProgress = 0;
     this.formationSpeed = 0.02;
-    this.initialY = 5;
+    this.initialY = 20;
     
-    // Scaling properties
+    // Scaling properties - ensure these aren't being overwritten
     this.scaleX = 1;
-    this.scaleY = 0.2; // Start flat
+    this.scaleY = 0.2;
     
     // Sliding properties
     this.slideDirection = Math.random() < 0.5 ? -1 : 1;
@@ -568,6 +562,12 @@ class Teardrop extends Entity {
     this.fakeOutCount = 0;
     this.maxFakeOuts = Math.floor(Math.random() * 3) + 1;
     this.willFakeOut = Math.random() < 0.3;
+
+    console.log('Teardrop constructed:', {
+      state: this.state,
+      scaleY: this.scaleY,
+      y: this.y
+    });
   }
 
   update() {
@@ -600,6 +600,13 @@ class Teardrop extends Entity {
   }
 
   updateSliding() {
+    // Log at start of update
+    console.log('Updating sliding tear:', {
+      scaleY: this.scaleY,
+      x: this.x,
+      slideDirection: this.slideDirection
+    });
+
     // Update horizontal position
     this.x += this.slideSpeed * this.slideDirection;
 
@@ -608,16 +615,16 @@ class Teardrop extends Entity {
       this.slideDirection *= -1;
     }
 
+    // Ensure scaleY stays flat during sliding
+    this.scaleY = 0.2;
+
     // Update slide duration
     this.slideDuration++;
 
     // When sliding duration is up, start forming or faking
     if (this.slideDuration >= this.maxSlideDuration) {
-      if (this.willFakeOut && this.fakeOutCount < this.maxFakeOuts) {
-        this.state = 'forming'; // Will lead to fake-out
-      } else {
-        this.state = 'forming'; // Will lead to real formation
-      }
+      console.log('Sliding duration complete, transitioning to forming');
+      this.state = 'forming';
       this.slideDuration = 0;
       this.formationProgress = 0;
     }
@@ -659,10 +666,12 @@ class Teardrop extends Entity {
   draw(ctx, image) {
     if (!ctx || !image) return;
 
+    // Log drawing state
     console.log('Drawing tear:', {
-        state: this.state,
-        scaleY: this.scaleY,
-        formationProgress: this.formationProgress
+      state: this.state,
+      scaleY: this.scaleY,
+      x: this.x,
+      y: this.y
     });
 
     const currentWidth = this.width * this.scaleX;
@@ -671,11 +680,11 @@ class Teardrop extends Entity {
     const yOffset = (this.height - currentHeight) / 2;
 
     ctx.drawImage(
-        image,
-        this.x + xOffset,
-        this.y + yOffset,
-        currentWidth,
-        currentHeight
+      image,
+      this.x + xOffset,
+      this.y + yOffset,
+      currentWidth,
+      currentHeight
     );
   }
 }
