@@ -337,14 +337,18 @@ class GameManager {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background to cover the entire canvas without tiling
+    // Draw background once without tiling
     if (this.images.background) {
+      // Calculate scaling to cover the canvas width while maintaining aspect ratio
+      const scale = this.canvas.width / this.images.background.width;
+      const scaledHeight = this.images.background.height * scale;
+      
       this.ctx.drawImage(
         this.images.background,
         0,  // x position
         0,  // y position
-        this.canvas.width,  // width - stretch to canvas width
-        this.canvas.height  // height - stretch to canvas height
+        this.canvas.width,
+        scaledHeight
       );
     }
 
