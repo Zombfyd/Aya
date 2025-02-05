@@ -609,13 +609,55 @@ th, td {
   gap: 1rem;
   justify-content: center;
   margin: 1rem 0;
-  
-  /* Add these for mobile */
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
+}
+
+/* Mobile styles for dropdown */
+@media (max-width: 768px) {
+  .payment-tiers {
+    display: none; /* Hide the buttons on mobile */
+  }
+
+  .payment-tiers-mobile {
+    display: block;
+    width: 100%;
     padding: 0 1rem;
+    margin: 1rem 0;
+  }
+
+  .tier-select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #2054c9;
+    border-radius: 8px;
+    background-color: rgba(66, 66, 66, 0);
+    color: #2054c9;
+    font-size: 1rem;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232054c9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+  }
+
+  .tier-select option {
+    background-color: #242424;
+    color: #2054c9;
+    padding: 12px;
+  }
+
+  .tier-select:focus {
+    outline: none;
+    border-color: #2054c9;
+    box-shadow: 0 0 0 2px rgba(32, 84, 201, 0.2);
+  }
+}
+
+/* Desktop styles remain unchanged */
+@media (min-width: 769px) {
+  .payment-tiers-mobile {
+    display: none; /* Hide dropdown on desktop */
   }
 }
 
