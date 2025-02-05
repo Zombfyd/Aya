@@ -447,6 +447,19 @@ class GameManager {
       this.ctx.fillText(text, 20, y);
     });
   }
+
+  gameLoop() {
+    if (!this.gameActive) return;
+
+    // Update game state
+    this.updateGame();
+    
+    // Draw everything
+    this.drawGame();
+    
+    // Schedule next frame
+    this.gameLoopId = requestAnimationFrame(this.gameLoop);
+  }
 }
 
 // Update Teardrop class
@@ -465,7 +478,19 @@ class Teardrop extends Entity {
     this.height = 50;
   }
 }
+class Entity {
+  constructor(x, y, width, height, speed) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.speed = speed;
+  }
 
+  update() {
+    this.y += this.speed;
+  }
+}
 /**
  * Special tear types extending base Teardrop
  */
