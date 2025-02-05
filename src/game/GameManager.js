@@ -242,28 +242,35 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    this.teardrops.push(new Teardrop(this.canvas.width, this.speedMultiplier));
+    const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
+    tear.initialY = 0; // Set where the tear should form
+    this.teardrops.push(tear);
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
 
   spawnGoldtear() {
     if (!this.gameActive) return;
-    this.goldtears.push(new Teardrop(this.canvas.width, this.speedMultiplier));
+    const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
+    tear.initialY = 0;
+    this.goldtears.push(tear);
     this.spawnTimers.goldtear = setTimeout(() => this.spawnGoldtear(), Math.random() * 3000 + 1500);
   }
 
   spawnRedtear() {
     if (!this.gameActive) return;
-    this.redtears.push(new Teardrop(this.canvas.width, this.speedMultiplier));
+    const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
+    tear.initialY = 0;
+    this.redtears.push(tear);
     this.spawnTimers.redtear = setTimeout(() => this.spawnRedtear(), Math.random() * 12000 + 3000);
   }
 
   spawnBlacktear() {
     if (!this.gameActive) return;
-    this.blacktears.push(new Teardrop(this.canvas.width, this.speedMultiplier));
+    const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
+    tear.initialY = 0;
+    this.blacktears.push(tear);
     this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
   }
-
   // Game Update Methods
   updateGame() {
     this.updateEntities(this.teardrops, false, false, false);
@@ -505,15 +512,64 @@ class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
       Math.random() * (canvasWidth - 50), // x position
-      0, // y position
+      -50, // Start above screen
       50, // fixed width
       50, // fixed height
       Math.random() * 2 + 2 * speedMultiplier // speed
     );
     
-    // Ensure tear dimensions stay fixed
+    // Formation state properties
+    this.forming = true;
+    this.formationProgress = 0;
+    this.formationSpeed = 0.02; // Speed of formation animation
+    this.initialY = 0; // Target Y position for formation
+    this.scale = 0.1; // Start very small
+    
+    // Ensure tear dimensions stay fixed for collision purposes
     this.width = 50;
     this.height = 50;
+  }
+
+  update() {
+    if (this.forming) {
+      // Update formation progress
+      this.formationProgress += this.formationSpeed;
+      this.scale = Math.min(1, this.formationProgress * 2);
+      
+      if (this.formationProgress >= 1) {
+        this.forming = false;
+        this.scale = 1;
+      }
+      
+      // Gradually move to initial position during formation
+      this.y = this.initialY;
+    } else {
+      // Normal falling behavior once formed
+      this.y += this.speed;
+    }
+  }
+
+  draw(ctx, image) {
+    if (!ctx || !image) return;
+
+    if (this.forming) {
+      // Draw forming animation
+      const currentWidth = this.width * this.scale;
+      const currentHeight = this.height * this.scale;
+      const xOffset = (this.width - currentWidth) / 2;
+      const yOffset = (this.height - currentHeight) / 2;
+
+      ctx.drawImage(
+        image,
+        this.x + xOffset,
+        this.y + yOffset,
+        currentWidth,
+        currentHeight
+      );
+    } else {
+      // Normal draw
+      ctx.drawImage(image, this.x, this.y, this.width, this.height);
+    }
   }
 }
 
