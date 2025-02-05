@@ -242,18 +242,11 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    console.log('Spawning new teardrop');
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    // Explicitly set initial state
-    tear.state = 'sliding';
+    tear.forming = true;
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
-    console.log('Teardrop spawned with properties:', {
-      state: tear.state,
-      scaleY: tear.scaleY,
-      y: tear.y
-    });
     this.teardrops.push(tear);
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
@@ -261,7 +254,7 @@ class GameManager {
   spawnGoldtear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.state = 'sliding';
+    tear.forming = true;
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
@@ -272,7 +265,7 @@ class GameManager {
   spawnRedtear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.state = 'sliding';
+    tear.forming = true;
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
@@ -283,7 +276,7 @@ class GameManager {
   spawnBlacktear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.state = 'sliding';
+    tear.forming = true;
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
@@ -417,25 +410,17 @@ class GameManager {
       );
     }
 
-    // Modified tear drawing function to use scale
+    // Draw teardrops with fixed sizes
     const drawTear = (tear, image) => {
-      const currentWidth = this.UI_SIZES.TEAR_WIDTH * tear.scaleX;
-      const currentHeight = this.UI_SIZES.TEAR_HEIGHT * tear.scaleY;
-      
-      // Calculate offsets to keep tear centered while scaling
-      const xOffset = (this.UI_SIZES.TEAR_WIDTH - currentWidth) / 2;
-      const yOffset = (this.UI_SIZES.TEAR_HEIGHT - currentHeight) / 2;
-
       this.ctx.drawImage(
         image,
-        tear.x + xOffset,
-        tear.y + yOffset,
-        currentWidth,
-        currentHeight
+        tear.x,
+        tear.y,
+        this.UI_SIZES.TEAR_WIDTH,
+        this.UI_SIZES.TEAR_HEIGHT
       );
     };
 
-    // Draw all tears with the new scaling
     this.teardrops.forEach(tear => drawTear(tear, this.images.teardrop));
     this.goldtears.forEach(tear => drawTear(tear, this.images.goldtear));
     this.redtears.forEach(tear => drawTear(tear, this.images.redtear));
@@ -538,162 +523,70 @@ class Entity {
 class Teardrop extends Entity {
   constructor(canvasWidth, speedMultiplier) {
     super(
-      Math.random() * (canvasWidth - 50),
-      20,
-      gameManager.UI_SIZES.TEAR_WIDTH,
-      gameManager.UI_SIZES.TEAR_HEIGHT,
-      Math.random() * 2 + 2 * speedMultiplier
+      Math.random() * (canvasWidth - 50), // x position
+      20, // Start slightly below top of screen to be visible
+      50, // fixed width
+      50, // fixed height
+      Math.random() * 2 + 2 * speedMultiplier // speed
     );
     
-    // Basic properties
-    this.canvasWidth = canvasWidth;
-    this.width = gameManager.UI_SIZES.TEAR_WIDTH;
-    this.height = gameManager.UI_SIZES.TEAR_HEIGHT;
-    
-    // Always start in sliding state
-    this.state = 'sliding';
+    // Add formation state properties
+    this.forming = true;
     this.formationProgress = 0;
-    this.formationSpeed = 0.02;
-    this.initialY = 5;
+    this.formationSpeed = 0.02; // Controls how fast the tear forms
+    this.initialY = 0; // Where the tear should form - slightly below top
     
-    // Scaling properties - ensure these aren't being overwritten
-    this.scaleX = 1;
-    this.scaleY = 0.2;
+    // Separate scales for width and height to create flat effect
+    this.scaleX = 1; // Start full width
+    this.scaleY = 0.2; // Start very flat
     
-    // Sliding properties
-    this.slideDirection = Math.random() < 0.5 ? -1 : 1;
-    this.slideSpeed = 3;
-    this.slideDuration = 0;
-    this.maxSlideDuration = Math.random() * 100 + 50;
-    
-    // Fake-out properties
-    this.fakeOutCount = 0;
-    this.maxFakeOuts = Math.floor(Math.random() * 3) + 1;
-    this.willFakeOut = Math.random() < 0.3;
-
-    console.log('Teardrop constructed:', {
-      state: this.state,
-      scaleY: this.scaleY,
-      y: this.y
-    });
+    // Keep tear dimensions fixed for collision purposes
+    this.width = 50;
+    this.height = 50;
   }
 
   update() {
-    // Add state transition logging
-    const previousState = this.state;
-    
-    switch (this.state) {
-      case 'sliding':
-        this.updateSliding();
-        break;
-      case 'forming':
-        this.updateForming();
-        break;
-      case 'faking':
-        this.updateFaking();
-        break;
-      case 'falling':
-        this.y += this.speed;
-        break;
-    }
-    
-    if (previousState !== this.state) {
-      console.log('Teardrop state changed:', {
-        from: previousState,
-        to: this.state,
-        scaleY: this.scaleY,
-        formationProgress: this.formationProgress
-      });
-    }
-  }
-
-  updateSliding() {
-    // Log at start of update
-    console.log('Updating sliding tear:', {
-      scaleY: this.scaleY,
-      x: this.x,
-      slideDirection: this.slideDirection
-    });
-
-    // Update horizontal position
-    this.x += this.slideSpeed * this.slideDirection;
-
-    // Bounce off screen edges
-    if (this.x <= 0 || this.x >= this.canvasWidth - this.width) {
-      this.slideDirection *= -1;
-    }
-
-    // Ensure scaleY stays flat during sliding
-    this.scaleY = 0.2;
-
-    // Update slide duration
-    this.slideDuration++;
-
-    // When sliding duration is up, start forming or faking
-    if (this.slideDuration >= this.maxSlideDuration) {
-      console.log('Sliding duration complete, transitioning to forming');
-      this.state = 'forming';
-      this.slideDuration = 0;
-      this.formationProgress = 0;
-    }
-  }
-
-  updateForming() {
-    this.formationProgress += this.formationSpeed;
-    this.scaleY = 0.2 + (this.formationProgress * 0.8);
-
-    if (this.formationProgress >= 1) {
-      if (this.willFakeOut && this.fakeOutCount < this.maxFakeOuts) {
-        this.startFakeOut();
-      } else {
-        this.state = 'falling';
+    if (this.forming) {
+      // Update formation progress
+      this.formationProgress += this.formationSpeed;
+      
+      // Keep width constant but grow height
+      this.scaleY = 0.2 + (this.formationProgress * 0.8); // Grow from 0.2 to 1.0
+      
+      if (this.formationProgress >= 1) {
+        this.forming = false;
         this.scaleY = 1;
       }
+      
+      // Stay at initial position during formation
+      this.y = this.initialY;
+    } else {
+      // Normal falling behavior once formed
+      this.y += this.speed;
     }
-  }
-
-  updateFaking() {
-    this.formationProgress -= this.formationSpeed * 1.5;
-    this.scaleY = 0.2 + (this.formationProgress * 0.8);
-
-    if (this.formationProgress <= 0) {
-      this.state = 'sliding';
-      this.formationProgress = 0;
-      this.scaleY = 0.2;
-      this.fakeOutCount++;
-      this.maxSlideDuration = Math.random() * 100 + 50; // New random slide duration
-      this.slideDirection = Math.random() < 0.5 ? -1 : 1; // New random direction
-    }
-  }
-
-  startFakeOut() {
-    this.state = 'faking';
-    this.formationProgress = 1;
   }
 
   draw(ctx, image) {
     if (!ctx || !image) return;
 
-    // Log drawing state
-    console.log('Drawing tear:', {
-      state: this.state,
-      scaleY: this.scaleY,
-      x: this.x,
-      y: this.y
-    });
+    if (this.forming) {
+      // Draw forming animation
+      const currentWidth = this.width * this.scaleX;
+      const currentHeight = this.height * this.scaleY;
+      const xOffset = (this.width - currentWidth) / 2;
+      const yOffset = (this.height - currentHeight) / 2;
 
-    const currentWidth = this.width * this.scaleX;
-    const currentHeight = this.height * this.scaleY;
-    const xOffset = (this.width - currentWidth) / 2;
-    const yOffset = (this.height - currentHeight) / 2;
-
-    ctx.drawImage(
-      image,
-      this.x + xOffset,
-      this.y + yOffset,
-      currentWidth,
-      currentHeight
-    );
+      ctx.drawImage(
+        image,
+        this.x + xOffset,
+        this.y + yOffset,
+        currentWidth,
+        currentHeight
+      );
+    } else {
+      // Normal draw
+      ctx.drawImage(image, this.x, this.y, this.width, this.height);
+    }
   }
 }
 
