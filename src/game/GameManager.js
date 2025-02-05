@@ -507,8 +507,8 @@ class Splash {
     this.y = y;
     this.opacity = 1;
     this.fillColor = "rgba(255, 255, 255";
-    this.radius = 20; // Initial size of the splash
-    this.growthRate = 0.5; // Amount to increase the radius each update
+    this.radius = 5; // Initial size of the splash
+    this.growthRate = 1.5; // Amount to increase the radius each update
   }
 
   update() {
