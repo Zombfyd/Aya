@@ -793,7 +793,7 @@ useEffect(() => {
 useEffect(() => {
     const handleScroll = () => {
       const header = document.querySelector('header');
-      if (window.scrollY > 100) { // Adjust this value as needed
+      if (window.scrollY > window.innerHeight * 0.8) { // Adjust this value as needed
         header.classList.add('scrolled');
       } else {
         header.classList.remove('scrolled');
@@ -803,6 +803,7 @@ useEffect(() => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+  
   // Render method
   return (
     
