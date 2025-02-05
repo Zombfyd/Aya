@@ -75,12 +75,9 @@
   max-width: 800px;
   height: 700px;
   display: block;
-  background: linear-gradient(145deg, #1c1c1c, #252525);
   border-radius: 15px;
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.4);
   margin: 2rem 0;
-  background: url('https://i.imgflip.com/4zei4c.jpg') no-repeat center bottom;
-  background-size: cover;
 }
 
 /* UI Elements from index.css */
@@ -452,9 +449,6 @@ th, td {
     width: 100%;
   }
   
-  .game-canvas {
-    height: 400px;
-  }
 }
 .bucket-click-overlay {
   position: absolute;
