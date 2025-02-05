@@ -514,14 +514,18 @@ class Splash {
     this.x = x;
     this.y = y;
     this.opacity = 1;
-    this.fillColor = "rgba(32, 84, 201)";
-    this.radius = 40; // Initial size of the splash
-    this.growthRate = 1.5; // Amount to increase the radius each update
+    this.fillColor = "rgba(32, 84, 201";
+    this.radius = 1;        // Start at size 1
+    this.targetRadius = 40; // Target size to grow to
+    this.growthRate = 1.5;
   }
-
+  
   update() {
-    this.radius += this.growthRate; // Increase radius over time
-    this.opacity = Math.max(0, this.opacity - 0.03); // Fade out
+    // Only grow if we haven't reached target size
+    if (this.radius < this.targetRadius) {
+      this.radius += this.growthRate;
+    }
+    this.opacity = Math.max(0, this.opacity - 0.03);
   }
 
   draw(ctx) {
