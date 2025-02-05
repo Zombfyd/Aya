@@ -553,7 +553,7 @@ class Teardrop extends Entity {
     
     // Sliding properties
     this.slideDirection = Math.random() < 0.5 ? -1 : 1;
-    this.slideSpeed = 3;
+    this.slideSpeed = 1;
     this.slideDuration = 0;
     this.maxSlideDuration = Math.random() * 100 + 50;
     
