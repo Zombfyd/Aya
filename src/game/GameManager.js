@@ -329,7 +329,14 @@ class GameManager {
 
     // Draw background without scaling
     if (this.images.background) {
+    if (this.canvas.width <= 500) {
+        // For small screens, center the image without scaling
+        const xPosition = (this.canvas.width - this.images.background.width) / 2;
+        this.ctx.drawImage(this.images.background, xPosition, 0);
+    } else {
+        // For larger screens, scale as before
         this.ctx.drawImage(this.images.background, 0, 0, this.canvas.width, this.canvas.height);
+    }
     }
 
     // Reset transform to prevent automatic scaling
