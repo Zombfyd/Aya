@@ -583,21 +583,21 @@ class Splash {
 class GoldSplash extends Splash {
   constructor(x, y) {
     super(x, y);
-    this.fillColor = "rgba(255, 204, 51)";
+    this.fillColor = "rgba(255, 204, 51, "; // Keep the alpha part separate
   }
 }
 
 class RedSplash extends Splash {
   constructor(x, y) {
     super(x, y);
-    this.fillColor = "rgba(255, 0, 0)";
+    this.fillColor = "rgba(255, 0, 0, ";
   }
 }
 
 class GreenSplash extends Splash {
   constructor(x, y) {
     super(x, y);
-    this.fillColor = "rgba(0, 255, 0)";
+    this.fillColor = "rgba(0, 255, 0, ";
   }
 }
 
