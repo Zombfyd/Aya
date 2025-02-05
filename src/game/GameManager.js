@@ -539,7 +539,7 @@ class Teardrop extends Entity {
     this.state = 'forming'; // states: 'forming', 'faking', 'sliding', 'falling'
     this.formationProgress = 0;
     this.formationSpeed = 0.02;
-    this.initialY = 20;
+    this.initialY = 10;
     
     // Scaling properties
     this.scaleX = 1;
