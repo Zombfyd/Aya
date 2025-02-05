@@ -21,7 +21,7 @@ class GameManager {
       LEGEND_FONT: "18px Inconsolata",
       BACKGROUND_HEIGHT: 700 
     };
-  }
+
     // Initialize arrays for game entities
     this.teardrops = [];
     this.goldtears = [];
@@ -120,10 +120,10 @@ class GameManager {
 
     // Initialize bucket with fixed size
     this.bucket = {
-      x: this.canvas.width / 2 - this.BUCKET_SIZE / 2,
-      y: this.canvas.height - this.BUCKET_SIZE - 10,
-      width: this.BUCKET_SIZE,
-      height: this.BUCKET_SIZE,
+      x: this.canvas.width / 2 - this.UI_SIZES.BUCKET_WIDTH / 2,
+      y: this.canvas.height - this.UI_SIZES.BUCKET_HEIGHT - 10,
+      width: this.UI_SIZES.BUCKET_WIDTH,
+      height: this.UI_SIZES.BUCKET_HEIGHT,
       speed: 0
     };
 
