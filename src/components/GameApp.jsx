@@ -793,9 +793,11 @@ useEffect(() => {
 
   // Render method
   return (
+    
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
+          <div className="title">Tears of Aya</div>
            <div className="wkit-connected-container">
             {isMobile && !wallet.connected && (
               <div className="mobile-wallet-guide">
@@ -807,7 +809,7 @@ useEffect(() => {
                 </ol>
               </div>
             )}
-             <div className="title">Tears of Aya</div>
+             
             <ConnectButton
               label="Connect SUI Wallet"
               onConnectError={(error) => {
