@@ -509,33 +509,70 @@ class Blacktear extends Teardrop {}
 class Splash {
   constructor(x, y) {
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      throw new Error('Invalid coordinates for splash effect');
+      throw new Error("Invalid coordinates for splash effect");
     }
     this.x = x;
     this.y = y;
     this.opacity = 1;
-    this.fillColor = "rgba(32, 84, 201";
-    this.radius = 1;        // Start at size 1
-    this.targetRadius = 40; // Target size to grow to
-    this.growthRate = 1.5;
+    this.fillColor = "rgba(32, 84, 201, "; // Keep the alpha separate for easier updates
+    this.radius = 10 + Math.random() * 10; // Randomized initial size
+    this.growthRate = 1 + Math.random() * 0.5; // Slight variation in growth speed
+    this.splashes = this.createDroplets();
   }
-  
-  update() {
-    // Only grow if we haven't reached target size
-    if (this.radius < this.targetRadius) {
-      this.radius += this.growthRate;
+
+  createDroplets() {
+    // Generate small droplets around the main splash
+    let droplets = [];
+    let count = Math.floor(Math.random() * 5) + 3; // 3-7 droplets
+
+    for (let i = 0; i < count; i++) {
+      let angle = Math.random() * Math.PI * 2;
+      let speed = Math.random() * 2 + 1;
+      droplets.push({
+        x: this.x + Math.cos(angle) * 5,
+        y: this.y + Math.sin(angle) * 5,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: Math.random() * 5 + 2,
+      });
     }
-    this.opacity = Math.max(0, this.opacity - 0.03);
+    return droplets;
+  }
+
+  update() {
+    this.radius += this.growthRate; // Increase the size over time
+    this.opacity = Math.max(0, this.opacity - 0.05); // Slow fade-out
+
+    // Update droplets
+    this.splashes.forEach((drop) => {
+      drop.x += drop.vx;
+      drop.y += drop.vy;
+      drop.vy += 0.05; // Simulate gravity
+      drop.radius *= 0.95; // Shrinking effect
+    });
+
+    // Remove tiny droplets
+    this.splashes = this.splashes.filter((drop) => drop.radius > 0.5);
   }
 
   draw(ctx) {
     if (!ctx) return;
-    
+
+    // Draw main splash
     ctx.beginPath();
-    ctx.fillStyle = `${this.fillColor}, ${this.opacity})`;
+    ctx.fillStyle = `${this.fillColor}${this.opacity})`; // Corrected RGBA formatting
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.closePath();
+
+    // Draw droplets
+    this.splashes.forEach((drop) => {
+      ctx.beginPath();
+      ctx.fillStyle = `${this.fillColor}${this.opacity * 0.8})`;
+      ctx.arc(drop.x, drop.y, drop.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.closePath();
+    });
   }
 }
 
