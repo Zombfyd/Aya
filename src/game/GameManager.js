@@ -243,7 +243,10 @@ class GameManager {
   spawnTeardrop() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.initialY = 0; // Set where the tear should form
+    tear.forming = true;
+    tear.formationProgress = 0;
+    tear.scaleY = 0.2;
+    tear.y = tear.initialY;
     this.teardrops.push(tear);
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
@@ -251,7 +254,10 @@ class GameManager {
   spawnGoldtear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.initialY = 0;
+    tear.forming = true;
+    tear.formationProgress = 0;
+    tear.scaleY = 0.2;
+    tear.y = tear.initialY;
     this.goldtears.push(tear);
     this.spawnTimers.goldtear = setTimeout(() => this.spawnGoldtear(), Math.random() * 3000 + 1500);
   }
@@ -259,7 +265,10 @@ class GameManager {
   spawnRedtear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.initialY = 0;
+    tear.forming = true;
+    tear.formationProgress = 0;
+    tear.scaleY = 0.2;
+    tear.y = tear.initialY;
     this.redtears.push(tear);
     this.spawnTimers.redtear = setTimeout(() => this.spawnRedtear(), Math.random() * 12000 + 3000);
   }
@@ -267,7 +276,10 @@ class GameManager {
   spawnBlacktear() {
     if (!this.gameActive) return;
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
-    tear.initialY = 0;
+    tear.forming = true;
+    tear.formationProgress = 0;
+    tear.scaleY = 0.2;
+    tear.y = tear.initialY;
     this.blacktears.push(tear);
     this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
   }
