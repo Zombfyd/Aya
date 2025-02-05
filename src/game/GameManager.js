@@ -7,7 +7,7 @@ import greenTearImage from './assets/GreenTear.png';
 import backgroundImage from './assets/AyaBG.png';
 
 class GameManager {
-  constructor(baseUrl = 'https://aya-3i9c.onrender.com/assets/') {
+  constructor(baseUrl = './dist/') {
     this.UI_SIZES = {
       BUCKET_WIDTH: 70,
       BUCKET_HEIGHT: 70,
