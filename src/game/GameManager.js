@@ -2,6 +2,16 @@
 
 class GameManager {
   constructor() {
+    this.UI_SIZES = {
+      BUCKET_WIDTH: 70,
+      BUCKET_HEIGHT: 70,
+      TEAR_WIDTH: 50,
+      TEAR_HEIGHT: 50,
+      SCORE_FONT: "25px Inconsolata",
+      LIVES_FONT: "18px Inconsolata",
+      LEGEND_FONT: "18px Inconsolata",
+      BACKGROUND_HEIGHT: 700
+    };
     // Initialize game state variables
     this.canvas = null;
     this.ctx = null;
@@ -11,17 +21,8 @@ class GameManager {
     this.lives = 10;
     this.onGameOver = null;
 
-    this.UI_SIZES = {
-      BUCKET_WIDTH: 70,
-      BUCKET_HEIGHT: 70,
-      TEAR_WIDTH: 50,
-      TEAR_HEIGHT: 50,
-      SCORE_FONT: "25px Inconsolata",
-      LIVES_FONT: "18px Inconsolata",
-      LEGEND_FONT: "18px Inconsolata",
-      BACKGROUND_HEIGHT: 700 
-    };
-
+        
+      
     // Initialize arrays for game entities
     this.teardrops = [];
     this.goldtears = [];
@@ -347,14 +348,10 @@ class GameManager {
 
     // Draw background with fixed height
     if (this.images.background) {
-      // Calculate width needed to maintain aspect ratio
       const bgAspectRatio = this.images.background.width / this.images.background.height;
       const bgWidth = this.UI_SIZES.BACKGROUND_HEIGHT * bgAspectRatio;
-      
-      // Calculate how many times we need to repeat the background
       const repetitions = Math.ceil(this.canvas.width / bgWidth);
       
-      // Draw background pattern
       for (let i = 0; i < repetitions; i++) {
         this.ctx.drawImage(
           this.images.background,
@@ -398,13 +395,13 @@ class GameManager {
 
     // Draw splashes with fixed sizing
     this.splashes.forEach(splash => {
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for each splash
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       splash.draw(this.ctx);
     });
 
     // Draw UI with fixed fonts
     this.drawUI();
-  }
+}
 
   drawUI() {
     if (!this.ctx) return;
@@ -428,7 +425,7 @@ class GameManager {
     this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
 
     this.drawLegend();
-  }
+}
 
   drawLegend() {
     if (!this.ctx) return;
@@ -450,20 +447,6 @@ class GameManager {
       this.ctx.fillText(text, 20, y);
     });
   }
-
-  // Update Teardrop class constructor
-  initGame() {
-    // ... (previous initGame code)
-
-    // Initialize bucket with fixed size
-    this.bucket = {
-      x: this.canvas.width / 2 - this.UI_SIZES.BUCKET_WIDTH / 2,
-      y: this.canvas.height - this.UI_SIZES.BUCKET_HEIGHT - 10,
-      width: this.UI_SIZES.BUCKET_WIDTH,
-      height: this.UI_SIZES.BUCKET_HEIGHT,
-      speed: 0
-    };
-  }
 }
 
 // Update Teardrop class
@@ -480,21 +463,6 @@ class Teardrop extends Entity {
     // Ensure tear dimensions stay fixed
     this.width = 50;
     this.height = 50;
-  }
-}
-
-/**
- * Teardrop class - Base class for all falling tear objects
- */
-class Teardrop extends Entity {
-  constructor(canvasWidth, speedMultiplier) {
-    super(
-      Math.random() * (canvasWidth - 50), // x position
-      0, // y position
-      50, // fixed width
-      50, // fixed height
-      Math.random() * 2 + 2 * speedMultiplier // speed
-    );
   }
 }
 
