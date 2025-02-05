@@ -337,21 +337,15 @@ class GameManager {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background with fixed height
+    // Draw background to cover the entire canvas without tiling
     if (this.images.background) {
-      const bgAspectRatio = this.images.background.width / this.images.background.height;
-      const bgWidth = this.UI_SIZES.BACKGROUND_HEIGHT * bgAspectRatio;
-      const repetitions = Math.ceil(this.canvas.width / bgWidth);
-      
-      for (let i = 0; i < repetitions; i++) {
-        this.ctx.drawImage(
-          this.images.background,
-          i * bgWidth,
-          0,
-          bgWidth,
-          this.UI_SIZES.BACKGROUND_HEIGHT
-        );
-      }
+      this.ctx.drawImage(
+        this.images.background,
+        0,  // x position
+        0,  // y position
+        this.canvas.width,  // width - stretch to canvas width
+        this.canvas.height  // height - stretch to canvas height
+      );
     }
 
     // Reset transform before drawing UI elements
