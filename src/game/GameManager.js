@@ -533,14 +533,15 @@ class Teardrop extends Entity {
     super(
       Math.random() * (canvasWidth - 50),
       20,
-      gameManager.UI_SIZES.TEAR_WIDTH,
+      gameManager.UI_SIZES.TEAR_WIDTH * 1.5, // Start with wider width
       gameManager.UI_SIZES.TEAR_HEIGHT * 0.2, // Start with flat height
       Math.random() * 2 + 2 * speedMultiplier
     );
     
     // Basic properties
     this.canvasWidth = canvasWidth;
-    this.width = gameManager.UI_SIZES.TEAR_WIDTH;
+    this.fullWidth = gameManager.UI_SIZES.TEAR_WIDTH;
+    this.width = this.fullWidth * 1.5; // Start stretched
     this.fullHeight = gameManager.UI_SIZES.TEAR_HEIGHT;
     this.height = this.fullHeight * 0.2; // Start flat
     this.initialY = 0;
@@ -600,8 +601,9 @@ class Teardrop extends Entity {
       this.slideDirection *= -1;
     }
 
-    // Ensure height stays flat during sliding
+    // Ensure height stays flat and width stays stretched during sliding
     this.height = this.fullHeight * 0.2;
+    this.width = this.fullWidth * 1.5;
 
     // Update slide duration
     this.slideDuration++;
@@ -616,6 +618,8 @@ class Teardrop extends Entity {
   updateForming() {
     this.formationProgress += this.formationSpeed;
     this.height = this.fullHeight * (0.2 + (this.formationProgress * 0.8));
+    // Gradually return to normal width as it forms
+    this.width = this.fullWidth * (1.5 - (this.formationProgress * 0.5));
 
     if (this.formationProgress >= 1) {
       if (this.willFakeOut && this.fakeOutCount < this.maxFakeOuts) {
@@ -623,6 +627,7 @@ class Teardrop extends Entity {
       } else {
         this.state = 'falling';
         this.height = this.fullHeight;
+        this.width = this.fullWidth;
       }
     }
   }
@@ -630,11 +635,14 @@ class Teardrop extends Entity {
   updateFaking() {
     this.formationProgress -= this.formationSpeed * 1.5;
     this.height = this.fullHeight * (0.2 + (this.formationProgress * 0.8));
+    // Gradually stretch width as it flattens
+    this.width = this.fullWidth * (1 + (0.5 * (1 - this.formationProgress)));
 
     if (this.formationProgress <= 0) {
       this.state = 'sliding';
       this.formationProgress = 0;
       this.height = this.fullHeight * 0.2;
+      this.width = this.fullWidth * 1.5;
       this.fakeOutCount++;
       this.maxSlideDuration = Math.random() * 100 + 50;
       this.slideDirection = Math.random() < 0.5 ? -1 : 1;
@@ -645,6 +653,7 @@ class Teardrop extends Entity {
     this.state = 'faking';
     this.formationProgress = 1;
     this.height = this.fullHeight;
+    this.width = this.fullWidth;
   }
 
   draw(ctx, image) {
