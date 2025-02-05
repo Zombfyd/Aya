@@ -417,17 +417,25 @@ class GameManager {
       );
     }
 
-    // Draw teardrops with fixed sizes
+    // Modified tear drawing function to use scale
     const drawTear = (tear, image) => {
+      const currentWidth = this.UI_SIZES.TEAR_WIDTH * tear.scaleX;
+      const currentHeight = this.UI_SIZES.TEAR_HEIGHT * tear.scaleY;
+      
+      // Calculate offsets to keep tear centered while scaling
+      const xOffset = (this.UI_SIZES.TEAR_WIDTH - currentWidth) / 2;
+      const yOffset = (this.UI_SIZES.TEAR_HEIGHT - currentHeight) / 2;
+
       this.ctx.drawImage(
         image,
-        tear.x,
-        tear.y,
-        this.UI_SIZES.TEAR_WIDTH,
-        this.UI_SIZES.TEAR_HEIGHT
+        tear.x + xOffset,
+        tear.y + yOffset,
+        currentWidth,
+        currentHeight
       );
     };
 
+    // Draw all tears with the new scaling
     this.teardrops.forEach(tear => drawTear(tear, this.images.teardrop));
     this.goldtears.forEach(tear => drawTear(tear, this.images.goldtear));
     this.redtears.forEach(tear => drawTear(tear, this.images.redtear));
@@ -546,7 +554,7 @@ class Teardrop extends Entity {
     this.state = 'sliding';
     this.formationProgress = 0;
     this.formationSpeed = 0.02;
-    this.initialY = 20;
+    this.initialY = 5;
     
     // Scaling properties - ensure these aren't being overwritten
     this.scaleX = 1;
