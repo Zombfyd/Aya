@@ -120,7 +120,7 @@ header {
   }
 }
 header.scrolled {
-  position: relative;  /* Change from fixed to relative */
+  position: absolute;  /* Change from fixed to relative */
   width: auto;
   display: flex;
   flex-direction: column;
