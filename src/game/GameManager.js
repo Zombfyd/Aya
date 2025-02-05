@@ -18,7 +18,8 @@ class GameManager {
       TEAR_HEIGHT: 50,
       SCORE_FONT: "25px Inconsolata",
       LIVES_FONT: "18px Inconsolata",
-      LEGEND_FONT: "18px Inconsolata"
+      LEGEND_FONT: "18px Inconsolata",
+      BACKGROUND_HEIGHT: 700 
     };
   }
     // Initialize arrays for game entities
@@ -344,9 +345,25 @@ class GameManager {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background
+    // Draw background with fixed height
     if (this.images.background) {
-      this.ctx.drawImage(this.images.background, 0, 0, this.canvas.width, this.canvas.height);
+      // Calculate width needed to maintain aspect ratio
+      const bgAspectRatio = this.images.background.width / this.images.background.height;
+      const bgWidth = this.UI_SIZES.BACKGROUND_HEIGHT * bgAspectRatio;
+      
+      // Calculate how many times we need to repeat the background
+      const repetitions = Math.ceil(this.canvas.width / bgWidth);
+      
+      // Draw background pattern
+      for (let i = 0; i < repetitions; i++) {
+        this.ctx.drawImage(
+          this.images.background,
+          i * bgWidth,
+          0,
+          bgWidth,
+          this.UI_SIZES.BACKGROUND_HEIGHT
+        );
+      }
     }
 
     // Reset transform before drawing UI elements
@@ -500,8 +517,8 @@ class Splash {
     this.y = y;
     this.opacity = 1;
     this.fillColor = "rgba(255, 255, 255";
-    this.radius = 20; // Initial size of the splash
-    this.growthRate = 0.5; // Amount to increase the radius each update
+    this.radius = 5; // Initial size of the splash
+    this.growthRate = 1.5; // Amount to increase the radius each update
   }
 
   update() {
