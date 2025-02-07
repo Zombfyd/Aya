@@ -15,7 +15,7 @@ import '@suiet/wallet-kit/style.css';
 import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { SuinsClient } from '@mysten/suins';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui.js/client';
 
 const GameApp = () => {
   // Wallet and client hooks
@@ -417,7 +417,7 @@ useEffect(() => {
         const network = process.env.NODE_ENV === 'development' ? 'testnet' : 'mainnet';
         const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
         
-        const newSuinsClient = new SuiNS({
+        const newSuinsClient = new SuinsClient({
           client: suiClient,
           packageIds: {
             suinsPackageId: {
