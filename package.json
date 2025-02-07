@@ -20,7 +20,8 @@
     "react-dom": "^18.2.0",
     "tweetnacl": "^1.0.3",
     "serve": "^14.2.1",
-    "@mysten/suins": "latest"
+    "@mysten/suins": "latest",
+    "@suins/client": "latest"
   },
   "devDependencies": {
     "@types/react": "^18.0.22",
