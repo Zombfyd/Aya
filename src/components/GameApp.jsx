@@ -441,18 +441,18 @@ useEffect(() => {
     initSuinsClient();
   }, []);
 
-  // Modified getSuiNSName function to use correct API
+  // Modified getSuiNSName function with correct method name
   const getSuiNSName = async (address) => {
     if (!suinsClient) return null;
     if (addressToNameCache[address]) return addressToNameCache[address];
 
     try {
-      // Get all domains owned by the address
-      const domains = await suinsClient.getDomainsForAddress(address);
+      // Use getDomainsByOwner instead of getDomainsForAddress
+      const domains = await suinsClient.getDomainsByOwner({ owner: address });
       
       if (domains && domains.length > 0) {
-        // Get the first domain as the display name
-        const name = domains[0] + '.sui';
+        // Get the first domain name
+        const name = domains[0].domain + '.sui';
         setAddressToNameCache(prev => ({
           ...prev,
           [address]: name
