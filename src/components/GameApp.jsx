@@ -14,7 +14,7 @@ import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
-import { SuinsClient } from '@mysten/suins';
+import { SuinsClient } from '@suins/client';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui.js/client';
 
 const GameApp = () => {
@@ -412,10 +412,13 @@ useEffect(() => {
 
   // Initialize SuiNS client with correct configuration
   useEffect(() => {
-    const initSuinsClient = async () => {
+    const initializeSuinsClient = async () => {
       try {
-        const network = process.env.NODE_ENV === 'development' ? 'testnet' : 'mainnet';
-        const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
+        const suiClient = new SuiClient({ 
+          url: process.env.NODE_ENV === 'development' 
+            ? 'https://fullnode.testnet.sui.io' 
+            : 'https://fullnode.mainnet.sui.io'
+        });
         
         const newSuinsClient = new SuinsClient({
           client: suiClient,
@@ -438,27 +441,30 @@ useEffect(() => {
       }
     };
 
-    initSuinsClient();
+    initializeSuinsClient();
   }, []);
 
-  // Modified getSuiNSName function to use resolveAddress
+  // Modified getSuiNSName function to handle domains correctly
   const getSuiNSName = async (address) => {
     if (!suinsClient) return null;
     if (addressToNameCache[address]) return addressToNameCache[address];
 
     try {
-      // Use resolveAddress to get the domain for this address
-      const domainName = await suinsClient.resolveAddress({
-        address: address
-      });
-
-      if (domainName) {
-        // Cache the result
-        setAddressToNameCache(prev => ({
-          ...prev,
-          [address]: domainName
-        }));
-        return domainName;
+      // Get all domains owned by this address
+      const domains = await suinsClient.getDomainsByOwner({ owner: address });
+      
+      if (domains && domains.length > 0) {
+        // Get the first domain's name record
+        const nameRecord = await suinsClient.getNameRecord(domains[0].domain + '.sui');
+        
+        if (nameRecord && nameRecord.name) {
+          // Cache the result
+          setAddressToNameCache(prev => ({
+            ...prev,
+            [address]: nameRecord.name
+          }));
+          return nameRecord.name;
+        }
       }
       
       // Cache null result to prevent repeated lookups
