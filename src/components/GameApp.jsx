@@ -433,18 +433,22 @@ useEffect(() => {
     initializeSuinsClient();
   }, []);
 
-  // Modified to work with records directly
+  // Modified to work with records and find by target address
   const getSuiNSName = async (address) => {
     if (!suinsClient) return null;
     if (!address) return null;
     
     try {
-      // Get all records
-      const nameRecord = await suinsClient.getNameRecord(address);
-      console.log('Name Record:', nameRecord);
+      // Get all name records
+      const allRecords = await suinsClient.getAllNameRecords();
+      console.log('All Records:', allRecords);
+
+      // Find the record where targetAddress matches our wallet address
+      const matchingRecord = allRecords.find(record => record.targetAddress === address);
       
-      if (nameRecord && nameRecord.targetAddress === address) {
-        return nameRecord.name;
+      if (matchingRecord) {
+        console.log('Matching Record:', matchingRecord);
+        return matchingRecord.name;
       }
       
       return null;
