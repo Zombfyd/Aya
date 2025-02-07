@@ -14,6 +14,7 @@ import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { SuinsClient } from '@mysten/suins';
 
 const GameApp = () => {
   // Wallet and client hooks
@@ -56,6 +57,9 @@ const GameApp = () => {
   const [selectedTier, setSelectedTier] = useState(null);
   // Add this to fetch SUI price (you might want to add this to your dependencies)
   const [suiPrice, setSuiPrice] = useState(null);
+  const [suinsClient, setSuinsClient] = useState(null);
+  const [addressToNameCache, setAddressToNameCache] = useState({});
+  const [displayName, setDisplayName] = useState('');
   
   useEffect(() => {
     const checkMobile = () => {
@@ -405,8 +409,62 @@ useEffect(() => {
     }
   };
 
-  // Leaderboard component
+  // Initialize SuiNS client
+  useEffect(() => {
+    if (client) {
+      const initSuinsClient = new SuinsClient({
+        client,
+        network: process.env.NODE_ENV === 'development' ? 'testnet' : 'mainnet'
+      });
+      setSuinsClient(initSuinsClient);
+    }
+  }, [client]);
+
+  // Function to get SuiNS name for an address
+  const getSuiNSName = async (address) => {
+    if (!suinsClient) return null;
+    if (addressToNameCache[address]) return addressToNameCache[address];
+
+    try {
+      const domains = await suinsClient.getDomainsByOwner({ owner: address });
+      if (domains && domains.length > 0) {
+        // Get the first domain as the display name
+        const name = domains[0].domain;
+        setAddressToNameCache(prev => ({
+          ...prev,
+          [address]: name
+        }));
+        return name;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching SuiNS name:', error);
+      return null;
+    }
+  };
+
+  // Modify the LeaderboardComponent to use SuiNS names
   const LeaderboardComponent = ({ data, title }) => {
+    const [resolvedNames, setResolvedNames] = useState({});
+
+    // Resolve SuiNS names when leaderboard data changes
+    useEffect(() => {
+      const resolveNames = async () => {
+        const names = {};
+        for (const entry of data) {
+          const name = await getSuiNSName(entry.playerWallet);
+          if (name) {
+            names[entry.playerWallet] = name;
+          }
+        }
+        setResolvedNames(names);
+      };
+
+      if (data.length > 0 && suinsClient) {
+        resolveNames();
+      }
+    }, [data, suinsClient]);
+
     if (!data || data.length === 0) {
       return (
         <div className="leaderboard-section">
@@ -423,7 +481,7 @@ useEffect(() => {
           <thead>
             <tr>
               <th>Rank</th>
-              <th>Wallet</th>
+              <th>Player</th>
               <th>Score</th>
             </tr>
           </thead>
@@ -431,8 +489,18 @@ useEffect(() => {
             {data.map((entry, index) => (
               <tr key={index} className={index < 3 ? `rank-${index + 1}` : ''}>
                 <td className="rank-cell">{index + 1}</td>
-                <td className="wallet-cell" title={entry.playerWallet}>
-                  {`${entry.playerWallet.slice(0, 6)}...${entry.playerWallet.slice(-4)}`}
+                <td 
+                  className="wallet-cell" 
+                  data-suins={!!resolvedNames[entry.playerWallet]}
+                  title={`Wallet: ${entry.playerWallet}`}
+                >
+                  <span className="player-name">
+                    {resolvedNames[entry.playerWallet] || 
+                     `${entry.playerWallet.slice(0, 6)}...${entry.playerWallet.slice(-4)}`}
+                  </span>
+                  <span className="wallet-tooltip">
+                    {entry.playerWallet}
+                  </span>
                 </td>
                 <td className="score-cell">{entry.score.toLocaleString()}</td>
               </tr>
@@ -804,10 +872,35 @@ useEffect(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
+  // Add this effect to set the display name when wallet connects
+  useEffect(() => {
+    const updateDisplayName = async () => {
+      if (wallet.connected && wallet.account) {
+        // Try to get SuiNS name first
+        const suiName = await getSuiNSName(wallet.account.address);
+        if (suiName) {
+          setDisplayName(suiName);
+        } else {
+          // Fallback to first 4 digits of wallet
+          setDisplayName(wallet.account.address.slice(0, 4));
+        }
+      } else {
+        setDisplayName('');
+      }
+    };
+
+    updateDisplayName();
+  }, [wallet.connected, wallet.account]);
+  
   // Render method
   return (
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+      {displayName && (
+        <div className="player-display">
+          Playing as: <span className="player-name">{displayName}</span>
+        </div>
+      )}
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
           <div className="title">Tears of Aya</div>
