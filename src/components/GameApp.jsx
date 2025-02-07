@@ -441,29 +441,22 @@ useEffect(() => {
     initSuinsClient();
   }, []);
 
-  // Modified getSuiNSName function to use getNameRecord
+  // Simplified getSuiNSName function using just getNameRecord
   const getSuiNSName = async (address) => {
     if (!suinsClient) return null;
     if (addressToNameCache[address]) return addressToNameCache[address];
 
     try {
-      // First get the primary name for this address
-      const primaryName = await suinsClient.getPrimaryName({
-        address: address
-      });
-
-      if (primaryName) {
-        // Get the full name record
-        const nameRecord = await suinsClient.getNameRecord(primaryName);
-        
-        if (nameRecord && nameRecord.name) {
-          // Cache the result
-          setAddressToNameCache(prev => ({
-            ...prev,
-            [address]: nameRecord.name
-          }));
-          return nameRecord.name;
-        }
+      // Try to get the name record directly
+      const nameRecord = await suinsClient.getNameRecord(address + '.sui');
+      
+      if (nameRecord && nameRecord.name) {
+        // Cache the result
+        setAddressToNameCache(prev => ({
+          ...prev,
+          [address]: nameRecord.name
+        }));
+        return nameRecord.name;
       }
       
       // Cache null result to prevent repeated lookups
