@@ -14,8 +14,8 @@ import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
-import { SuinsClient } from '@suins/client';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui.js/client';
+import { SuinsClient } from '@mysten/suins';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 const GameApp = () => {
   // Wallet and client hooks
@@ -410,29 +410,18 @@ useEffect(() => {
     }
   };
 
-  // Initialize SuiNS client with correct configuration
+  // Simplified SuiNS client initialization
   useEffect(() => {
     const initializeSuinsClient = async () => {
       try {
+        const network = process.env.NODE_ENV === 'development' ? 'testnet' : 'mainnet';
         const suiClient = new SuiClient({ 
-          url: process.env.NODE_ENV === 'development' 
-            ? 'https://fullnode.testnet.sui.io' 
-            : 'https://fullnode.mainnet.sui.io'
+          url: getFullnodeUrl(network)
         });
         
         const newSuinsClient = new SuinsClient({
           client: suiClient,
-          packageIds: {
-            suinsPackageId: {
-              latest: '0xb7004c7914308557f7afbaf0dca8dd258e18e306cb7a45b28019f3d0a693f162',
-              v1: '0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0',
-            },
-            suinsObjectId: '0x6e0ddefc0ad98889c04bab9639e512c21766c5e6366f89e696956d9be6952871',
-            utilsPackageId: '0xdac22652eb400beb1f5e2126459cae8eedc116b73b8ad60b71e3e8d7fdb317e2',
-            registrationPackageId: '0x9d451fa0139fef8f7c1f0bd5d7e45b7fa9dbb84c2e63c2819c7abd0a7f7d749d',
-            renewalPackageId: '0xd5e5f74126e7934e35991643b0111c3361827fc0564c83fa810668837c6f0b0f',
-            registryTableId: '0xe64cd9db9f829c6cc405d9790bd71567ae07259855f4fba6f02c84f52298c106',
-          }
+          network: network,
         });
 
         setSuinsClient(newSuinsClient);
@@ -444,41 +433,16 @@ useEffect(() => {
     initializeSuinsClient();
   }, []);
 
-  // Modified getSuiNSName function to handle domains correctly
+  // Simplified test function for SuiNS
   const getSuiNSName = async (address) => {
     if (!suinsClient) return null;
-    if (addressToNameCache[address]) return addressToNameCache[address];
-
+    
     try {
-      // Get all domains owned by this address
-      const domains = await suinsClient.getDomainsByOwner({ owner: address });
-      
-      if (domains && domains.length > 0) {
-        // Get the first domain's name record
-        const nameRecord = await suinsClient.getNameRecord(domains[0].domain + '.sui');
-        
-        if (nameRecord && nameRecord.name) {
-          // Cache the result
-          setAddressToNameCache(prev => ({
-            ...prev,
-            [address]: nameRecord.name
-          }));
-          return nameRecord.name;
-        }
-      }
-      
-      // Cache null result to prevent repeated lookups
-      setAddressToNameCache(prev => ({
-        ...prev,
-        [address]: null
-      }));
-      return null;
+      const nameRecord = await suinsClient.getNameRecord('demo.sui');
+      console.log('Name Record:', nameRecord);
+      return nameRecord.name;
     } catch (error) {
       console.error('Error fetching SuiNS name:', error);
-      console.error('Error details:', {
-        address,
-        error: error.message
-      });
       return null;
     }
   };
