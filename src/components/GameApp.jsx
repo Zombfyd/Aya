@@ -441,22 +441,24 @@ useEffect(() => {
     initSuinsClient();
   }, []);
 
-  // Simplified getSuiNSName function using just getNameRecord
+  // Modified getSuiNSName function to use resolveAddress
   const getSuiNSName = async (address) => {
     if (!suinsClient) return null;
     if (addressToNameCache[address]) return addressToNameCache[address];
 
     try {
-      // Try to get the name record directly
-      const nameRecord = await suinsClient.getNameRecord(address + '.sui');
-      
-      if (nameRecord && nameRecord.name) {
+      // Use resolveAddress to get the domain for this address
+      const domainName = await suinsClient.resolveAddress({
+        address: address
+      });
+
+      if (domainName) {
         // Cache the result
         setAddressToNameCache(prev => ({
           ...prev,
-          [address]: nameRecord.name
+          [address]: domainName
         }));
-        return nameRecord.name;
+        return domainName;
       }
       
       // Cache null result to prevent repeated lookups
