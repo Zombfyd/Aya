@@ -433,21 +433,20 @@ useEffect(() => {
     initializeSuinsClient();
   }, []);
 
-  // Modified to look up actual player address
+  // Modified to work with records directly
   const getSuiNSName = async (address) => {
     if (!suinsClient) return null;
     if (!address) return null;
     
     try {
-      // Get all domains owned by this address
-      const domains = await suinsClient.getDomainsByOwner({ owner: address });
+      // Get all records
+      const nameRecord = await suinsClient.getNameRecord(address);
+      console.log('Name Record:', nameRecord);
       
-      if (domains && domains.length > 0) {
-        // Get the name record for their first domain
-        const nameRecord = await suinsClient.getNameRecord(domains[0].domain + '.sui');
-        console.log('Name Record:', nameRecord);
+      if (nameRecord && nameRecord.targetAddress === address) {
         return nameRecord.name;
       }
+      
       return null;
     } catch (error) {
       console.error('Error fetching SuiNS name:', error);
