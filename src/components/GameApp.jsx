@@ -459,13 +459,9 @@ useEffect(() => {
     try {
       // Check cache first
       if (suinsCache[walletAddress]) {
-        console.log('Using cached SUINS data');
         return suinsCache[walletAddress];
       }
 
-      console.log('Fetching SUINS for wallet:', walletAddress);
-
-      // Add delay to prevent rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       const response = await fetch('https://fullnode.mainnet.sui.io/', {
@@ -511,7 +507,6 @@ useEffect(() => {
             imageUrl: `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`
           };
           
-          // Cache the result
           setSuinsCache(prev => ({
             ...prev,
             [walletAddress]: result
@@ -520,11 +515,17 @@ useEffect(() => {
           return result;
         }
       }
+      
+      // Cache negative results
+      setSuinsCache(prev => ({
+        ...prev,
+        [walletAddress]: null
+      }));
+      
       return null;
     } catch (error) {
       console.error('Error fetching SUINS:', error);
       if (error.message.includes('429')) {
-        // If rate limited, try again after a longer delay
         await new Promise(resolve => setTimeout(resolve, 5000));
         return getSuiNSName(walletAddress);
       }
@@ -532,114 +533,51 @@ useEffect(() => {
     }
   };
 
-  // Add state to prevent multiple fetches
-  const [hasFetchedSuins, setHasFetchedSuins] = useState(false);
-
+  // Update SUINS for current user
   useEffect(() => {
-    const updateDisplayName = async () => {
-      if (wallet.connected && wallet.account && !hasFetchedSuins) {
-        try {
-          setLoading(true);
-          const suiData = await getSuiNSName(wallet.account.address);
-          
-          if (suiData?.name) {
-            setUsername(suiData); // Set the entire object at once
-          } else {
-            setUsername({
-              name: wallet.account.address.slice(0, 4),
-              imageUrl: null
-            });
-          }
-          setHasFetchedSuins(true);
-        } catch (error) {
-          console.error('Error updating display name:', error);
+    const updateUserName = async () => {
+      if (wallet.connected && wallet.account) {
+        const suiData = await getSuiNSName(wallet.account.address);
+        if (suiData) {
+          setUsername(suiData);
+        } else {
           setUsername({
             name: wallet.account.address.slice(0, 4),
             imageUrl: null
           });
-        } finally {
-          setLoading(false);
         }
-      } else if (!wallet.connected) {
+      } else {
         setUsername({ name: '', imageUrl: null });
-        setHasFetchedSuins(false);
       }
     };
 
-    updateDisplayName();
-  }, [wallet.connected, wallet.account, hasFetchedSuins]);
+    updateUserName();
+  }, [wallet.connected, wallet.account]);
 
-  // Add console log to check username state changes
+  // Update SUINS for leaderboard entries
   useEffect(() => {
-    console.log('Username updated:', username);
-  }, [username]);
+    const updateLeaderboardNames = async () => {
+      // Get top 10 from each leaderboard
+      const topWallets = new Set([
+        ...leaderboardData.mainFree.slice(0, 10).map(entry => entry.playerWallet),
+        ...leaderboardData.mainPaid.slice(0, 10).map(entry => entry.playerWallet)
+      ]);
 
-  // Modify the LeaderboardComponent to use SuiNS names
-  const LeaderboardComponent = ({ data, title }) => {
-    const [resolvedNames, setResolvedNames] = useState({});
-
-    // Resolve SuiNS names when leaderboard data changes
-    useEffect(() => {
-      const resolveNames = async () => {
-        const names = {};
-        for (const entry of data) {
-          const name = await getSuiNSName(entry.playerWallet);
-          if (name) {
-            names[entry.playerWallet] = name;
-          }
+      // Update SUINS for each unique wallet
+      for (const wallet of topWallets) {
+        if (!suinsCache[wallet]) {
+          await getSuiNSName(wallet);
         }
-        setResolvedNames(names);
-      };
-
-      if (data.length > 0 && suinsClient) {
-        resolveNames();
       }
-    }, [data, suinsClient]);
+    };
 
-    if (!data || data.length === 0) {
-      return (
-        <div className="leaderboard-section">
-          <h3>{title}</h3>
-          <p>No scores yet</p>
-        </div>
-      );
-    }
+    updateLeaderboardNames();
+  }, [leaderboardData.mainFree, leaderboardData.mainPaid]);
 
-    return (
-      <div className="leaderboard-section">
-        <h3>{title}</h3>
-        <table className="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Player</th>
-              <th>Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((entry, index) => (
-              <tr key={index} className={index < 3 ? `rank-${index + 1}` : ''}>
-                <td className="rank-cell">{index + 1}</td>
-                <td 
-                  className="wallet-cell" 
-                  data-suins={!!resolvedNames[entry.playerWallet]}
-                  title={`Wallet: ${entry.playerWallet}`}
-                >
-                  <span className="player-name">
-                    {resolvedNames[entry.playerWallet] || 
-                     `${entry.playerWallet.slice(0, 6)}...${entry.playerWallet.slice(-4)}`}
-                  </span>
-                  <span className="wallet-tooltip">
-                    {entry.playerWallet}
-                  </span>
-                </td>
-                <td className="score-cell">{entry.score.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
+  // Helper function to get display name for leaderboard entries
+  const getDisplayName = (wallet) => {
+    const suinsData = suinsCache[wallet];
+    return suinsData ? suinsData.name : wallet.slice(0, 4);
   };
 
   // Game restart function
