@@ -448,17 +448,30 @@ useEffect(() => {
     initializeSuinsClient();
   }, []);
 
-  // Update the getSuiNSName function to only use the API
+  // Update the getSuiNSName function to use Sui's API
   const getSuiNSName = async (walletAddress) => {
     try {
-      // Use only the API endpoint
-      const response = await fetch(`https://suiscan.xyz/api/suins/${walletAddress}`);
+      // Use Sui's mainnet API endpoint
+      const response = await fetch('https://sui-mainnet-rpc.allthatnode.com', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'suix_resolveNameServiceAddress',
+          params: [walletAddress]
+        })
+      });
+
       const data = await response.json();
-      
-      if (data?.name) {
+      console.log('SUINS response:', data);
+
+      if (data.result) {
         return {
-          name: data.name,
-          imageUrl: data.avatar || null
+          name: data.result,
+          imageUrl: null // For now, we'll skip the avatar as it's not critical
         };
       }
       return null;
