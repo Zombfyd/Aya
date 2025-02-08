@@ -477,7 +477,7 @@ drawUI() {
       this.ctx.fillText(warningText, warningX, 70);
       
       // Draw lives number bigger below
-      this.ctx.font = "bold 48px Arial"; // Larger font for the number
+      this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
       const livesCountText = `${this.lives}`;
       const livesMetrics = this.ctx.measureText(livesCountText);
       const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
