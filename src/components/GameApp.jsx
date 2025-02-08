@@ -16,11 +16,11 @@ import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { JsonRpcProvider } from "@mysten/sui.js";
+// import { JsonRpcProvider } from "@mysten/sui.js";
 
 const GameApp = () => {
-  // Initialize the provider with the correct mainnet URL for older version
-  const provider = new JsonRpcProvider('https://fullnode.mainnet.sui.io:443');
+  // Remove provider initialization
+  // const provider = new JsonRpcProvider('https://fullnode.mainnet.sui.io:443');
   
   // Wallet and client hooks
   const wallet = useWallet();
@@ -448,32 +448,10 @@ useEffect(() => {
     initializeSuinsClient();
   }, []);
 
-  // Update the getSuiNSName function
+  // Update the getSuiNSName function to only use the API
   const getSuiNSName = async (walletAddress) => {
     try {
-      // Now provider is accessible here
-      const objects = await provider.getOwnedObjects({
-        owner: walletAddress,
-        options: { showContent: true },
-      });
-
-      console.log('Wallet objects:', objects);
-
-      // Look for SUINS domain in the objects
-      const suinsObject = objects.data.find((obj) => 
-        obj.data?.content?.type?.includes('suins::Domain')
-      );
-
-      if (suinsObject) {
-        console.log('Found SUINS object:', suinsObject);
-        const domainData = suinsObject.data.content.fields;
-        return {
-          name: domainData.domain_name,
-          imageUrl: domainData.avatar_url || null
-        };
-      }
-
-      // If no SUINS found, try the API endpoint as fallback
+      // Use only the API endpoint
       const response = await fetch(`https://suiscan.xyz/api/suins/${walletAddress}`);
       const data = await response.json();
       
@@ -483,7 +461,6 @@ useEffect(() => {
           imageUrl: data.avatar || null
         };
       }
-
       return null;
     } catch (error) {
       console.error('Error fetching SUINS:', error);
