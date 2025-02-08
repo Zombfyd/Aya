@@ -561,16 +561,32 @@ useEffect(() => {
     updateDisplayName();
   }, [wallet.connected, wallet.account]);
 
-  // Update SUINS for leaderboard entries
+  // Add this helper function for SUINS display
+  const getDisplayName = (wallet) => {
+    const suinsData = suinsCache[wallet];
+    return (
+      <div className="player-name">
+        {suinsData?.imageUrl && (
+          <img 
+            src={suinsData.imageUrl}
+            alt="SUINS avatar"
+            className="suins-avatar"
+          />
+        )}
+        <span>{suinsData ? suinsData.name : wallet.slice(0, 4)}</span>
+        <div className="wallet-tooltip">{wallet}</div>
+      </div>
+    );
+  };
+
+  // Add this effect to update SUINS for leaderboard entries
   useEffect(() => {
     const updateLeaderboardNames = async () => {
-      // Get top 10 from each leaderboard
       const topWallets = new Set([
         ...leaderboardData.mainFree.slice(0, 10).map(entry => entry.playerWallet),
         ...leaderboardData.mainPaid.slice(0, 10).map(entry => entry.playerWallet)
       ]);
 
-      // Update SUINS for each unique wallet
       for (const wallet of topWallets) {
         if (!suinsCache[wallet]) {
           await getSuiNSName(wallet);
@@ -578,14 +594,10 @@ useEffect(() => {
       }
     };
 
-    updateLeaderboardNames();
-  }, [leaderboardData.mainFree, leaderboardData.mainPaid]);
-
-  // Helper function to get display name for leaderboard entries
-  const getDisplayName = (wallet) => {
-    const suinsData = suinsCache[wallet];
-    return suinsData ? suinsData.name : wallet.slice(0, 4);
-  };
+    if (leaderboardData.mainFree.length > 0 || leaderboardData.mainPaid.length > 0) {
+      updateLeaderboardNames();
+    }
+  }, [leaderboardData]);
 
   // Game restart function
   const restartGame = () => {
@@ -1165,14 +1177,53 @@ useEffect(() => {
             <div className="leaderboard-loading">Loading leaderboards...</div>
           ) : (
             <>
-              <LeaderboardComponent 
-                data={leaderboardData.mainFree} 
-                title="Free Mode Leaderboard" 
-              />
-              <LeaderboardComponent 
-                data={leaderboardData.mainPaid} 
-                title="Paid Mode Leaderboard" 
-              />
+              <div className="leaderboard-section">
+                <h2>Free Mode Leaderboard</h2>
+                <table className="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardData.mainFree.slice(0, 10).map((entry, index) => (
+                      <tr key={index} className={`rank-${index + 1}`}>
+                        <td>{index + 1}</td>
+                        <td className="wallet-cell">
+                          {getDisplayName(entry.playerWallet)}
+                        </td>
+                        <td className="score-cell">{entry.score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="leaderboard-section">
+                <h2>Paid Mode Leaderboard</h2>
+                <table className="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardData.mainPaid.slice(0, 10).map((entry, index) => (
+                      <tr key={index} className={`rank-${index + 1}`}>
+                        <td>{index + 1}</td>
+                        <td className="wallet-cell">
+                          {getDisplayName(entry.playerWallet)}
+                        </td>
+                        <td className="score-cell">{entry.score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </div>
