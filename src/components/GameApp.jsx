@@ -450,11 +450,10 @@ useEffect(() => {
     initializeSuinsClient();
   }, []);
 
-  // Update the getSuiNSName function to use Sui's API
+  // Update the getSuiNSName function to match the actual data structure
   const getSuiNSName = async (walletAddress) => {
     try {
-      // Use Sui's mainnet API endpoint
-      const response = await fetch('https://sui-mainnet-rpc.allthatnode.com', {
+      const response = await fetch('https://fullnode.mainnet.sui.io/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -462,19 +461,42 @@ useEffect(() => {
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
-          method: 'suix_resolveNameServiceAddress',
-          params: [walletAddress]
+          method: 'suix_getOwnedObjects',
+          params: [
+            walletAddress,
+            {
+              filter: {
+                MatchType: SUINS_TYPE
+              },
+              options: {
+                showContent: true,
+                showDisplay: true  // Add this to get the display data
+              }
+            }
+          ]
         })
       });
 
       const data = await response.json();
       console.log('SUINS response:', data);
 
-      if (data.result) {
-        return {
-          name: data.result,
-          imageUrl: null // For now, we'll skip the avatar as it's not critical
-        };
+      if (data.result && data.result.data && data.result.data.length > 0) {
+        const suinsObject = data.result.data[0];
+        
+        // Try to get name from display data first
+        const displayName = suinsObject.display?.data?.name;
+        const imageUrl = suinsObject.display?.data?.image_url;
+        
+        // Fallback to content fields if display is not available
+        const contentName = suinsObject.content?.fields?.domain_name;
+        const contentImageUrl = suinsObject.content?.fields?.image_url;
+
+        if (displayName || contentName) {
+          return {
+            name: displayName || contentName,
+            imageUrl: imageUrl || (contentImageUrl ? `https://api-mainnet.suins.io/nfts/${contentImageUrl}` : null)
+          };
+        }
       }
       return null;
     } catch (error) {
@@ -483,7 +505,7 @@ useEffect(() => {
     }
   };
 
-  // The rest of your useEffect remains the same
+  // Update the useEffect to handle the name without adding .sui (since it's already included)
   useEffect(() => {
     const updateDisplayName = async () => {
       if (wallet.connected && wallet.account) {
@@ -493,7 +515,7 @@ useEffect(() => {
           
           if (suiData) {
             setUsername({
-              name: `${suiData.name}.sui`,
+              name: suiData.name, // Remove the .sui concatenation since it's already in the name
               imageUrl: suiData.imageUrl
             });
           } else {
