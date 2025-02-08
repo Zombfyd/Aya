@@ -923,12 +923,8 @@ useEffect(() => {
 
   // Add useEffect for periodic leaderboard updates
   useEffect(() => {
-    fetchLeaderboards(); // Initial fetch
-    
-    const intervalId = setInterval(fetchLeaderboards, 30000); // Update every 30 seconds
-    
-    return () => clearInterval(intervalId); // Cleanup on unmount
-  }, []);
+    fetchLeaderboards(); // Initial fetch only
+  }, []); // No interval, just fetch once on mount
 
   useEffect(() => {
     // Prevent scrolling on touch devices during gameplay
