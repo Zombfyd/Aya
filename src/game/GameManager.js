@@ -469,10 +469,10 @@ drawUI() {
     if (this.lives <= 5) {
       this.ctx.fillStyle = "#FF4D6D"; // Red warning color
       this.ctx.font = this.UI_SIZES.SCORE_FONT;
-      const warningText = "Low Lives!";
+      const warningText = "Low lives!" + this.lives;
       const warningMetrics = this.ctx.measureText(warningText);
       const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-      this.ctx.fillText(warningText, warningX, 60);
+      this.ctx.fillText(warningText, warningX, 80);
     }
   }
 
