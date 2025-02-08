@@ -16,6 +16,7 @@ import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { JsonRpcProvider, mainnetConnection } from "@mysten/sui.js";
 
 const GameApp = () => {
   // Wallet and client hooks
@@ -59,8 +60,8 @@ const GameApp = () => {
   // Add this to fetch SUI price (you might want to add this to your dependencies)
   const [suiPrice, setSuiPrice] = useState(null);
   const [suinsClient, setSuinsClient] = useState(null);
-  const [addressToNameCache, setAddressToNameCache] = useState({});
-  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState({ name: '', imageUrl: null });
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -373,10 +374,41 @@ useEffect(() => {
     }
   };
 
-  // Leaderboard functions
+  // Update the getSuiNSName function to return image URL as well
+  const getSuiNSName = async (walletAddress) => {
+    try {
+      const response = await fetch(`https://suiscan.xyz/api/suins/${walletAddress}`);
+      const data = await response.json();
+      return {
+        name: data?.name || null,
+        imageUrl: data?.avatar || null // Add avatar URL from the API response
+      };
+    } catch (error) {
+      console.error('Error fetching SuiNS name:', error);
+      return { name: null, imageUrl: null };
+    }
+  };
+
+  // Update the useEffect to handle the new return format
+  useEffect(() => {
+    const updateDisplayName = async () => {
+      if (wallet.connected && wallet.account) {
+        const suiData = await getSuiNSName(wallet.account.address);
+        setUsername({
+          name: suiData.name ? `${suiData.name}.sui` : wallet.account.address.slice(0, 4),
+          imageUrl: suiData.imageUrl
+        });
+      } else {
+        setUsername({ name: '', imageUrl: null });
+      }
+    };
+
+    updateDisplayName();
+  }, [wallet.connected, wallet.account]);
+
+  // Update the fetchLeaderboards function
   const fetchLeaderboards = async () => {
     setIsLeaderboardLoading(true);
-    
     try {
       const baseUrl = `https://ayagame.onrender.com/api/scores/leaderboard`;
       
@@ -395,9 +427,24 @@ useEffect(() => {
           })
       ));
 
+      // Update leaderboard entries with SUINS names and images
+      const updateEntriesWithNames = async (entries) => {
+        return Promise.all(entries.map(async (entry) => {
+          const suiData = await getSuiNSName(entry.playerWallet);
+          return {
+            ...entry,
+            displayName: suiData.name ? `${suiData.name}.sui` : entry.playerWallet.slice(0, 4),
+            avatarUrl: suiData.imageUrl
+          };
+        }));
+      };
+
+      const updatedMainFree = await updateEntriesWithNames(mainFree);
+      const updatedMainPaid = await updateEntriesWithNames(mainPaid);
+
       setLeaderboardData({
-        mainFree,
-        mainPaid
+        mainFree: updatedMainFree,
+        mainPaid: updatedMainPaid
       });
     } catch (error) {
       console.error('Error fetching leaderboards:', error);
@@ -410,126 +457,54 @@ useEffect(() => {
     }
   };
 
-  // Updated SuiNS client initialization for mainnet
-  useEffect(() => {
-    const initializeSuinsClient = async () => {
-      try {
-        const suiClient = new SuiClient({ 
-          url: getFullnodeUrl('mainnet')
-        });
-        
-        const newSuinsClient = new SuinsClient({
-          client: suiClient,
-          packageIds: {
-            suinsPackageId: {
-              latest: '0xb7004c7914308557f7afbaf0dca8dd258e18e306cb7a45b28019f3d0a693f162',
-              v1: '0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0',
-            },
-            suinsObjectId: '0x6e0ddefc0ad98889c04bab9639e512c21766c5e6366f89e696956d9be6952871',
-            utilsPackageId: '0xdac22652eb400beb1f5e2126459cae8eedc116b73b8ad60b71e3e8d7fdb317e2',
-            registrationPackageId: '0x9d451fa0139fef8f7c1f0bd5d7e45b7fa9dbb84c2e63c2819c7abd0a7f7d749d',
-            renewalPackageId: '0xd5e5f74126e7934e35991643b0111c3361827fc0564c83fa810668837c6f0b0f',
-            registryTableId: '0xe64cd9db9f829c6cc405d9790bd71567ae07259855f4fba6f02c84f52298c106',
-          }
-        });
-
-        setSuinsClient(newSuinsClient);
-      } catch (error) {
-        console.error('Error initializing SuiNS client:', error);
-      }
-    };
-
-    initializeSuinsClient();
-  }, []);
-
-  // Using only the confirmed getNameRecord function
-  const getSuiNSName = async (address) => {
-    if (!suinsClient) return null;
-    if (!address) return null;
-    
-    try {
-      // We know this function works from our demo.sui test
-      const nameRecord = await suinsClient.getNameRecord(address);
-      console.log('Name Record:', nameRecord);
-
-      if (nameRecord && nameRecord.name) {
-        return nameRecord.name;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error fetching SuiNS name:', error);
-      return null;
-    }
-  };
-
-  // Modify the LeaderboardComponent to use SuiNS names
-  const LeaderboardComponent = ({ data, title }) => {
-    const [resolvedNames, setResolvedNames] = useState({});
-
-    // Resolve SuiNS names when leaderboard data changes
-    useEffect(() => {
-      const resolveNames = async () => {
-        const names = {};
-        for (const entry of data) {
-          const name = await getSuiNSName(entry.playerWallet);
-          if (name) {
-            names[entry.playerWallet] = name;
-          }
-        }
-        setResolvedNames(names);
-      };
-
-      if (data.length > 0 && suinsClient) {
-        resolveNames();
-      }
-    }, [data, suinsClient]);
-
-    if (!data || data.length === 0) {
-      return (
-        <div className="leaderboard-section">
-          <h3>{title}</h3>
-          <p>No scores yet</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="leaderboard-section">
-        <h3>{title}</h3>
-        <table className="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Player</th>
-              <th>Score</th>
+  // Update the LeaderboardComponent to include avatars
+  const LeaderboardComponent = ({ data, title }) => (
+    <div className="leaderboard-section">
+      <h3>{title}</h3>
+      <table className="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((entry, index) => (
+            <tr key={index} className={index < 3 ? `rank-${index + 1}` : ''}>
+              <td className="rank-cell">{index + 1}</td>
+              <td 
+                className="wallet-cell"
+                title={`Wallet: ${entry.playerWallet}`}
+              >
+                <span className="player-name">
+                  {entry.avatarUrl && (
+                    <img 
+                      src={entry.avatarUrl} 
+                      alt="SUINS avatar" 
+                      className="suins-avatar"
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        marginRight: '5px',
+                        verticalAlign: 'middle'
+                      }}
+                    />
+                  )}
+                  {entry.displayName}
+                </span>
+                <span className="wallet-tooltip">
+                  {entry.playerWallet}
+                </span>
+              </td>
+              <td className="score-cell">{entry.score.toLocaleString()}</td>
             </tr>
-          </thead>
-          <tbody>
-            {data.map((entry, index) => (
-              <tr key={index} className={index < 3 ? `rank-${index + 1}` : ''}>
-                <td className="rank-cell">{index + 1}</td>
-                <td 
-                  className="wallet-cell" 
-                  data-suins={!!resolvedNames[entry.playerWallet]}
-                  title={`Wallet: ${entry.playerWallet}`}
-                >
-                  <span className="player-name">
-                    {resolvedNames[entry.playerWallet] || 
-                     `${entry.playerWallet.slice(0, 6)}...${entry.playerWallet.slice(-4)}`}
-                  </span>
-                  <span className="wallet-tooltip">
-                    {entry.playerWallet}
-                  </span>
-                </td>
-                <td className="score-cell">{entry.score.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
   // Game restart function
   const restartGame = () => {
@@ -892,33 +867,30 @@ useEffect(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
-  // Add this effect to set the display name when wallet connects
-  useEffect(() => {
-    const updateDisplayName = async () => {
-      if (wallet.connected && wallet.account) {
-        // Try to get SuiNS name first
-        const suiName = await getSuiNSName(wallet.account.address);
-        if (suiName) {
-          setDisplayName(suiName);
-        } else {
-          // Fallback to first 4 digits of wallet
-          setDisplayName(wallet.account.address.slice(0, 4));
-        }
-      } else {
-        setDisplayName('');
-      }
-    };
-
-    updateDisplayName();
-  }, [wallet.connected, wallet.account]);
-  
   // Render method
   return (
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {displayName && (
+      {username.name && (
         <div className="player-display">
-          Playing as: <span className="player-name">{displayName}</span>
+          Playing as: 
+          <span className="player-name">
+            {username.imageUrl && (
+              <img 
+                src={username.imageUrl} 
+                alt="SUINS avatar" 
+                className="suins-avatar"
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  marginRight: '5px',
+                  verticalAlign: 'middle'
+                }}
+              />
+            )}
+            {username.name}
+          </span>
         </div>
       )}
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
