@@ -17,19 +17,6 @@ export default defineConfig({
    assetsDir: '',
    manifest: true,
    outDir: 'dist',
-   emptyOutDir: true,
-   commonjsOptions: {
-     include: [/node_modules/],
-     transformMixedEsModules: true
-   }
- },
- resolve: {
-   mainFields: ['module', 'main'],
-   alias: {
-     '@mysten/sui.js': '@mysten/sui.js/dist/index.js'
-   }
- },
- optimizeDeps: {
-   include: ['@mysten/sui.js']
+   emptyOutDir: true
  }
 });
