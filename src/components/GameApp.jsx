@@ -469,11 +469,10 @@ useEffect(() => {
             walletAddress,
             {
               filter: {
-                MatchAll: [
-                  {
-                    StructType: SUINS_TYPE
-                  }
-                ]
+                MoveModule: {
+                  package: "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0",
+                  module: "suins_registration"
+                }
               },
               options: {
                 showContent: true,
@@ -487,36 +486,35 @@ useEffect(() => {
       const data = await response.json();
       console.log('Raw SUINS response:', data);
 
-      if (data.result && data.result.data && data.result.data.length > 0) {
+      if (data.result?.data && data.result.data.length > 0) {
         const suinsObject = data.result.data[0];
-        console.log('SUINS object found:', suinsObject);
-        
-        // Log the specific fields we're trying to access
-        console.log('Display data:', suinsObject.display?.data);
-        console.log('Content fields:', suinsObject.content?.fields);
-        
-        // Try to get name from display data first
+        console.log('Found SUINS object:', suinsObject);
+
+        // Try to get the name from display data first
         const displayName = suinsObject.display?.data?.name;
-        const imageUrl = suinsObject.display?.data?.image_url;
-        
+        const displayImage = suinsObject.display?.data?.image_url;
+
         // Fallback to content fields if display is not available
         const contentName = suinsObject.content?.fields?.domain_name;
-        const contentImageUrl = suinsObject.content?.fields?.image_url;
+        const contentImage = suinsObject.content?.fields?.image_url;
 
-        console.log('Found names:', { displayName, contentName });
-        console.log('Found images:', { imageUrl, contentImageUrl });
+        console.log('Found SUINS data:', {
+          displayName,
+          contentName,
+          displayImage,
+          contentImage
+        });
 
         if (displayName || contentName) {
           const result = {
             name: displayName || contentName,
-            imageUrl: imageUrl || (contentImageUrl ? `https://api-mainnet.suins.io/nfts/${contentImageUrl}` : null)
+            imageUrl: displayImage || contentImage
           };
           console.log('Returning SUINS data:', result);
           return result;
         }
-      } else {
-        console.log('No SUINS data found in response');
       }
+
       return null;
     } catch (error) {
       console.error('Error fetching SUINS:', error);
