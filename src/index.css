@@ -831,3 +831,18 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   text-decoration: underline;
   opacity: 0.9;
 }
+
+.suins-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+  object-fit: cover;
+}
+
+.player-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
