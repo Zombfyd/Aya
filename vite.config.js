@@ -26,7 +26,10 @@ export default defineConfig({
  resolve: {
    mainFields: ['module', 'main'],
    alias: {
-     '@mysten/sui.js': '@mysten/sui.js/dist/index.js',
+     '@mysten/sui.js': '@mysten/sui.js/dist/index.js'
    }
+ },
+ optimizeDeps: {
+   include: ['@mysten/sui.js']
  }
 });
