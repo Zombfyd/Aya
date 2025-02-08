@@ -71,6 +71,9 @@ const GameApp = () => {
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
+  // Add cache state
+  const [suinsCache, setSuinsCache] = useState({});
+  
   useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -454,7 +457,16 @@ useEffect(() => {
   // Update the getSuiNSName function to match the actual data structure
   const getSuiNSName = async (walletAddress) => {
     try {
+      // Check cache first
+      if (suinsCache[walletAddress]) {
+        console.log('Using cached SUINS data');
+        return suinsCache[walletAddress];
+      }
+
       console.log('Fetching SUINS for wallet:', walletAddress);
+
+      // Add delay to prevent rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const response = await fetch('https://fullnode.mainnet.sui.io/', {
         method: 'POST',
@@ -483,6 +495,10 @@ useEffect(() => {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.result?.data && data.result.data.length > 0) {
@@ -490,20 +506,28 @@ useEffect(() => {
         const fields = suinsObject.data?.content?.fields;
 
         if (fields && fields.domain_name) {
-          // Construct the correct URL using domain_name and expiration
-          const imageUrl = `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`;
-
           const result = {
             name: fields.domain_name,
-            imageUrl: imageUrl
+            imageUrl: `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`
           };
+          
+          // Cache the result
+          setSuinsCache(prev => ({
+            ...prev,
+            [walletAddress]: result
+          }));
+          
           return result;
         }
       }
-
       return null;
     } catch (error) {
       console.error('Error fetching SUINS:', error);
+      if (error.message.includes('429')) {
+        // If rate limited, try again after a longer delay
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        return getSuiNSName(walletAddress);
+      }
       return null;
     }
   };
