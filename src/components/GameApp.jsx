@@ -16,11 +16,11 @@ import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { JsonRpcProvider, mainnetConnection } from "@mysten/sui.js";
+import { JsonRpcProvider } from "@mysten/sui.js";
 
 const GameApp = () => {
-  // Initialize the provider at the component level
-  const provider = new JsonRpcProvider(mainnetConnection);
+  // Initialize the provider with the correct mainnet URL for older version
+  const provider = new JsonRpcProvider('https://fullnode.mainnet.sui.io:443');
   
   // Wallet and client hooks
   const wallet = useWallet();
