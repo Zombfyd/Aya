@@ -68,6 +68,8 @@ const GameApp = () => {
   const [username, setUsername] = useState({ name: '', imageUrl: null });
   const [loading, setLoading] = useState(false);
   
+  const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
+  
   useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -481,7 +483,7 @@ useEffect(() => {
     }
   };
 
-  // Update the useEffect that checks for SUINS
+  // The rest of your useEffect remains the same
   useEffect(() => {
     const updateDisplayName = async () => {
       if (wallet.connected && wallet.account) {
