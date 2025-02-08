@@ -983,9 +983,26 @@ useEffect(() => {
   return (
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {username.name && (
+      {username && username.name && (
         <div className="player-display">
-          Playing as: <span className="player-name">{username.name}</span>
+          Playing as: 
+          <span className="player-name">
+            {username.imageUrl && (
+              <img 
+                src={username.imageUrl} 
+                alt="SUINS avatar" 
+                className="suins-avatar"
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  marginRight: '5px',
+                  verticalAlign: 'middle'
+                }}
+              />
+            )}
+            <span>{username.name}</span>
+          </span>
         </div>
       )}
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
