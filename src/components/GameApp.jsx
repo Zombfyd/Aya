@@ -800,12 +800,11 @@ useEffect(() => {
   useEffect(() => {
     const fetchSuiPrice = async () => {
       try {
-        const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=SUIUSDT');
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd');
         const data = await response.json();
-        setSuiPrice(parseFloat(data.price));
+        setSuiPrice(data.sui.usd);
       } catch (error) {
         console.error('Error fetching SUI price:', error);
-        // Fallback price if needed
         setSuiPrice(null);
       }
     };
