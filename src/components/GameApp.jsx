@@ -541,15 +541,17 @@ useEffect(() => {
           if (suiData) {
             setUsername(suiData);
           } else {
+            const truncatedAddress = `${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}`;
             setUsername({
-              name: wallet.account.address.slice(0, 4),
+              name: truncatedAddress,
               imageUrl: null
             });
           }
         } catch (error) {
           console.error('Error updating display name:', error);
+          const truncatedAddress = `${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}`;
           setUsername({
-            name: wallet.account.address.slice(0, 4),
+            name: truncatedAddress,
             imageUrl: null
           });
         }
@@ -564,8 +566,10 @@ useEffect(() => {
   // Remove any other declarations of getDisplayName and keep just this one
   const getDisplayName = (wallet) => {
     const suinsData = suinsCache[wallet];
+    const truncatedWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : '';
+    
     return (
-      <div className="player-name">
+      <div className="player-name" style={{ position: 'relative' }}>
         {suinsData?.imageUrl && (
           <img 
             src={suinsData.imageUrl}
@@ -573,8 +577,26 @@ useEffect(() => {
             className="suins-avatar"
           />
         )}
-        <span>{suinsData ? suinsData.name : wallet.slice(0, 4)}</span>
-        <div className="wallet-tooltip">{wallet}</div>
+        <span>{suinsData ? suinsData.name : truncatedWallet}</span>
+        <div className="wallet-tooltip" style={{
+          position: 'absolute',
+          zIndex: 1000,
+          whiteSpace: 'nowrap',
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          visibility: 'hidden',
+          opacity: 0,
+          transition: 'opacity 0.2s',
+          top: '-25px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          pointerEvents: 'none'
+        }}>
+          {wallet}
+        </div>
       </div>
     );
   };
