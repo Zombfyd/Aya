@@ -456,13 +456,37 @@ drawUI() {
   this.ctx.fillStyle = "#2054c9";
   this.ctx.fillText(`Score: ${this.score}`, 20, 30);
 
-  // Draw lives
-  this.ctx.font = this.UI_SIZES.LIVES_FONT;
+  // Draw lives (centered in bucket)
   if (this.bucket) {
-    this.ctx.fillText(`${this.lives}`, this.bucket.x + 25, this.bucket.y + 40);
+    this.ctx.font = this.UI_SIZES.LIVES_FONT;
+    const livesText = `${this.lives}`;
+    const textMetrics = this.ctx.measureText(livesText);
+    const textX = this.bucket.x + (this.bucket.width / 2) - (textMetrics.width / 2);
+    const textY = this.bucket.y + (this.bucket.height / 2) + 6; // +6 for better vertical centering
+    this.ctx.fillText(livesText, textX, textY);
+    
+    // Draw warning message when lives are low
+    if (this.lives <= 5) {
+      this.ctx.fillStyle = "#FF4D6D"; // Red warning color
+      
+      // Draw warning text
+      this.ctx.font = this.UI_SIZES.SCORE_FONT;
+      const warningText = "Lives remaining!";
+      const warningMetrics = this.ctx.measureText(warningText);
+      const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
+      this.ctx.fillText(warningText, warningX, 70);
+      
+      // Draw lives number bigger below
+      this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
+      const livesCountText = `${this.lives}`;
+      const livesMetrics = this.ctx.measureText(livesCountText);
+      const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
+      this.ctx.fillText(livesCountText, livesX, 120);
+    }
   }
 
   // Draw speed
+  this.ctx.fillStyle = "#2054c9";
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
   this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
 
