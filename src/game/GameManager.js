@@ -468,11 +468,20 @@ drawUI() {
     // Draw warning message when lives are low
     if (this.lives <= 5) {
       this.ctx.fillStyle = "#FF4D6D"; // Red warning color
+      
+      // Draw warning text
       this.ctx.font = this.UI_SIZES.SCORE_FONT;
-      const warningText = "Low lives!" + this.lives;
+      const warningText = "Lives remaining!";
       const warningMetrics = this.ctx.measureText(warningText);
       const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-      this.ctx.fillText(warningText, warningX, 80);
+      this.ctx.fillText(warningText, warningX, 70);
+      
+      // Draw lives number bigger below
+      this.ctx.font = "bold 48px Arial"; // Larger font for the number
+      const livesCountText = `${this.lives}`;
+      const livesMetrics = this.ctx.measureText(livesCountText);
+      const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
+      this.ctx.fillText(livesCountText, livesX, 120);
     }
   }
 
