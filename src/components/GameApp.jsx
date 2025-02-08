@@ -579,14 +579,16 @@ useEffect(() => {
     );
   };
 
-  // Add this effect to update SUINS for leaderboard entries
+  // Update SUINS for leaderboard entries
   useEffect(() => {
     const updateLeaderboardNames = async () => {
+      // Get top 10 from each leaderboard
       const topWallets = new Set([
         ...leaderboardData.mainFree.slice(0, 10).map(entry => entry.playerWallet),
         ...leaderboardData.mainPaid.slice(0, 10).map(entry => entry.playerWallet)
       ]);
 
+      // Update SUINS for each unique wallet
       for (const wallet of topWallets) {
         if (!suinsCache[wallet]) {
           await getSuiNSName(wallet);
@@ -597,7 +599,13 @@ useEffect(() => {
     if (leaderboardData.mainFree.length > 0 || leaderboardData.mainPaid.length > 0) {
       updateLeaderboardNames();
     }
-  }, [leaderboardData]);
+  }, [leaderboardData.mainFree, leaderboardData.mainPaid]);
+
+  // Helper function to get display name for leaderboard entries
+  const getDisplayName = (wallet) => {
+    const suinsData = suinsCache[wallet];
+    return suinsData ? suinsData.name : wallet.slice(0, 4);
+  };
 
   // Game restart function
   const restartGame = () => {
@@ -772,15 +780,17 @@ useEffect(() => {
     return balanceInMist >= BigInt(tierAmount);
   };
 
-  // Add this to fetch SUI price (you might want to add this to your dependencies)
+  // Update the SUI price fetching function
   useEffect(() => {
     const fetchSuiPrice = async () => {
       try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd');
+        const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=SUIUSDT');
         const data = await response.json();
-        setSuiPrice(data.sui.usd);
+        setSuiPrice(parseFloat(data.price));
       } catch (error) {
         console.error('Error fetching SUI price:', error);
+        // Fallback price if needed
+        setSuiPrice(null);
       }
     };
     
