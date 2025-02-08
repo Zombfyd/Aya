@@ -464,52 +464,59 @@ useEffect(() => {
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
-          method: 'sui_multiGetObjects',
+          method: 'suix_getOwnedObjects',
           params: [
-            [walletAddress],
+            walletAddress,
             {
-              showContent: true,
-              showDisplay: true,
-              showType: true,
-              showOwner: true
+              filter: {
+                MatchAll: [
+                  {
+                    StructType: SUINS_TYPE
+                  }
+                ]
+              },
+              options: {
+                showContent: true,
+                showDisplay: true
+              }
             }
           ]
         })
       });
 
       const data = await response.json();
-      console.log('Raw response:', data);
+      console.log('Raw SUINS response:', data);
 
-      if (data.result) {
-        // Look for object with the SUINS type
-        const suinsObject = data.result.find(obj => 
-          obj.data?.content?.fields?.domain_name && 
-          obj.data?.content?.fields?.domain?.fields?.labels
-        );
+      if (data.result && data.result.data && data.result.data.length > 0) {
+        const suinsObject = data.result.data[0];
+        console.log('SUINS object found:', suinsObject);
+        
+        // Log the specific fields we're trying to access
+        console.log('Display data:', suinsObject.display?.data);
+        console.log('Content fields:', suinsObject.content?.fields);
+        
+        // Try to get name from display data first
+        const displayName = suinsObject.display?.data?.name;
+        const imageUrl = suinsObject.display?.data?.image_url;
+        
+        // Fallback to content fields if display is not available
+        const contentName = suinsObject.content?.fields?.domain_name;
+        const contentImageUrl = suinsObject.content?.fields?.image_url;
 
-        if (suinsObject) {
-          console.log('Found SUINS object:', suinsObject);
-          const fields = suinsObject.data.content.fields;
-          
-          // Extract the domain name and image directly from the fields
-          const domainName = fields.domain_name;
-          const imageUrl = fields.image_url 
-            ? `https://api-mainnet.suins.io/nfts/${domainName}/${fields.expiration_timestamp_ms}`
-            : null;
+        console.log('Found names:', { displayName, contentName });
+        console.log('Found images:', { imageUrl, contentImageUrl });
 
-          console.log('Extracted data:', { domainName, imageUrl });
-
-          if (domainName) {
-            return {
-              name: domainName,
-              imageUrl: imageUrl
-            };
-          }
-        } else {
-          console.log('No SUINS object found in response');
+        if (displayName || contentName) {
+          const result = {
+            name: displayName || contentName,
+            imageUrl: imageUrl || (contentImageUrl ? `https://api-mainnet.suins.io/nfts/${contentImageUrl}` : null)
+          };
+          console.log('Returning SUINS data:', result);
+          return result;
         }
+      } else {
+        console.log('No SUINS data found in response');
       }
-
       return null;
     } catch (error) {
       console.error('Error fetching SUINS:', error);
