@@ -14,8 +14,14 @@ import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { SuinsClient } from '@mysten/suins';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+// import { JsonRpcProvider } from "@mysten/sui.js";
 
 const GameApp = () => {
+  // Remove provider initialization
+  // const provider = new JsonRpcProvider('https://fullnode.mainnet.sui.io:443');
+  
   // Wallet and client hooks
   const wallet = useWallet();
   const client = useSuiClient();
@@ -56,6 +62,17 @@ const GameApp = () => {
   const [selectedTier, setSelectedTier] = useState(null);
   // Add this to fetch SUI price (you might want to add this to your dependencies)
   const [suiPrice, setSuiPrice] = useState(null);
+  const [suinsClient, setSuinsClient] = useState(null);
+  const [addressToNameCache, setAddressToNameCache] = useState({});
+  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState({ name: '', imageUrl: null });
+  const [loading, setLoading] = useState(false);
+  
+  const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
+  const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
+  
+  // Add cache state
+  const [suinsCache, setSuinsCache] = useState({});
   
   useEffect(() => {
     const checkMobile = () => {
@@ -405,43 +422,206 @@ useEffect(() => {
     }
   };
 
-  // Leaderboard component
-  const LeaderboardComponent = ({ data, title }) => {
-    if (!data || data.length === 0) {
-      return (
-        <div className="leaderboard-section">
-          <h3>{title}</h3>
-          <p>No scores yet</p>
-        </div>
-      );
-    }
+  // Updated SuiNS client initialization for mainnet
+  useEffect(() => {
+    const initializeSuinsClient = async () => {
+      try {
+        const suiClient = new SuiClient({ 
+          url: getFullnodeUrl('mainnet')
+        });
+        
+        const newSuinsClient = new SuinsClient({
+          client: suiClient,
+          packageIds: {
+            suinsPackageId: {
+              latest: '0xb7004c7914308557f7afbaf0dca8dd258e18e306cb7a45b28019f3d0a693f162',
+              v1: '0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0',
+            },
+            suinsObjectId: '0x6e0ddefc0ad98889c04bab9639e512c21766c5e6366f89e696956d9be6952871',
+            utilsPackageId: '0xdac22652eb400beb1f5e2126459cae8eedc116b73b8ad60b71e3e8d7fdb317e2',
+            registrationPackageId: '0x9d451fa0139fef8f7c1f0bd5d7e45b7fa9dbb84c2e63c2819c7abd0a7f7d749d',
+            renewalPackageId: '0xd5e5f74126e7934e35991643b0111c3361827fc0564c83fa810668837c6f0b0f',
+            registryTableId: '0xe64cd9db9f829c6cc405d9790bd71567ae07259855f4fba6f02c84f52298c106',
+          }
+        });
 
+        setSuinsClient(newSuinsClient);
+      } catch (error) {
+        console.error('Error initializing SuiNS client:', error);
+      }
+    };
+
+    initializeSuinsClient();
+  }, []);
+
+  // Update the getSuiNSName function to match the actual data structure
+  const getSuiNSName = async (walletAddress) => {
+    try {
+      // Check cache first
+      if (suinsCache[walletAddress]) {
+        console.log('Using cached SUINS data');
+        return suinsCache[walletAddress];
+      }
+
+      console.log('Fetching SUINS for wallet:', walletAddress);
+
+      // Add delay to prevent rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const response = await fetch('https://fullnode.mainnet.sui.io/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'suix_getOwnedObjects',
+          params: [
+            walletAddress,
+            {
+              filter: {
+                MoveModule: {
+                  package: "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0",
+                  module: "suins_registration"
+                }
+              },
+              options: {
+                showContent: true,
+                showDisplay: true
+              }
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.result?.data && data.result.data.length > 0) {
+        const suinsObject = data.result.data[0];
+        const fields = suinsObject.data?.content?.fields;
+
+        if (fields && fields.domain_name) {
+          const result = {
+            name: fields.domain_name,
+            imageUrl: `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`
+          };
+          
+          // Cache the result
+          setSuinsCache(prev => ({
+            ...prev,
+            [walletAddress]: result
+          }));
+          
+          return result;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching SUINS:', error);
+      if (error.message.includes('429')) {
+        // If rate limited, try again after a longer delay
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        return getSuiNSName(walletAddress);
+      }
+      return null;
+    }
+  };
+
+  // Update SUINS for current user
+  useEffect(() => {
+    const updateDisplayName = async () => {
+      if (wallet.connected && wallet.account) {
+        try {
+          const suiData = await getSuiNSName(wallet.account.address);
+          if (suiData) {
+            setUsername(suiData);
+          } else {
+            const truncatedAddress = `${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}`;
+            setUsername({
+              name: truncatedAddress,
+              imageUrl: null
+            });
+          }
+        } catch (error) {
+          console.error('Error updating display name:', error);
+          const truncatedAddress = `${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}`;
+          setUsername({
+            name: truncatedAddress,
+            imageUrl: null
+          });
+        }
+      } else {
+        setUsername({ name: '', imageUrl: null });
+      }
+    };
+
+    updateDisplayName();
+  }, [wallet.connected, wallet.account]);
+
+  // Remove any other declarations of getDisplayName and keep just this one
+  const getDisplayName = (wallet) => {
+    const suinsData = suinsCache[wallet];
+    const truncatedWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : '';
+    
     return (
-      <div className="leaderboard-section">
-        <h3>{title}</h3>
-        <table className="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Wallet</th>
-              <th>Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((entry, index) => (
-              <tr key={index} className={index < 3 ? `rank-${index + 1}` : ''}>
-                <td className="rank-cell">{index + 1}</td>
-                <td className="wallet-cell" title={entry.playerWallet}>
-                  {`${entry.playerWallet.slice(0, 6)}...${entry.playerWallet.slice(-4)}`}
-                </td>
-                <td className="score-cell">{entry.score.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="player-name" style={{ position: 'relative' }}>
+        {suinsData?.imageUrl && (
+          <img 
+            src={suinsData.imageUrl}
+            alt="SUINS avatar"
+            className="suins-avatar"
+          />
+        )}
+        <span>{suinsData ? suinsData.name : truncatedWallet}</span>
+        <div className="wallet-tooltip" style={{
+          position: 'absolute',
+          zIndex: 1000,
+          whiteSpace: 'nowrap',
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          visibility: 'hidden',
+          opacity: 0,
+          transition: 'opacity 0.2s',
+          top: '-25px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          pointerEvents: 'none'
+        }}>
+          {wallet}
+        </div>
       </div>
     );
   };
+
+  // Update SUINS for leaderboard entries
+  useEffect(() => {
+    const updateLeaderboardNames = async () => {
+      // Get top 10 from each leaderboard
+      const topWallets = new Set([
+        ...leaderboardData.mainFree.slice(0, 10).map(entry => entry.playerWallet),
+        ...leaderboardData.mainPaid.slice(0, 10).map(entry => entry.playerWallet)
+      ]);
+
+      // Update SUINS for each unique wallet
+      for (const wallet of topWallets) {
+        if (!suinsCache[wallet]) {
+          await getSuiNSName(wallet);
+        }
+      }
+    };
+
+    if (leaderboardData.mainFree.length > 0 || leaderboardData.mainPaid.length > 0) {
+      updateLeaderboardNames();
+    }
+  }, [leaderboardData.mainFree, leaderboardData.mainPaid]);
 
   // Game restart function
   const restartGame = () => {
@@ -616,7 +796,7 @@ useEffect(() => {
     return balanceInMist >= BigInt(tierAmount);
   };
 
-  // Add this to fetch SUI price (you might want to add this to your dependencies)
+  // Update the SUI price fetching function
   useEffect(() => {
     const fetchSuiPrice = async () => {
       try {
@@ -625,6 +805,7 @@ useEffect(() => {
         setSuiPrice(data.sui.usd);
       } catch (error) {
         console.error('Error fetching SUI price:', error);
+        setSuiPrice(null);
       }
     };
     
@@ -742,12 +923,8 @@ useEffect(() => {
 
   // Add useEffect for periodic leaderboard updates
   useEffect(() => {
-    fetchLeaderboards(); // Initial fetch
-    
-    const intervalId = setInterval(fetchLeaderboards, 30000); // Update every 30 seconds
-    
-    return () => clearInterval(intervalId); // Cleanup on unmount
-  }, []);
+    fetchLeaderboards(); // Initial fetch only
+  }, []); // No interval, just fetch once on mount
 
   useEffect(() => {
     // Prevent scrolling on touch devices during gameplay
@@ -808,6 +985,28 @@ useEffect(() => {
   return (
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+      {username && username.name && (
+        <div className="player-display">
+          Playing as: 
+          <span className="player-name">
+            {username.imageUrl && (
+              <img 
+                src={username.imageUrl} 
+                alt="SUINS avatar" 
+                className="suins-avatar"
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  marginRight: '5px',
+                  verticalAlign: 'middle'
+                }}
+              />
+            )}
+            <span>{username.name}</span>
+          </span>
+        </div>
+      )}
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
           <div className="title">Tears of Aya</div>
@@ -999,14 +1198,53 @@ useEffect(() => {
             <div className="leaderboard-loading">Loading leaderboards...</div>
           ) : (
             <>
-              <LeaderboardComponent 
-                data={leaderboardData.mainFree} 
-                title="Free Mode Leaderboard" 
-              />
-              <LeaderboardComponent 
-                data={leaderboardData.mainPaid} 
-                title="Paid Mode Leaderboard" 
-              />
+              <div className="leaderboard-section">
+                <h2>Free Mode Leaderboard</h2>
+                <table className="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardData.mainFree.slice(0, 10).map((entry, index) => (
+                      <tr key={index} className={`rank-${index + 1}`}>
+                        <td>{index + 1}</td>
+                        <td className="wallet-cell">
+                          {getDisplayName(entry.playerWallet)}
+                        </td>
+                        <td className="score-cell">{entry.score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="leaderboard-section">
+                <h2>Paid Mode Leaderboard</h2>
+                <table className="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardData.mainPaid.slice(0, 10).map((entry, index) => (
+                      <tr key={index} className={`rank-${index + 1}`}>
+                        <td>{index + 1}</td>
+                        <td className="wallet-cell">
+                          {getDisplayName(entry.playerWallet)}
+                        </td>
+                        <td className="score-cell">{entry.score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </div>
