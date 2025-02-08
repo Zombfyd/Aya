@@ -453,6 +453,8 @@ useEffect(() => {
   // Update the getSuiNSName function to match the actual data structure
   const getSuiNSName = async (walletAddress) => {
     try {
+      console.log('Fetching SUINS for wallet:', walletAddress);
+
       const response = await fetch('https://fullnode.mainnet.sui.io/', {
         method: 'POST',
         headers: {
@@ -470,7 +472,7 @@ useEffect(() => {
               },
               options: {
                 showContent: true,
-                showDisplay: true  // Add this to get the display data
+                showDisplay: true
               }
             }
           ]
@@ -478,10 +480,15 @@ useEffect(() => {
       });
 
       const data = await response.json();
-      console.log('SUINS response:', data);
+      console.log('Raw SUINS response:', data);
 
       if (data.result && data.result.data && data.result.data.length > 0) {
         const suinsObject = data.result.data[0];
+        console.log('SUINS object found:', suinsObject);
+        
+        // Log the specific fields we're trying to access
+        console.log('Display data:', suinsObject.display?.data);
+        console.log('Content fields:', suinsObject.content?.fields);
         
         // Try to get name from display data first
         const displayName = suinsObject.display?.data?.name;
@@ -491,12 +498,19 @@ useEffect(() => {
         const contentName = suinsObject.content?.fields?.domain_name;
         const contentImageUrl = suinsObject.content?.fields?.image_url;
 
+        console.log('Found names:', { displayName, contentName });
+        console.log('Found images:', { imageUrl, contentImageUrl });
+
         if (displayName || contentName) {
-          return {
+          const result = {
             name: displayName || contentName,
             imageUrl: imageUrl || (contentImageUrl ? `https://api-mainnet.suins.io/nfts/${contentImageUrl}` : null)
           };
+          console.log('Returning SUINS data:', result);
+          return result;
         }
+      } else {
+        console.log('No SUINS data found in response');
       }
       return null;
     } catch (error) {
@@ -511,15 +525,19 @@ useEffect(() => {
       if (wallet.connected && wallet.account) {
         try {
           setLoading(true);
-          const suiData = await getSuiNSName(wallet.account.address);
+          console.log('Wallet connected, address:', wallet.account.address);
           
-          if (suiData) {
+          const suiData = await getSuiNSName(wallet.account.address);
+          console.log('Got SUINS data:', suiData);
+          
+          if (suiData && suiData.name) {
+            console.log('Setting username with SUINS data:', suiData);
             setUsername({
-              name: suiData.name, // Remove the .sui concatenation since it's already in the name
+              name: suiData.name,
               imageUrl: suiData.imageUrl
             });
           } else {
-            // Fallback to wallet address
+            console.log('Using fallback wallet address');
             setUsername({
               name: wallet.account.address.slice(0, 4),
               imageUrl: null
@@ -535,6 +553,7 @@ useEffect(() => {
           setLoading(false);
         }
       } else {
+        console.log('Wallet not connected');
         setUsername({ name: '', imageUrl: null });
       }
     };
