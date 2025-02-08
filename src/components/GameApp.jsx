@@ -561,7 +561,7 @@ useEffect(() => {
     updateDisplayName();
   }, [wallet.connected, wallet.account]);
 
-  // Add this helper function for SUINS display
+  // Remove any other declarations of getDisplayName and keep just this one
   const getDisplayName = (wallet) => {
     const suinsData = suinsCache[wallet];
     return (
@@ -600,12 +600,6 @@ useEffect(() => {
       updateLeaderboardNames();
     }
   }, [leaderboardData.mainFree, leaderboardData.mainPaid]);
-
-  // Helper function to get display name for leaderboard entries
-  const getDisplayName = (wallet) => {
-    const suinsData = suinsCache[wallet];
-    return suinsData ? suinsData.name : wallet.slice(0, 4);
-  };
 
   // Game restart function
   const restartGame = () => {
