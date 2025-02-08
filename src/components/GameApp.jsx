@@ -490,28 +490,29 @@ useEffect(() => {
         const suinsObject = data.result.data[0];
         console.log('Found SUINS object:', suinsObject);
 
-        // Try to get the name from display data first
-        const displayName = suinsObject.display?.data?.name;
-        const displayImage = suinsObject.display?.data?.image_url;
+        // Access the correct fields based on the structure
+        const fields = suinsObject.data?.content?.fields;
+        console.log('SUINS fields:', fields);
 
-        // Fallback to content fields if display is not available
-        const contentName = suinsObject.content?.fields?.domain_name;
-        const contentImage = suinsObject.content?.fields?.image_url;
+        if (fields) {
+          const domainName = fields.domain_name;
+          // Convert IPFS hash to URL if image_url exists
+          const imageUrl = fields.image_url ? 
+            `https://ipfs.io/ipfs/${fields.image_url}` : null;
 
-        console.log('Found SUINS data:', {
-          displayName,
-          contentName,
-          displayImage,
-          contentImage
-        });
+          console.log('Found SUINS data:', {
+            domainName,
+            imageUrl
+          });
 
-        if (displayName || contentName) {
-          const result = {
-            name: displayName || contentName,
-            imageUrl: displayImage || contentImage
-          };
-          console.log('Returning SUINS data:', result);
-          return result;
+          if (domainName) {
+            const result = {
+              name: domainName,
+              imageUrl: imageUrl
+            };
+            console.log('Returning SUINS data:', result);
+            return result;
+          }
         }
       }
 
