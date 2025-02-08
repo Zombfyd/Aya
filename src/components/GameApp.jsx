@@ -69,6 +69,7 @@ const GameApp = () => {
   const [loading, setLoading] = useState(false);
   
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
+  const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
   useEffect(() => {
     const checkMobile = () => {
@@ -468,7 +469,11 @@ useEffect(() => {
             walletAddress,
             {
               filter: {
-                MatchType: SUINS_TYPE
+                MatchAll: [
+                  {
+                    StructType: SUINS_TYPE
+                  }
+                ]
               },
               options: {
                 showContent: true,
