@@ -459,9 +459,13 @@ useEffect(() => {
     try {
       // Check cache first
       if (suinsCache[walletAddress]) {
+        console.log('Using cached SUINS data');
         return suinsCache[walletAddress];
       }
 
+      console.log('Fetching SUINS for wallet:', walletAddress);
+
+      // Add delay to prevent rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       const response = await fetch('https://fullnode.mainnet.sui.io/', {
@@ -507,6 +511,7 @@ useEffect(() => {
             imageUrl: `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`
           };
           
+          // Cache the result
           setSuinsCache(prev => ({
             ...prev,
             [walletAddress]: result
@@ -515,17 +520,11 @@ useEffect(() => {
           return result;
         }
       }
-      
-      // Cache negative results
-      setSuinsCache(prev => ({
-        ...prev,
-        [walletAddress]: null
-      }));
-      
       return null;
     } catch (error) {
       console.error('Error fetching SUINS:', error);
       if (error.message.includes('429')) {
+        // If rate limited, try again after a longer delay
         await new Promise(resolve => setTimeout(resolve, 5000));
         return getSuiNSName(walletAddress);
       }
@@ -535,12 +534,20 @@ useEffect(() => {
 
   // Update SUINS for current user
   useEffect(() => {
-    const updateUserName = async () => {
+    const updateDisplayName = async () => {
       if (wallet.connected && wallet.account) {
-        const suiData = await getSuiNSName(wallet.account.address);
-        if (suiData) {
-          setUsername(suiData);
-        } else {
+        try {
+          const suiData = await getSuiNSName(wallet.account.address);
+          if (suiData) {
+            setUsername(suiData);
+          } else {
+            setUsername({
+              name: wallet.account.address.slice(0, 4),
+              imageUrl: null
+            });
+          }
+        } catch (error) {
+          console.error('Error updating display name:', error);
           setUsername({
             name: wallet.account.address.slice(0, 4),
             imageUrl: null
@@ -551,7 +558,7 @@ useEffect(() => {
       }
     };
 
-    updateUserName();
+    updateDisplayName();
   }, [wallet.connected, wallet.account]);
 
   // Update SUINS for leaderboard entries
