@@ -16,8 +16,12 @@ import config from '../config/config';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { JsonRpcProvider, mainnetConnection } from "@mysten/sui.js";
 
 const GameApp = () => {
+  // Initialize the provider at the component level
+  const provider = new JsonRpcProvider(mainnetConnection);
+  
   // Wallet and client hooks
   const wallet = useWallet();
   const client = useSuiClient();
@@ -447,13 +451,12 @@ useEffect(() => {
   // Update the getSuiNSName function
   const getSuiNSName = async (walletAddress) => {
     try {
-      // First try to get owned objects from the wallet
+      // Now provider is accessible here
       const objects = await provider.getOwnedObjects({
         owner: walletAddress,
         options: { showContent: true },
       });
 
-      // Log the objects to see what we're getting
       console.log('Wallet objects:', objects);
 
       // Look for SUINS domain in the objects
