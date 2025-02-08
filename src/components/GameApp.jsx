@@ -13,10 +13,9 @@ import {
 import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
-import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { TransactionBlock, JsonRpcProvider } from '@mysten/sui.js';
 import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { JsonRpcProvider } from '@mysten/sui.js';
 
 const GameApp = () => {
   // Wallet and client hooks
