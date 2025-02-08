@@ -61,6 +61,8 @@ const GameApp = () => {
   const [suinsClient, setSuinsClient] = useState(null);
   const [addressToNameCache, setAddressToNameCache] = useState({});
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState({ name: '', imageUrl: null });
+  const [loading, setLoading] = useState(false);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -442,26 +444,91 @@ useEffect(() => {
     initializeSuinsClient();
   }, []);
 
-  // Using only the confirmed getNameRecord function
-  const getSuiNSName = async (address) => {
-    if (!suinsClient) return null;
-    if (!address) return null;
-    
+  // Update the getSuiNSName function
+  const getSuiNSName = async (walletAddress) => {
     try {
-      // We know this function works from our demo.sui test
-      const nameRecord = await suinsClient.getNameRecord(address);
-      console.log('Name Record:', nameRecord);
+      // First try to get owned objects from the wallet
+      const objects = await provider.getOwnedObjects({
+        owner: walletAddress,
+        options: { showContent: true },
+      });
 
-      if (nameRecord && nameRecord.name) {
-        return nameRecord.name;
+      // Log the objects to see what we're getting
+      console.log('Wallet objects:', objects);
+
+      // Look for SUINS domain in the objects
+      const suinsObject = objects.data.find((obj) => 
+        obj.data?.content?.type?.includes('suins::Domain')
+      );
+
+      if (suinsObject) {
+        console.log('Found SUINS object:', suinsObject);
+        const domainData = suinsObject.data.content.fields;
+        return {
+          name: domainData.domain_name,
+          imageUrl: domainData.avatar_url || null
+        };
       }
+
+      // If no SUINS found, try the API endpoint as fallback
+      const response = await fetch(`https://suiscan.xyz/api/suins/${walletAddress}`);
+      const data = await response.json();
       
+      if (data?.name) {
+        return {
+          name: data.name,
+          imageUrl: data.avatar || null
+        };
+      }
+
       return null;
     } catch (error) {
-      console.error('Error fetching SuiNS name:', error);
+      console.error('Error fetching SUINS:', error);
       return null;
     }
   };
+
+  // Update the useEffect that checks for SUINS
+  useEffect(() => {
+    const updateDisplayName = async () => {
+      if (wallet.connected && wallet.account) {
+        try {
+          setLoading(true);
+          const suiData = await getSuiNSName(wallet.account.address);
+          
+          if (suiData) {
+            setUsername({
+              name: `${suiData.name}.sui`,
+              imageUrl: suiData.imageUrl
+            });
+          } else {
+            // Fallback to wallet address
+            setUsername({
+              name: wallet.account.address.slice(0, 4),
+              imageUrl: null
+            });
+          }
+        } catch (error) {
+          console.error('Error updating display name:', error);
+          setUsername({
+            name: wallet.account.address.slice(0, 4),
+            imageUrl: null
+          });
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setUsername({ name: '', imageUrl: null });
+      }
+    };
+
+    updateDisplayName();
+  }, [wallet.connected, wallet.account]);
+
+  // Add console log to check username state changes
+  useEffect(() => {
+    console.log('Username updated:', username);
+  }, [username]);
 
   // Modify the LeaderboardComponent to use SuiNS names
   const LeaderboardComponent = ({ data, title }) => {
@@ -892,33 +959,13 @@ useEffect(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
-  // Add this effect to set the display name when wallet connects
-  useEffect(() => {
-    const updateDisplayName = async () => {
-      if (wallet.connected && wallet.account) {
-        // Try to get SuiNS name first
-        const suiName = await getSuiNSName(wallet.account.address);
-        if (suiName) {
-          setDisplayName(suiName);
-        } else {
-          // Fallback to first 4 digits of wallet
-          setDisplayName(wallet.account.address.slice(0, 4));
-        }
-      } else {
-        setDisplayName('');
-      }
-    };
-
-    updateDisplayName();
-  }, [wallet.connected, wallet.account]);
-  
   // Render method
   return (
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {displayName && (
+      {username.name && (
         <div className="player-display">
-          Playing as: <span className="player-name">{displayName}</span>
+          Playing as: <span className="player-name">{username.name}</span>
         </div>
       )}
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
