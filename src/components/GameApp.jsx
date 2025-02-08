@@ -484,35 +484,20 @@ useEffect(() => {
       });
 
       const data = await response.json();
-      console.log('Raw SUINS response:', data);
 
       if (data.result?.data && data.result.data.length > 0) {
         const suinsObject = data.result.data[0];
-        console.log('Found SUINS object:', suinsObject);
-
-        // Access the correct fields based on the structure
         const fields = suinsObject.data?.content?.fields;
-        console.log('SUINS fields:', fields);
 
-        if (fields) {
-          const domainName = fields.domain_name;
-          // Convert IPFS hash to URL if image_url exists
-          const imageUrl = fields.image_url ? 
-            `https://ipfs.io/ipfs/${fields.image_url}` : null;
+        if (fields && fields.domain_name) {
+          // Construct the correct URL using domain_name and expiration
+          const imageUrl = `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`;
 
-          console.log('Found SUINS data:', {
-            domainName,
-            imageUrl
-          });
-
-          if (domainName) {
-            const result = {
-              name: domainName,
-              imageUrl: imageUrl
-            };
-            console.log('Returning SUINS data:', result);
-            return result;
-          }
+          const result = {
+            name: fields.domain_name,
+            imageUrl: imageUrl
+          };
+          return result;
         }
       }
 
@@ -523,30 +508,25 @@ useEffect(() => {
     }
   };
 
-  // Update the useEffect to handle the name without adding .sui (since it's already included)
+  // Add state to prevent multiple fetches
+  const [hasFetchedSuins, setHasFetchedSuins] = useState(false);
+
   useEffect(() => {
     const updateDisplayName = async () => {
-      if (wallet.connected && wallet.account) {
+      if (wallet.connected && wallet.account && !hasFetchedSuins) {
         try {
           setLoading(true);
-          console.log('Wallet connected, address:', wallet.account.address);
-          
           const suiData = await getSuiNSName(wallet.account.address);
-          console.log('Got SUINS data:', suiData);
           
-          if (suiData && suiData.name) {
-            console.log('Setting username with SUINS data:', suiData);
-            setUsername({
-              name: suiData.name,
-              imageUrl: suiData.imageUrl
-            });
+          if (suiData?.name) {
+            setUsername(suiData); // Set the entire object at once
           } else {
-            console.log('Using fallback wallet address');
             setUsername({
               name: wallet.account.address.slice(0, 4),
               imageUrl: null
             });
           }
+          setHasFetchedSuins(true);
         } catch (error) {
           console.error('Error updating display name:', error);
           setUsername({
@@ -556,14 +536,14 @@ useEffect(() => {
         } finally {
           setLoading(false);
         }
-      } else {
-        console.log('Wallet not connected');
+      } else if (!wallet.connected) {
         setUsername({ name: '', imageUrl: null });
+        setHasFetchedSuins(false);
       }
     };
 
     updateDisplayName();
-  }, [wallet.connected, wallet.account]);
+  }, [wallet.connected, wallet.account, hasFetchedSuins]);
 
   // Add console log to check username state changes
   useEffect(() => {
