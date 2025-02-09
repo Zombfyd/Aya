@@ -78,14 +78,16 @@ const GameApp = () => {
   const [topScores, setTopScores] = useState([]);
   const [qualifyingTier, setQualifyingTier] = useState(null);
   
+  // Add this state at the top with other state declarations
+  const [primaryWalletBalance, setPrimaryWalletBalance] = useState(null);
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
   // Add cache state
   const [suinsCache, setSuinsCache] = useState({});
   
-  // Add this with other state declarations
-  const [prizePoolBalance, setPrizePoolBalance] = useState(null);
+
   
   useEffect(() => {
     const checkMobile = () => {
@@ -1063,6 +1065,32 @@ const handleScoreSubmission = async () => {
     }
 };
 
+// Add this function to fetch primary wallet balance
+const fetchPrimaryWalletBalance = async () => {
+  try {
+    const primaryRecipient = config.getCurrentRecipients().primary;
+    const balance = await client.getBalance({
+      owner: primaryRecipient,
+      coinType: '0x2::sui::SUI'
+    });
+    
+    setPrimaryWalletBalance(balance.totalBalance);
+    console.log('Primary wallet balance:', formatSUI(balance.totalBalance));
+  } catch (error) {
+    console.error('Error fetching primary wallet balance:', error);
+    setPrimaryWalletBalance(null);
+  }
+};
+
+// Add useEffect to fetch balance periodically
+useEffect(() => {
+  if (client) {
+    fetchPrimaryWalletBalance();
+    const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }
+}, [client]);
+
   // Render method
   return (
     
@@ -1118,7 +1146,7 @@ const handleScoreSubmission = async () => {
 
           {wallet.connected && (
             <div className="wallet-info">
-              <p>Prize Pool: {prizePoolBalance ? formatSUI(prizePoolBalance) : '---'} SUI</p>
+              <p>Prize Pool Balacne: {primaryWalletBalance ? formatSUI(primaryWalletBalance) : '---'} SUI</p>
               <p className="creator-credit">
             Created by <a 
               href="https://x.com/Zombfyd" 
