@@ -1200,6 +1200,7 @@ const handleScoreSubmission = async () => {
       <h2>Game Over!</h2>
       <p>Final Score: {gameState.score}</p>
       
+      {/* Score submission section for free mode qualifying scores */}
       {gameMode === 'free' && qualifyingTier && (
         <div className="score-submission-section">
           <p>Congratulations! Your score qualifies for the paid leaderboard!</p>
@@ -1213,26 +1214,37 @@ const handleScoreSubmission = async () => {
         </div>
       )}
 
-      {gameMode === 'paid' && (
+      {/* Standard game over buttons - always show these */}
+      <div className="game-over-buttons">
+        <button 
+          onClick={restartGame} 
+          className="restart-button"
+        >
+          Play Again
+        </button>
+        <button 
+          onClick={() => {
+            setGameState(prev => ({
+              ...prev,
+              isGameOver: false,
+              hasValidPayment: false
+            }));
+            setQualifyingTier(null);
+          }}
+          className="return-menu-button"
+        >
+          Return to Menu
+        </button>
+      </div>
+
+      {/* Paid mode specific buttons */}
+      {gameMode === 'paid' && paidGameAttempts >= maxAttempts && (
         <div className="game-over-buttons">
           <button 
-            onClick={restartGame} 
-            className="restart-button"
+            onClick={handleGamePayment}
+            className="new-payment-button"
           >
-            Play Again
-          </button>
-          <button 
-            onClick={() => {
-              setGameState(prev => ({
-                ...prev,
-                isGameOver: false,
-                hasValidPayment: false
-              }));
-              setQualifyingTier(null);
-            }}
-            className="return-menu-button"
-          >
-            Return to Menu
+            Make New Payment
           </button>
         </div>
       )}
