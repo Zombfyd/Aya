@@ -68,6 +68,12 @@ const GameApp = () => {
   const [username, setUsername] = useState({ name: '', imageUrl: null });
   const [loading, setLoading] = useState(false);
   
+  // Add this after other useState declarations (around line 70)
+  const [selectedLeaderboards, setSelectedLeaderboards] = useState({
+    free: 'main',
+    paid: 'main'
+  });
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -1200,6 +1206,17 @@ useEffect(() => {
             <>
               <div className="leaderboard-section">
                 <h2>Free Mode Leaderboard</h2>
+                <select 
+                  className="leaderboard-type-selector"
+                  value={selectedLeaderboards.free}
+                  onChange={(e) => setSelectedLeaderboards(prev => ({
+                    ...prev,
+                    free: e.target.value
+                  }))}
+                >
+                  <option value="main">Main Leaderboard</option>
+                  <option value="secondary">Secondary Leaderboard</option>
+                </select>
                 <table className="leaderboard-table">
                   <thead>
                     <tr>
@@ -1209,7 +1226,7 @@ useEffect(() => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboardData.mainFree.slice(0, 10).map((entry, index) => (
+                    {leaderboardData[`${selectedLeaderboards.free}Free`].slice(0, 10).map((entry, index) => (
                       <tr key={index} className={`rank-${index + 1}`}>
                         <td>{index + 1}</td>
                         <td className="wallet-cell">
@@ -1224,6 +1241,17 @@ useEffect(() => {
 
               <div className="leaderboard-section">
                 <h2>Paid Mode Leaderboard</h2>
+                <select 
+                  className="leaderboard-type-selector"
+                  value={selectedLeaderboards.paid}
+                  onChange={(e) => setSelectedLeaderboards(prev => ({
+                    ...prev,
+                    paid: e.target.value
+                  }))}
+                >
+                  <option value="main">Main Leaderboard</option>
+                  <option value="secondary">Secondary Leaderboard</option>
+                </select>
                 <table className="leaderboard-table">
                   <thead>
                     <tr>
@@ -1233,7 +1261,7 @@ useEffect(() => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboardData.mainPaid.slice(0, 10).map((entry, index) => (
+                    {leaderboardData[`${selectedLeaderboards.paid}Paid`].slice(0, 10).map((entry, index) => (
                       <tr key={index} className={`rank-${index + 1}`}>
                         <td>{index + 1}</td>
                         <td className="wallet-cell">

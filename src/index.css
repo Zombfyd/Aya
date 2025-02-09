@@ -851,3 +851,30 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   align-items: center;
   gap: 5px;
 }
+
+.leaderboard-type-selector {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border: 2px solid #2054c9;
+  border-radius: 6px;
+  background-color: white;
+  color: #2054c9;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.leaderboard-type-selector:hover {
+  background-color: #f0f0f0;
+}
+
+.leaderboard-type-selector:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(32, 84, 201, 0.3);
+}
+
+.leaderboard-type-selector option {
+  padding: 8px;
+  background-color: white;
+  color: #2054c9;
+}
