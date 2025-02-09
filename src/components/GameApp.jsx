@@ -1069,13 +1069,36 @@ const handleScoreSubmission = async () => {
 const fetchPrimaryWalletBalance = async () => {
   try {
     const primaryRecipient = config.getCurrentRecipients().primary;
-    const balance = await client.getBalance({
-      owner: primaryRecipient,
-      coinType: '0x2::sui::SUI'
+    if (!primaryRecipient) {
+      console.error('Primary recipient address not found');
+      return;
+    }
+
+    console.log('Fetching balance for:', primaryRecipient); // Debug log
+
+    const response = await fetch('https://fullnode.mainnet.sui.io/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'suix_getBalance',
+        params: [
+          primaryRecipient,
+          '0x2::sui::SUI'
+        ]
+      })
     });
-    
-    setPrimaryWalletBalance(balance.totalBalance);
-    console.log('Primary wallet balance:', formatSUI(balance.totalBalance));
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    setPrimaryWalletBalance(data.result.totalBalance);
+    console.log('Primary wallet balance:', formatSUI(data.result.totalBalance));
   } catch (error) {
     console.error('Error fetching primary wallet balance:', error);
     setPrimaryWalletBalance(null);
@@ -1084,12 +1107,10 @@ const fetchPrimaryWalletBalance = async () => {
 
 // Add useEffect to fetch balance periodically
 useEffect(() => {
-  if (client) {
-    fetchPrimaryWalletBalance();
-    const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
-    return () => clearInterval(interval);
-  }
-}, [client]);
+  fetchPrimaryWalletBalance();
+  const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
+  return () => clearInterval(interval);
+}, []);
 
   // Render method
   return (
@@ -1146,7 +1167,7 @@ useEffect(() => {
 
           {wallet.connected && (
             <div className="wallet-info">
-              <p>Prize Pool Balacne: {primaryWalletBalance ? formatSUI(primaryWalletBalance) : '---'} SUI</p>
+              <p>Prize Pool Balance: {primaryWalletBalance ? formatSUI(primaryWalletBalance) : '---'} SUI</p>
               <p className="creator-credit">
             Created by <a 
               href="https://x.com/Zombfyd" 
