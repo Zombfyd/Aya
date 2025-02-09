@@ -84,6 +84,9 @@ const GameApp = () => {
   // Add cache state
   const [suinsCache, setSuinsCache] = useState({});
   
+  // Add this with other state declarations
+  const [prizePoolBalance, setPrizePoolBalance] = useState(null);
+  
   useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -849,39 +852,27 @@ useEffect(() => {
       const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
       const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
       const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+      const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
       
-      console.log('Payment distribution:', {
-        total: totalAmount,
-        primary: { address: recipients.primary, amount: primaryAmount },
-        secondary: { address: recipients.secondary, amount: secondaryAmount },
-        tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
-      });
       const txb = new TransactionBlock();
       
-      // Split the coins for each recipient
-      const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
+      // Split the coins for all recipients
+      const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
         txb.gas,
-        [primaryAmount, secondaryAmount, tertiaryAmount]
+        [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
       );
-      // Transfer to primary recipient
-      txb.transferObjects(
-        [primaryCoin],
-        txb.pure(recipients.primary)
-      );
-      // Transfer to secondary recipient
-      txb.transferObjects(
-        [secondaryCoin],
-        txb.pure(recipients.secondary)
-      );
-      // Transfer to tertiary recipient
-      txb.transferObjects(
-        [tertiaryCoin],
-        txb.pure(recipients.tertiary)
-      );
+
+      // Transfer to all recipients
+      txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+      txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+      txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+      txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+
       const response = await wallet.signAndExecuteTransaction({
         transaction: txb,
         options: { showEffects: true }
       });
+
       console.log('Full Payment Response:', {
         response,
         digest: response.digest,
@@ -1024,10 +1015,26 @@ useEffect(() => {
 // Modify your game over handler to include qualification check
 const handleGameOver = async (finalScore) => {
     try {
+        // Always submit to free leaderboard if in free mode
         if (gameMode === 'free') {
+            // Submit to free leaderboard
+            await fetch(`${config.apiBaseUrl}/api/scores/submit/free`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    score: finalScore,
+                    wallet: wallet?.address,
+                    // Add any other necessary data
+                })
+            });
+
+            // Check if score qualifies for paid leaderboard
             const qualifiedTier = await checkScoreQualification(finalScore);
             setQualifyingTier(qualifiedTier);
         }
+
         setGameState(prev => ({
             ...prev,
             isGameOver: true,
@@ -1035,6 +1042,7 @@ const handleGameOver = async (finalScore) => {
         }));
     } catch (error) {
         console.error('Error in game over handler:', error);
+        alert('Failed to submit score to leaderboard');
     }
 };
 
@@ -1110,6 +1118,7 @@ const handleScoreSubmission = async () => {
 
           {wallet.connected && (
             <div className="wallet-info">
+              <p>Prize Pool: {prizePoolBalance ? formatSUI(prizePoolBalance) : '---'} SUI</p>
               <p className="creator-credit">
             Created by <a 
               href="https://x.com/Zombfyd" 
