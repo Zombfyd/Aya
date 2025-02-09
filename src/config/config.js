@@ -63,6 +63,7 @@ const config = {
         totalAmount: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT),
         minBalance: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) + 50000000, // Adding 0.05 SUI for gas
     },
+    // Regular payment tiers for paid mode
     paymentTiers: {
         tier3: {
           amount: 400000000,   // 0.4 SUI in MIST
@@ -78,23 +79,25 @@ const config = {
           amount: 1000000000,  // 1.0 SUI in MIST
           plays: 3,
           label: "Degen Time!"
+        }
+    },
+    
+    // Separate configuration for score submissions
+    scoreSubmissionTiers: {
+        firstPlace: {
+            amount: 2000000000,  // 2.0 SUI in MIST
+            label: "Submit your score for First Place",
+            rankRequired: 1
         },
-        scoreSubmissionTiers: {
-            firstPlace: {
-                amount: 2000000000,  // 2.0 SUI in MIST
-                label: "Submit your score for First Place",
-                rankRequired: 1
-            },
-            topThree: {
-                amount: 1800000000,  // 1.8 SUI in MIST
-                label: "Submit your score for Top 3",
-                rankRequired: 3
-            },
-            topEight: {
-                amount: 1500000000,  // 1.5 SUI in MIST
-                label: "Submit your score for Top 8",
-                rankRequired: 8
-            }
+        topThree: {
+            amount: 1800000000,  // 1.8 SUI in MIST
+            label: "Submit your score for Top 3",
+            rankRequired: 3
+        },
+        topEight: {
+            amount: 1500000000,  // 1.5 SUI in MIST
+            label: "Submit your score for Top 8",
+            rankRequired: 8
         }
     },
     

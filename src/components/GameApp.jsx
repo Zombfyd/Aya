@@ -1050,7 +1050,7 @@ const handleGameOver = async (finalScore) => {
 const handleScoreSubmission = async () => {
     if (!qualifyingTier || !gameState.score) return;
     
-    const tierConfig = config.paymentTiers.scoreSubmissionTiers[qualifyingTier];
+    const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
     try {
         // Handle payment logic here
         await handleGamePayment(tierConfig.amount);
