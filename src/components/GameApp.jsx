@@ -398,9 +398,12 @@ useEffect(() => {
     try {
       const baseUrl = `https://ayagame.onrender.com/api/scores/leaderboard`;
       
-      const [mainFree, mainPaid] = await Promise.all([
+      // Fetch all leaderboard types
+      const [mainFree, secondaryFree, mainPaid, secondaryPaid] = await Promise.all([
         fetch(`${baseUrl}/main/free`),
-        fetch(`${baseUrl}/main/paid`)
+        fetch(`${baseUrl}/secondary/free`),
+        fetch(`${baseUrl}/main/paid`),
+        fetch(`${baseUrl}/secondary/paid`)
       ].map(promise => 
         promise
           .then(res => {
@@ -415,13 +418,17 @@ useEffect(() => {
 
       setLeaderboardData({
         mainFree,
-        mainPaid
+        secondaryFree,
+        mainPaid,
+        secondaryPaid
       });
     } catch (error) {
       console.error('Error fetching leaderboards:', error);
       setLeaderboardData({
         mainFree: [],
-        mainPaid: []
+        secondaryFree: [],
+        mainPaid: [],
+        secondaryPaid: []
       });
     } finally {
       setIsLeaderboardLoading(false);
@@ -1205,7 +1212,7 @@ useEffect(() => {
           ) : (
             <>
               <div className="leaderboard-section">
-                <h2>Free Mode Leaderboard</h2>
+                <h2>Free Leaderboards</h2>
                 <select 
                   className="leaderboard-type-selector"
                   value={selectedLeaderboards.free}
@@ -1214,8 +1221,8 @@ useEffect(() => {
                     free: e.target.value
                   }))}
                 >
-                  <option value="main">Main Leaderboard</option>
-                  <option value="secondary">Secondary Leaderboard</option>
+                  <option value="main">All Time Leaderboard</option>
+                  <option value="secondary">Weekly Leaderboard</option>
                 </select>
                 <table className="leaderboard-table">
                   <thead>
@@ -1240,7 +1247,7 @@ useEffect(() => {
               </div>
 
               <div className="leaderboard-section">
-                <h2>Paid Mode Leaderboard</h2>
+                <h2>Paid Leaderboards</h2>
                 <select 
                   className="leaderboard-type-selector"
                   value={selectedLeaderboards.paid}
@@ -1249,8 +1256,8 @@ useEffect(() => {
                     paid: e.target.value
                   }))}
                 >
-                  <option value="main">Main Leaderboard</option>
-                  <option value="secondary">Secondary Leaderboard</option>
+                  <option value="main">All Time Leaderboard</option>
+                  <option value="secondary">Weekly Leaderboard</option>
                 </select>
                 <table className="leaderboard-table">
                   <thead>
