@@ -764,6 +764,12 @@ th, td {
   color: #2054c9;
   z-index: 100;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
+}
+
+.player-display.fade-out {
+  opacity: 0;
 }
 
 .player-display .player-name {

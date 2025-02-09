@@ -986,7 +986,7 @@ useEffect(() => {
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
       {username && username.name && (
-        <div className="player-display">
+        <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
           Playing as: 
           <span className="player-name">
             {username.imageUrl && (

@@ -474,14 +474,14 @@ drawUI() {
       const warningText = "Lives remaining!";
       const warningMetrics = this.ctx.measureText(warningText);
       const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-      this.ctx.fillText(warningText, warningX, 70);
+      this.ctx.fillText(warningText, warningX, 140);
       
       // Draw lives number bigger below
       this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
       const livesCountText = `${this.lives}`;
       const livesMetrics = this.ctx.measureText(livesCountText);
       const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
-      this.ctx.fillText(livesCountText, livesX, 120);
+      this.ctx.fillText(livesCountText, livesX, 190);
     }
   }
 
