@@ -33,12 +33,14 @@ const config = {
         testnet: {
             primary: import.meta.env.VITE_APP_TESTNET_PRIMARY_RECIPIENT,
             secondary: import.meta.env.VITE_APP_TESTNET_SECONDARY_RECIPIENT,
-            tertiary: import.meta.env.VITE_APP_TESTNET_TERTIARY_RECIPIENT
+            tertiary: import.meta.env.VITE_APP_TESTNET_TERTIARY_RECIPIENT,
+            rewards: import.meta.env.VITE_APP_TESTNET_REWARDS_RECIPIENT
         },
         mainnet: {
             primary: import.meta.env.VITE_APP_MAINNET_PRIMARY_RECIPIENT,
             secondary: import.meta.env.VITE_APP_MAINNET_SECONDARY_RECIPIENT,
-            tertiary: import.meta.env.VITE_APP_MAINNET_TERTIARY_RECIPIENT
+            tertiary: import.meta.env.VITE_APP_MAINNET_TERTIARY_RECIPIENT,
+            rewards: import.meta.env.VITE_APP_MAINNET_REWARDS_RECIPIENT
         }
     },
     
@@ -46,7 +48,8 @@ const config = {
     shares: {
         primary: parseInt(import.meta.env.VITE_APP_PRIMARY_SHARE),
         secondary: parseInt(import.meta.env.VITE_APP_SECONDARY_SHARE),
-        tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE)
+        tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE),
+        rewards: parseInt(import.meta.env.VITE_APP_REWARDS_SHARE)
     },
     
     api: {
@@ -75,8 +78,25 @@ const config = {
           amount: 1000000000,  // 1.0 SUI in MIST
           plays: 3,
           label: "Degen Time!"
+        },
+        scoreSubmissionTiers: {
+            firstPlace: {
+                amount: 2000000000,  // 2.0 SUI in MIST
+                label: "Submit your score for First Place",
+                rankRequired: 1
+            },
+            topThree: {
+                amount: 1800000000,  // 1.8 SUI in MIST
+                label: "Submit your score for Top 3",
+                rankRequired: 3
+            },
+            topEight: {
+                amount: 1500000000,  // 1.5 SUI in MIST
+                label: "Submit your score for Top 8",
+                rankRequired: 8
+            }
         }
-      },
+    },
     
     debug: {
         enabled: import.meta.env.VITE_APP_DEBUG_MODE === 'true',
@@ -128,7 +148,8 @@ if (import.meta.env.DEV) {
         'getCurrentPaymentConfigId',
         'paymentConfig.recipients.primary',
         'paymentConfig.recipients.secondary',
-        'paymentConfig.recipients.tertiary'
+        'paymentConfig.recipients.tertiary',
+        'paymentConfig.recipients.rewards'
     ];
 
     requiredConfig.forEach(path => {

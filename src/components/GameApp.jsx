@@ -74,6 +74,10 @@ const GameApp = () => {
     paid: 'main'
   });
   
+  // Add these new state variables at the top with other state declarations
+  const [topScores, setTopScores] = useState([]);
+  const [qualifyingTier, setQualifyingTier] = useState(null);
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -994,6 +998,63 @@ useEffect(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
+  // Add this function to check score qualification
+  const checkScoreQualification = async (score) => {
+    try {
+        // Fetch top 8 scores from your API
+        const response = await fetch(`${config.apiBaseUrl}/leaderboard/paid?limit=8`);
+        const leaderboardData = await response.json();
+        setTopScores(leaderboardData);
+
+        // Determine highest qualifying tier
+        if (leaderboardData.length === 0 || score > leaderboardData[0].score) {
+            return 'firstPlace';
+        } else if (score > leaderboardData[2]?.score) {
+            return 'topThree';
+        } else if (score > leaderboardData[7]?.score) {
+            return 'topEight';
+        }
+        return null;
+    } catch (error) {
+        console.error('Error checking score qualification:', error);
+        return null;
+    }
+};
+
+// Modify your game over handler to include qualification check
+const handleGameOver = async (finalScore) => {
+    try {
+        if (gameMode === 'free') {
+            const qualifiedTier = await checkScoreQualification(finalScore);
+            setQualifyingTier(qualifiedTier);
+        }
+        setGameState(prev => ({
+            ...prev,
+            isGameOver: true,
+            score: finalScore
+        }));
+    } catch (error) {
+        console.error('Error in game over handler:', error);
+    }
+};
+
+// Add the score submission handler
+const handleScoreSubmission = async () => {
+    if (!qualifyingTier || !gameState.score) return;
+    
+    const tierConfig = config.paymentTiers.scoreSubmissionTiers[qualifyingTier];
+    try {
+        // Handle payment logic here
+        await handleGamePayment(tierConfig.amount);
+        // If payment successful, submit score to paid leaderboard
+        // Reset qualifying tier
+        setQualifyingTier(null);
+    } catch (error) {
+        console.error('Error submitting score:', error);
+        alert(`Failed to submit score: ${error.message}`);
+    }
+};
+
   // Render method
   return (
     
@@ -1138,12 +1199,22 @@ useEffect(() => {
     <div className="game-over-popup">
       <h2>Game Over!</h2>
       <p>Final Score: {gameState.score}</p>
-      {gameMode === 'paid' && (
-        <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-      )}
       
-      {(gameMode === 'free' || paidGameAttempts < maxAttempts) && (
-        <div className="game-over-buttons">  {/* Added wrapper div */}
+      {gameMode === 'free' && qualifyingTier && (
+        <div className="score-submission-section">
+          <p>Congratulations! Your score qualifies for the paid leaderboard!</p>
+          <button 
+            onClick={handleScoreSubmission}
+            className="submit-score-button"
+          >
+            {config.paymentTiers.scoreSubmissionTiers[qualifyingTier].label}
+            {' '}({config.paymentTiers.scoreSubmissionTiers[qualifyingTier].amount / 1000000000} SUI)
+          </button>
+        </div>
+      )}
+
+      {gameMode === 'paid' && (
+        <div className="game-over-buttons">
           <button 
             onClick={restartGame} 
             className="restart-button"
@@ -1157,30 +1228,7 @@ useEffect(() => {
                 isGameOver: false,
                 hasValidPayment: false
               }));
-            }}
-            className="return-menu-button"
-          >
-            Return to Menu
-          </button>
-        </div>
-      )}
-      
-      {gameMode === 'paid' && paidGameAttempts >= maxAttempts && (
-        <div className="game-over-buttons">
-          <button 
-            onClick={handleGamePayment}
-            className="new-payment-button"
-          >
-            Make New Payment
-          </button>
-          <button 
-            onClick={() => {
-              setGameState(prev => ({
-                ...prev,
-                isGameOver: false,
-                hasValidPayment: false
-              }));
-              setPaidGameAttempts(0);
+              setQualifyingTier(null);
             }}
             className="return-menu-button"
           >
