@@ -1001,12 +1001,12 @@ useEffect(() => {
   // Add this function to check score qualification
   const checkScoreQualification = async (score) => {
     try {
-        // Fetch top 8 scores from your API
-        const response = await fetch(`${config.apiBaseUrl}/leaderboard/paid?limit=8`);
+        // Update API call to specifically fetch paid leaderboard top 8
+        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/paid/secondary?limit=8`);
         const leaderboardData = await response.json();
         setTopScores(leaderboardData);
 
-        // Determine highest qualifying tier
+        // Compare against paid leaderboard scores
         if (leaderboardData.length === 0 || score > leaderboardData[0].score) {
             return 'firstPlace';
         } else if (score > leaderboardData[2]?.score) {
