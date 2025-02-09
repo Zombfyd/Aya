@@ -842,7 +842,6 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 }
 
 .player-name {
-  display: flex;
   align-items: center;
   gap: 5px;
 }
