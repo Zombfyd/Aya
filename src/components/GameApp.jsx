@@ -44,7 +44,7 @@ const GameApp = () => {
     mainFree: [],
     secondaryFree: [],
     mainPaid: [],
-    secondaryPaid: [],
+    secondaryPaid: []
   });
   const [gameMode, setGameMode] = useState('free');
   const [paying, setPaying] = useState(false);
@@ -409,10 +409,10 @@ useEffect(() => {
       
       // Fetch all leaderboard types
       const [mainFree, secondaryFree, mainPaid, secondaryPaid] = await Promise.all([
-        fetch(`${baseUrl}/main/free`),
-        fetch(`${baseUrl}/secondary/free`),
-        fetch(`${baseUrl}/main/paid`),
-        fetch(`${baseUrl}/secondary/paid`)
+        fetch(`${baseUrl}/free/main`),
+        fetch(`${baseUrl}/free/secondary`),
+        fetch(`${baseUrl}/paid/main`),
+        fetch(`${baseUrl}/paid/secondary`)
       ].map(promise => 
         promise
           .then(res => {
@@ -424,6 +424,13 @@ useEffect(() => {
             return [];
           })
       ));
+
+      console.log('Fetched leaderboard data:', {
+        mainFree,
+        secondaryFree,
+        mainPaid,
+        secondaryPaid
+      });
 
       setLeaderboardData({
         mainFree,
