@@ -44,7 +44,7 @@ const GameApp = () => {
     mainFree: [],
     secondaryFree: [],
     mainPaid: [],
-    secondaryPaid: []
+    secondaryPaid: [],
   });
   const [gameMode, setGameMode] = useState('free');
   const [paying, setPaying] = useState(false);
@@ -403,53 +403,46 @@ useEffect(() => {
   // Leaderboard functions
   const fetchLeaderboards = async () => {
     setIsLeaderboardLoading(true);
-    
     try {
-      const baseUrl = `https://ayagame.onrender.com/api/scores/leaderboard`;
-      
-      // Fetch all leaderboard types
-      const [mainFree, secondaryFree, mainPaid, secondaryPaid] = await Promise.all([
-        fetch(`${baseUrl}/free/main`),
-        fetch(`${baseUrl}/free/secondary`),
-        fetch(`${baseUrl}/paid/main`),
-        fetch(`${baseUrl}/paid/secondary`)
-      ].map(promise => 
-        promise
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return res.json();
-          })
-          .catch(error => {
-            console.error('Leaderboard fetch error:', error);
-            return [];
-          })
-      ));
+        const baseUrl = `${config.apiBaseUrl}/api/scores/leaderboard`;
+        
+        // Fetch all leaderboard types with correct URL structure
+        const [mainFree, secondaryFree, mainPaid, secondaryPaid] = await Promise.all([
+            fetch(`${baseUrl}/main/free`),
+            fetch(`${baseUrl}/secondary/free`),
+            fetch(`${baseUrl}/main/paid`),
+            fetch(`${baseUrl}/secondary/paid`)
+        ].map(promise => 
+            promise
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                    return res.json();
+                })
+                .catch(error => {
+                    console.error('Leaderboard fetch error:', error);
+                    return [];
+                })
+        ));
 
-      console.log('Fetched leaderboard data:', {
-        mainFree,
-        secondaryFree,
-        mainPaid,
-        secondaryPaid
-      });
+        console.log('Fetched leaderboard data:', {
+            mainFree,
+            secondaryFree,
+            mainPaid,
+            secondaryPaid
+        });
 
-      setLeaderboardData({
-        mainFree,
-        secondaryFree,
-        mainPaid,
-        secondaryPaid
-      });
+        setLeaderboardData({
+            mainFree,
+            secondaryFree,
+            mainPaid,
+            secondaryPaid
+        });
     } catch (error) {
-      console.error('Error fetching leaderboards:', error);
-      setLeaderboardData({
-        mainFree: [],
-        secondaryFree: [],
-        mainPaid: [],
-        secondaryPaid: []
-      });
+        console.error('Error fetching leaderboards:', error);
     } finally {
-      setIsLeaderboardLoading(false);
+        setIsLeaderboardLoading(false);
     }
-  };
+};
 
   // Updated SuiNS client initialization for mainnet
   useEffect(() => {
