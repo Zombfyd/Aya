@@ -1034,15 +1034,51 @@ const handleGameOver = async (finalScore) => {
 const handleScoreSubmission = async () => {
     if (!qualifyingTier || !gameState.score) return;
     
-    const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
     try {
-        // Handle payment logic here
-        await handleGamePayment(tierConfig.amount);
-        // If payment successful, submit score to paid leaderboard
-        // Reset qualifying tier
+        console.log('Starting score submission process:', {
+            tier: qualifyingTier,
+            score: gameState.score,
+            wallet: wallet.account.address
+        });
+
+        // Get the payment amount for the qualifying tier
+        const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
+        if (!tierConfig) {
+            throw new Error('Invalid qualifying tier');
+        }
+
+        // Handle payment first
+        const paymentResponse = await handleGamePayment(tierConfig.amount);
+        if (!paymentResponse || !paymentResponse.digest) {
+            throw new Error('Payment failed');
+        }
+
+        // After successful payment, submit score to paid leaderboard
+        const requestBody = {
+            playerWallet: wallet.account.address,
+            score: gameState.score,
+            sessionToken: paymentResponse.digest,
+            gameMode: 'paid'
+        };
+
+        // Submit to both main and secondary paid leaderboards
+        await Promise.all(['main', 'secondary'].map(async (type) => {
+            const response = await fetch(`${config.apiBaseUrl}/api/scores/${type}/paid`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) throw new Error(`${type} submission failed`);
+        }));
+
+        console.log('Score successfully submitted to paid leaderboard');
+        await fetchLeaderboards(); // Refresh leaderboards
+        setQualifiedForPaid(false); // Reset qualification state
         setQualifyingTier(null);
+
     } catch (error) {
-        console.error('Error submitting score:', error);
+        console.error('Score submission error:', error);
         alert(`Failed to submit score: ${error.message}`);
     }
 };
