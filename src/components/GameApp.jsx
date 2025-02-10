@@ -994,8 +994,11 @@ useEffect(() => {
   // Add this function to check score qualification
   const checkScoreQualification = async (score) => {
     try {
-        // Update API call to specifically fetch paid leaderboard top 8
-        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/paid/secondary?limit=8`);
+        // Use the correct URL pattern for the main paid leaderboard
+        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/main/paid`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const leaderboardData = await response.json();
         setTopScores(leaderboardData);
 
