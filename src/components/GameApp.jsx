@@ -1068,22 +1068,23 @@ const handleScoreSubmission = async () => {
 // Add this function to fetch primary wallet balance
 const fetchPrimaryWalletBalance = async () => {
     try {
-        const primaryRecipient = config.getCurrentRecipients().primary;
-        console.log('Attempting to check balance for primary wallet:', primaryRecipient);
+        const recipients = config.getCurrentRecipients();
+        console.log('All recipients:', recipients);
+        console.log('Attempting to check balance for primary wallet:', recipients.primary);
         
-        if (!primaryRecipient) {
+        if (!recipients.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
         }
 
         // Use the balance checking method similar to player wallet
         const { totalBalance } = await client.getBalance({
-            owner: primaryRecipient,
+            owner: recipients.primary,
             coinType: '0x2::sui::SUI'
         });
         
         console.log('Primary wallet balance details:', {
-            address: primaryRecipient,
+            address: recipients.primary,
             balanceInSui: Number(totalBalance) / 1_000_000_000,
             balanceInMist: totalBalance.toString()
         });
