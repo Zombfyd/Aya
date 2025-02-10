@@ -561,6 +561,7 @@ th, td {
 .game-over-popup {
   background: white;
   padding: 20px;
+  color: #2054c9;
   border-radius: 10px;
   text-align: center;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);

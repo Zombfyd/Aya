@@ -1283,7 +1283,11 @@ useEffect(() => {
         <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
         <p>Would you like to submit your score to the paid leaderboard?</p>
         <button 
-            onClick={() => handleGamePayment(config.scoreSubmissionTiers[qualifyingTier].amount)}
+            onClick={() => {
+                // Set the tier based on qualification level
+                setSelectedTier(qualifyingTier);
+                handleGamePayment();
+            }}
             className="submit-paid-button"
         >
             Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
