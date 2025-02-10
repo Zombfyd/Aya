@@ -822,20 +822,6 @@ const checkScoreQualification = async (score) => {
     }
 };
 
-// Add UI element for qualification notification
-{gameState.isGameOver && qualifiedForPaid && gameMode === 'free' && (
-    <div className="qualification-notice">
-        <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
-        <p>Would you like to submit your score to the paid leaderboard?</p>
-        <button 
-            onClick={() => handleGamePayment(config.scoreSubmissionTiers[qualifyingTier].amount)}
-            className="submit-paid-button"
-        >
-            Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
-        </button>
-    </div>
-)}
-
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
     const balanceInMist = BigInt(balance ?? 0);
@@ -1286,21 +1272,21 @@ useEffect(() => {
       <h2>Game Over!</h2>
       <p>Final Score: {gameState.score}</p>
       
-      {/* Score submission section for free mode qualifying scores */}
-      {gameMode === 'free' && qualifyingTier && (
-        <div className="score-submission-section">
-          <p>Congratulations! Your score qualifies for the paid leaderboard!</p>
+      {/* Add qualification notice here - for free mode only */}
+      {gameMode === 'free' && qualifiedForPaid && (
+        <div className="qualification-notice">
+          <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
+          <p>Would you like to submit your score to the paid leaderboard?</p>
           <button 
-            onClick={handleScoreSubmission}
-            className="submit-score-button"
+            onClick={() => handleGamePayment(config.scoreSubmissionTiers[qualifyingTier].amount)}
+            className="submit-paid-button"
           >
-            {config.paymentTiers.scoreSubmissionTiers[qualifyingTier].label}
-            {' '}({config.paymentTiers.scoreSubmissionTiers[qualifyingTier].amount / 1000000000} SUI)
+            Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
           </button>
         </div>
       )}
 
-      {/* Standard game over buttons - always show these */}
+      {/* Existing game over buttons */}
       <div className="game-over-buttons">
         <button 
           onClick={restartGame} 
@@ -1322,18 +1308,6 @@ useEffect(() => {
           Return to Menu
         </button>
       </div>
-
-      {/* Paid mode specific buttons */}
-      {gameMode === 'paid' && paidGameAttempts >= maxAttempts && (
-        <div className="game-over-buttons">
-          <button 
-            onClick={handleGamePayment}
-            className="new-payment-button"
-          >
-            Make New Payment
-          </button>
-        </div>
-      )}
     </div>
   </div>
 )}
