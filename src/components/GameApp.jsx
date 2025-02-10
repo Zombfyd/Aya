@@ -745,10 +745,7 @@ useEffect(() => {
 
     try {
         if (gameMode === 'free') {
-            // First submit to free leaderboard
-            await handleFreeScoreSubmission(finalScore);
-            
-            // Then check if score qualifies for paid leaderboard
+            // Check if score qualifies for paid leaderboard
             const qualification = await checkScoreQualification(finalScore);
             if (qualification) {
                 console.log('Score qualifies for paid leaderboard:', qualification);
@@ -756,40 +753,14 @@ useEffect(() => {
                 setQualifyingTier(qualification);
             }
         } else if (gameMode === 'paid' && wallet.connected) {
-            await handlePaidScoreSubmission(finalScore);
+            await handleScoreSubmission(finalScore);
         }
     } catch (error) {
         console.error('Error in game over handler:', error);
     }
 };
 
-// Add separate handlers for free and paid submissions
-const handleFreeScoreSubmission = async (score) => {
-    if (!wallet.connected) return;
-    
-    try {
-        const requestBody = {
-            playerWallet: wallet.account.address,
-            score: score,
-            gameMode: 'free'
-        };
 
-        // Submit to both main and secondary free leaderboards
-        await Promise.all(['main', 'secondary'].map(async (type) => {
-            const response = await fetch(`${config.apiBaseUrl}/api/scores/${type}/free`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) throw new Error(`${type} submission failed`);
-        }));
-
-        await fetchLeaderboards();
-    } catch (error) {
-        console.error('Free score submission error:', error);
-    }
-};
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
@@ -837,8 +808,17 @@ const handleFreeScoreSubmission = async (score) => {
         return;
     }
 
-    const tierConfig = config.paymentTiers[tierToUse];
-    
+    // Use scoreSubmissionTiers instead of paymentTiers for qualification submissions
+    const tierConfig = config.scoreSubmissionTiers[tierToUse];
+    if (!tierConfig) {
+        console.error('Invalid tier configuration:', {
+            tierToUse,
+            availableTiers: config.scoreSubmissionTiers
+        });
+        alert('Invalid payment tier configuration');
+        return;
+    }
+
     try {
         console.log('Starting game payment for tier:', tierToUse);
         const recipients = config.getCurrentRecipients();
@@ -1011,39 +991,6 @@ const checkScoreQualification = async (score) => {
     }
 };
 
-// Modify your game over handler to include qualification check
-const handleGameOver = async (finalScore) => {
-    try {
-        // Always submit to free leaderboard if in free mode
-        if (gameMode === 'free') {
-            // Submit to free leaderboard
-            await fetch(`${config.apiBaseUrl}/api/scores/submit/free`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    score: finalScore,
-                    wallet: wallet?.address,
-                    // Add any other necessary data
-                })
-            });
-
-            // Check if score qualifies for paid leaderboard
-            const qualifiedTier = await checkScoreQualification(finalScore);
-            setQualifyingTier(qualifiedTier);
-        }
-    
-    setGameState(prev => ({
-        ...prev,
-        isGameOver: true,
-            score: finalScore
-        }));
-    } catch (error) {
-        console.error('Error in game over handler:', error);
-        alert('Failed to submit score to leaderboard');
-    }
-};
 
 // Add the score submission handler
 const handleScoreSubmission = async () => {
