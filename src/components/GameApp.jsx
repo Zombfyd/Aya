@@ -793,10 +793,11 @@ useEffect(() => {
         walletConnected: wallet.connected,
         walletAccount: wallet.account,
         selectedTier: selectedTier,
-        qualifyingTier: qualifyingTier
+        qualifyingTier: qualifyingTier,
+        gameMode: gameMode
     });
 
-    // Use either selectedTier or qualifyingTier depending on context
+    // Use different tier configs based on context
     const tierToUse = selectedTier || qualifyingTier;
     
     if (!wallet.connected || !tierToUse) {
@@ -808,12 +809,15 @@ useEffect(() => {
         return;
     }
 
-    // Use scoreSubmissionTiers instead of paymentTiers for qualification submissions
-    const tierConfig = config.scoreSubmissionTiers[tierToUse];
+    // Use different tier configurations based on the context
+    const tierConfig = gameMode === 'free' ? 
+        config.scoreSubmissionTiers[tierToUse] : 
+        config.paymentTiers[tierToUse];
+
     if (!tierConfig) {
         console.error('Invalid tier configuration:', {
             tierToUse,
-            availableTiers: config.scoreSubmissionTiers
+            availableTiers: gameMode === 'free' ? config.scoreSubmissionTiers : config.paymentTiers
         });
         alert('Invalid payment tier configuration');
         return;
