@@ -1068,21 +1068,24 @@ const handleScoreSubmission = async () => {
 // Add this function to fetch primary wallet balance
 const fetchPrimaryWalletBalance = async () => {
     try {
-        // First check what network we're on
-        const currentNetwork = wallet.chain?.name === 'Sui Testnet' ? 'testnet' : 'mainnet';
-        console.log('Current network:', currentNetwork);
+        if (!wallet.chain?.name) {
+            console.log('Wallet chain not yet available');
+            return;
+        }
         
-        // Get recipients for the current network directly
-        const recipients = config.recipients[currentNetwork];
+        // Update network configuration first
+        config.updateNetwork(wallet.chain.name);
+        
+        // Now get the recipients after network is updated
+        const recipients = config.getCurrentRecipients();
+        console.log('Network:', config.network);
         console.log('All recipients:', recipients);
-        console.log('Attempting to check balance for primary wallet:', recipients.primary);
         
-        if (!recipients.primary) {
+        if (!recipients?.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
         }
 
-        // Use the balance checking method similar to player wallet
         const { totalBalance } = await client.getBalance({
             owner: recipients.primary,
             coinType: '0x2::sui::SUI'
@@ -1097,19 +1100,18 @@ const fetchPrimaryWalletBalance = async () => {
         setPrimaryWalletBalance(totalBalance);
     } catch (error) {
         console.error('Balance check error:', error);
-        console.error('Failed address:', recipients?.primary);
         setPrimaryWalletBalance(null);
     }
 };
 
 // Add useEffect to fetch balance periodically
 useEffect(() => {
-    if (client && wallet.chain) {  // Only run when we have both client and network info
+    if (client && wallet.chain?.name) {  // Only run when we have both client and chain name
         fetchPrimaryWalletBalance();
-        const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
+        const interval = setInterval(fetchPrimaryWalletBalance, 60000);
         return () => clearInterval(interval);
     }
-}, [client, wallet.chain]);
+}, [client, wallet.chain?.name]); // Add chain name to dependencies
 
   // Render method
   return (
