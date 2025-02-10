@@ -791,37 +791,6 @@ const handleFreeScoreSubmission = async (score) => {
     }
 };
 
-// Update checkScoreQualification to handle empty leaderboard
-const checkScoreQualification = async (score) => {
-    try {
-        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const leaderboardData = await response.json();
-        setTopScores(leaderboardData);
-
-        // If leaderboard is empty, any score qualifies for first place
-        if (leaderboardData.length === 0) {
-            console.log('Empty leaderboard - score qualifies for first place');
-            return 'firstPlace';
-        }
-
-        // Compare against existing scores
-        if (score > leaderboardData[0]?.score) {
-            return 'firstPlace';
-        } else if (score > leaderboardData[2]?.score) {
-            return 'topThree';
-        } else if (score > leaderboardData[7]?.score) {
-            return 'topEight';
-        }
-        return null;
-    } catch (error) {
-        console.error('Error checking score qualification:', error);
-        return null;
-    }
-};
-
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
     const balanceInMist = BigInt(balance ?? 0);
@@ -835,7 +804,7 @@ const checkScoreQualification = async (score) => {
         const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd');
         const data = await response.json();
         setSuiPrice(data.sui.usd);
-      } catch (error) {
+    } catch (error) {
         console.error('Error fetching SUI price:', error);
         setSuiPrice(null);
       }
@@ -903,8 +872,8 @@ const checkScoreQualification = async (score) => {
           transactionId: response.digest,
           timestamp: Date.now()
         }));
-        setGameState(prev => ({
-          ...prev,
+    setGameState(prev => ({
+        ...prev,
           hasValidPayment: true,
           currentSessionId: response.digest
         }));
@@ -972,7 +941,7 @@ const checkScoreQualification = async (score) => {
         const canAfford = canAffordTier(tier.amount);
         
         return (
-          <button
+        <button 
             key={tierId}
             className={`tier-button ${selectedTier === tierId ? 'selected' : ''} ${canAfford ? '' : 'disabled'}`}
             onClick={() => setSelectedTier(tierId)}
@@ -982,7 +951,7 @@ const checkScoreQualification = async (score) => {
             <div className="tier-price">{suiAmount} SUI (${usdAmount})</div>
             <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
             {!canAfford && <div className="insufficient-funds">Insufficient Balance</div>}
-          </button>
+        </button>
         );
       })}
     </div>
@@ -1002,10 +971,10 @@ useEffect(() => {
   }, []);
   
   // Add this function to check score qualification
-  const checkScoreQualification = async (score) => {
+const checkScoreQualification = async (score) => {
     try {
         // Use the correct URL pattern for the main paid leaderboard
-        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/main/paid`);
+        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -1049,10 +1018,10 @@ const handleGameOver = async (finalScore) => {
             const qualifiedTier = await checkScoreQualification(finalScore);
             setQualifyingTier(qualifiedTier);
         }
-
-        setGameState(prev => ({
-            ...prev,
-            isGameOver: true,
+    
+    setGameState(prev => ({
+        ...prev,
+        isGameOver: true,
             score: finalScore
         }));
     } catch (error) {
@@ -1196,7 +1165,7 @@ useEffect(() => {
           )}
 
           <div className="mode-selector">
-            <button 
+        <button 
               onClick={() => setGameMode('free')}
               className={gameMode === 'free' ? 'active' : ''}
               disabled={!wallet.connected}
@@ -1209,14 +1178,14 @@ useEffect(() => {
               disabled={!wallet.connected}
             >
               Paid Mode
-            </button>
+        </button>
           </div>
 
           {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
             <div className="attempts-info">
               <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-            </div>
-          )}
+    </div>
+)}
 
           {wallet.connected && (
   gameMode === 'free' ? (
@@ -1274,17 +1243,17 @@ useEffect(() => {
       
       {/* Add qualification notice here - for free mode only */}
       {gameMode === 'free' && qualifiedForPaid && (
-        <div className="qualification-notice">
-          <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
-          <p>Would you like to submit your score to the paid leaderboard?</p>
-          <button 
+    <div className="qualification-notice">
+        <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
+        <p>Would you like to submit your score to the paid leaderboard?</p>
+        <button 
             onClick={() => handleGamePayment(config.scoreSubmissionTiers[qualifyingTier].amount)}
             className="submit-paid-button"
-          >
+        >
             Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
-          </button>
-        </div>
-      )}
+        </button>
+    </div>
+)}
 
       {/* Existing game over buttons */}
       <div className="game-over-buttons">
@@ -1296,8 +1265,8 @@ useEffect(() => {
         </button>
         <button 
           onClick={() => {
-            setGameState(prev => ({
-              ...prev,
+    setGameState(prev => ({
+        ...prev,
               isGameOver: false,
               hasValidPayment: false
             }));
@@ -1309,9 +1278,9 @@ useEffect(() => {
         </button>
       </div>
     </div>
-  </div>
+    </div>
 )}
-      
+
       {process.env.NODE_ENV === 'development' && (
         <div className="debug-info">
           <p>Wallet Connected: {String(wallet.connected)}</p>
@@ -1372,7 +1341,7 @@ useEffect(() => {
                   className="leaderboard-type-selector"
                   value={selectedLeaderboards.paid}
                   onChange={(e) => setSelectedLeaderboards(prev => ({
-                    ...prev,
+        ...prev,
                     paid: e.target.value
                   }))}
                 >
