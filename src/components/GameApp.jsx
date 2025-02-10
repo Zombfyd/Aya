@@ -1068,9 +1068,14 @@ const handleScoreSubmission = async () => {
 // Add this function to fetch primary wallet balance
 const fetchPrimaryWalletBalance = async () => {
     try {
-        console.log('Checking primary wallet balance...');
         const primaryRecipient = config.getCurrentRecipients().primary;
+        console.log('Attempting to check balance for primary wallet:', primaryRecipient);
         
+        if (!primaryRecipient) {
+            console.error('Primary recipient address is undefined or null');
+            return;
+        }
+
         // Use the balance checking method similar to player wallet
         const { totalBalance } = await client.getBalance({
             owner: primaryRecipient,
@@ -1078,6 +1083,7 @@ const fetchPrimaryWalletBalance = async () => {
         });
         
         console.log('Primary wallet balance details:', {
+            address: primaryRecipient,
             balanceInSui: Number(totalBalance) / 1_000_000_000,
             balanceInMist: totalBalance.toString()
         });
@@ -1085,6 +1091,7 @@ const fetchPrimaryWalletBalance = async () => {
         setPrimaryWalletBalance(totalBalance);
     } catch (error) {
         console.error('Balance check error:', error);
+        console.error('Failed address:', config.getCurrentRecipients().primary);
         setPrimaryWalletBalance(null);
     }
 };
