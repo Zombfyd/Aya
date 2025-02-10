@@ -9,6 +9,32 @@ services:
         value: 18.0.0
       - key: PORT
         value: 10000
+      # Mainnet Recipients
+      - key: VITE_APP_MAINNET_PRIMARY_RECIPIENT
+        sync: false  # This indicates it's a secret managed in Render dashboard
+      - key: VITE_APP_MAINNET_SECONDARY_RECIPIENT
+        sync: false
+      - key: VITE_APP_MAINNET_TERTIARY_RECIPIENT
+        sync: false
+      - key: VITE_APP_MAINNET_REWARDS_RECIPIENT
+        sync: false
+      # Mainnet Configuration
+      - key: VITE_APP_MAINNET_PACKAGE_ID
+        sync: false
+      - key: VITE_APP_MAINNET_PAYMENT_CONFIG_ID
+        sync: false
+      # Payment Shares
+      - key: VITE_APP_PRIMARY_SHARE
+        sync: false
+      - key: VITE_APP_SECONDARY_SHARE
+        sync: false
+      - key: VITE_APP_TERTIARY_SHARE
+        sync: false
+      - key: VITE_APP_REWARDS_SHARE
+        sync: false
+      # Environment
+      - key: VITE_APP_ENVIRONMENT
+        value: production
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
