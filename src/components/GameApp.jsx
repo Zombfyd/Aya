@@ -1067,50 +1067,34 @@ const handleScoreSubmission = async () => {
 
 // Add this function to fetch primary wallet balance
 const fetchPrimaryWalletBalance = async () => {
-  try {
-    const primaryRecipient = config.getCurrentRecipients().primary;
-    if (!primaryRecipient) {
-      console.error('Primary recipient address not found');
-      return;
+    try {
+        console.log('Checking primary wallet balance...');
+        const primaryRecipient = config.getCurrentRecipients().primary;
+        
+        // Use the balance checking method similar to player wallet
+        const { totalBalance } = await client.getBalance({
+            owner: primaryRecipient,
+            coinType: '0x2::sui::SUI'
+        });
+        
+        console.log('Primary wallet balance details:', {
+            balanceInSui: Number(totalBalance) / 1_000_000_000,
+            balanceInMist: totalBalance.toString()
+        });
+        
+        setPrimaryWalletBalance(totalBalance);
+    } catch (error) {
+        console.error('Balance check error:', error);
+        setPrimaryWalletBalance(null);
     }
-
-    console.log('Fetching balance for:', primaryRecipient); // Debug log
-
-    const response = await fetch('https://fullnode.mainnet.sui.io/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'suix_getBalance',
-        params: [
-          primaryRecipient,
-          '0x2::sui::SUI'
-        ]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    setPrimaryWalletBalance(data.result.totalBalance);
-    console.log('Primary wallet balance:', formatSUI(data.result.totalBalance));
-  } catch (error) {
-    console.error('Error fetching primary wallet balance:', error);
-    setPrimaryWalletBalance(null);
-  }
 };
 
 // Add useEffect to fetch balance periodically
 useEffect(() => {
-  fetchPrimaryWalletBalance();
-  const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
-  return () => clearInterval(interval);
-}, []);
+    fetchPrimaryWalletBalance();
+    const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
+    return () => clearInterval(interval);
+}, [client]);
 
   // Render method
   return (
