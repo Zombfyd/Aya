@@ -1068,7 +1068,12 @@ const handleScoreSubmission = async () => {
 // Add this function to fetch primary wallet balance
 const fetchPrimaryWalletBalance = async () => {
     try {
-        const recipients = config.getCurrentRecipients();
+        // First check what network we're on
+        const currentNetwork = wallet.chain?.name === 'Sui Testnet' ? 'testnet' : 'mainnet';
+        console.log('Current network:', currentNetwork);
+        
+        // Get recipients for the current network directly
+        const recipients = config.recipients[currentNetwork];
         console.log('All recipients:', recipients);
         console.log('Attempting to check balance for primary wallet:', recipients.primary);
         
@@ -1092,17 +1097,19 @@ const fetchPrimaryWalletBalance = async () => {
         setPrimaryWalletBalance(totalBalance);
     } catch (error) {
         console.error('Balance check error:', error);
-        console.error('Failed address:', config.getCurrentRecipients().primary);
+        console.error('Failed address:', recipients?.primary);
         setPrimaryWalletBalance(null);
     }
 };
 
 // Add useEffect to fetch balance periodically
 useEffect(() => {
-    fetchPrimaryWalletBalance();
-    const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
-    return () => clearInterval(interval);
-}, [client]);
+    if (client && wallet.chain) {  // Only run when we have both client and network info
+        fetchPrimaryWalletBalance();
+        const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
+        return () => clearInterval(interval);
+    }
+}, [client, wallet.chain]);
 
   // Render method
   return (
