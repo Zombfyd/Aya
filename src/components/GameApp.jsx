@@ -81,6 +81,9 @@ const GameApp = () => {
   // Add this state at the top with other state declarations
   const [primaryWalletBalance, setPrimaryWalletBalance] = useState(null);
   
+  // Add this state for tracking qualification
+  const [qualifiedForPaid, setQualifiedForPaid] = useState(false);
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -729,88 +732,109 @@ useEffect(() => {
     }
   };
 
-  // Modify window.gameManager.onGameOver to properly handle score submissions
+  // Modify window.gameManager.onGameOver
   window.gameManager.onGameOver = async (finalScore) => {
     console.log('Game Over triggered with score:', finalScore);
     
     setGameState(prev => ({
-      ...prev,
-      score: finalScore,
-      isGameOver: true,
-      gameStarted: false,
-      // Don't reset hasValidPayment here since we still have attempts left
+        ...prev,
+        score: finalScore,
+        isGameOver: true,
+        gameStarted: false,
     }));
 
     try {
-      if (!wallet.connected || !wallet.account) {
-        console.log('No wallet connected, skipping submission');
-        return;
-      }
-
-      let requestBody = {
-        playerWallet: wallet.account.address,
-        score: finalScore
-      };
-
-      if (gameMode === 'paid') {
-        if (!paymentStatus.verified || !paymentStatus.transactionId) {
-          console.error('Missing payment verification for paid mode');
-          return;
+        if (gameMode === 'free') {
+            // First submit to free leaderboard
+            await handleFreeScoreSubmission(finalScore);
+            
+            // Then check if score qualifies for paid leaderboard
+            const qualification = await checkScoreQualification(finalScore);
+            if (qualification) {
+                console.log('Score qualifies for paid leaderboard:', qualification);
+                setQualifiedForPaid(true);
+                setQualifyingTier(qualification);
+            }
+        } else if (gameMode === 'paid' && wallet.connected) {
+            await handlePaidScoreSubmission(finalScore);
         }
-        requestBody = {
-          ...requestBody,
-          sessionToken: paymentStatus.transactionId,
-          gameMode: 'paid'
-        };
-      }
-
-      // Submit to both main and secondary leaderboards
-      const submissions = ['main', 'secondary'].map(async (type) => {
-        // Updated endpoint URL structure
-        const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          mode: 'cors',
-          body: JSON.stringify({ ...requestBody, gameType: type })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`${type} submission failed: ${errorData.error}`);
-        }
-
-        return response.json();
-      });
-
-      await Promise.all(submissions);
-      console.log('Score submissions successful');
-
-      await fetchLeaderboards();
-      
-      if (gameMode === 'paid') {
-        const newAttempts = paidGameAttempts + 1;
-        setPaidGameAttempts(newAttempts);
-        
-        // Only reset hasValidPayment if we've used all attempts
-        if (newAttempts >= maxAttempts) {
-          setGameState(prev => ({ 
-            ...prev, 
-            hasValidPayment: false 
-          }));
-          console.log('All paid attempts used, requiring new payment');
-        } else {
-          console.log(`${maxAttempts - newAttempts} paid attempts remaining`);
-        }
-      }
-
     } catch (error) {
-      console.error('Error in game over handler:', error);
-      alert(`Failed to submit score: ${error.message}`);
+        console.error('Error in game over handler:', error);
     }
-  };
+};
+
+// Add separate handlers for free and paid submissions
+const handleFreeScoreSubmission = async (score) => {
+    if (!wallet.connected) return;
+    
+    try {
+        const requestBody = {
+            playerWallet: wallet.account.address,
+            score: score,
+            gameMode: 'free'
+        };
+
+        // Submit to both main and secondary free leaderboards
+        await Promise.all(['main', 'secondary'].map(async (type) => {
+            const response = await fetch(`${config.apiBaseUrl}/api/scores/${type}/free`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) throw new Error(`${type} submission failed`);
+        }));
+
+        await fetchLeaderboards();
+    } catch (error) {
+        console.error('Free score submission error:', error);
+    }
+};
+
+// Update checkScoreQualification to handle empty leaderboard
+const checkScoreQualification = async (score) => {
+    try {
+        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const leaderboardData = await response.json();
+        setTopScores(leaderboardData);
+
+        // If leaderboard is empty, any score qualifies for first place
+        if (leaderboardData.length === 0) {
+            console.log('Empty leaderboard - score qualifies for first place');
+            return 'firstPlace';
+        }
+
+        // Compare against existing scores
+        if (score > leaderboardData[0]?.score) {
+            return 'firstPlace';
+        } else if (score > leaderboardData[2]?.score) {
+            return 'topThree';
+        } else if (score > leaderboardData[7]?.score) {
+            return 'topEight';
+        }
+        return null;
+    } catch (error) {
+        console.error('Error checking score qualification:', error);
+        return null;
+    }
+};
+
+// Add UI element for qualification notification
+{gameState.isGameOver && qualifiedForPaid && gameMode === 'free' && (
+    <div className="qualification-notice">
+        <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
+        <p>Would you like to submit your score to the paid leaderboard?</p>
+        <button 
+            onClick={() => handleGamePayment(config.scoreSubmissionTiers[qualifyingTier].amount)}
+            className="submit-paid-button"
+        >
+            Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
+        </button>
+    </div>
+)}
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
