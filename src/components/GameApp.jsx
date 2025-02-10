@@ -817,61 +817,76 @@ const handleFreeScoreSubmission = async (score) => {
 
   // Modify handleGamePayment to use selected tier
   const handleGamePayment = async () => {
-    if (!wallet.connected || !selectedTier) {
-      alert('Please connect wallet and select a payment tier');
-      return;
+    // Debug log to see what's happening
+    console.log('Payment handler state:', {
+        walletConnected: wallet.connected,
+        walletAccount: wallet.account,
+        selectedTier: selectedTier,
+        qualifyingTier: qualifyingTier
+    });
+
+    // Use either selectedTier or qualifyingTier depending on context
+    const tierToUse = selectedTier || qualifyingTier;
+    
+    if (!wallet.connected || !tierToUse) {
+        console.log('Wallet or tier check failed:', {
+            walletConnected: wallet.connected,
+            tierToUse: tierToUse
+        });
+        alert('Please connect wallet and select a payment tier');
+        return;
     }
 
-    const tierConfig = config.paymentTiers[selectedTier];
+    const tierConfig = config.paymentTiers[tierToUse];
     
     try {
-      console.log('Starting game payment for tier:', selectedTier);
-      const recipients = config.getCurrentRecipients();
-      const totalAmount = tierConfig.amount;
-      
-      // Calculate amounts based on shares
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-      const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
-      
-      const txb = new TransactionBlock();
-      
-      // Split the coins for all recipients
-      const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
-        txb.gas,
-        [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
-      );
-
-      // Transfer to all recipients
-      txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
-      txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
-      txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
-      txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
-
-      const response = await wallet.signAndExecuteTransaction({
-        transaction: txb,
-        options: { showEffects: true }
-      });
-
-      console.log('Full Payment Response:', {
-        response,
-        digest: response.digest,
-        effects: response.effects,
-        status: response.effects?.status,
-        statusDetails: response.effects?.status?.status
-      });
-      
-      if (response.digest) {
-        console.log('Transaction submitted with digest:', response.digest);
-        setDigest(response.digest);
+        console.log('Starting game payment for tier:', tierToUse);
+        const recipients = config.getCurrentRecipients();
+        const totalAmount = tierConfig.amount;
         
-        setPaymentStatus(prev => ({
-          ...prev,
-          verified: true,
-          transactionId: response.digest,
-          timestamp: Date.now()
-        }));
+        // Calculate amounts based on shares
+        const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+        const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+        const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+        const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
+        
+        const txb = new TransactionBlock();
+        
+        // Split the coins for all recipients
+        const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
+          txb.gas,
+          [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
+        );
+
+        // Transfer to all recipients
+        txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+        txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+        txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+        txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+
+        const response = await wallet.signAndExecuteTransaction({
+          transaction: txb,
+          options: { showEffects: true }
+        });
+
+        console.log('Full Payment Response:', {
+          response,
+          digest: response.digest,
+          effects: response.effects,
+          status: response.effects?.status,
+          statusDetails: response.effects?.status?.status
+        });
+        
+        if (response.digest) {
+          console.log('Transaction submitted with digest:', response.digest);
+          setDigest(response.digest);
+          
+          setPaymentStatus(prev => ({
+            ...prev,
+            verified: true,
+            transactionId: response.digest,
+            timestamp: Date.now()
+          }));
     setGameState(prev => ({
         ...prev,
           hasValidPayment: true,
