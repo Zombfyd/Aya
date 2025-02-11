@@ -17,68 +17,47 @@ app.use(cors({
   exposedHeaders: ['Content-Type', 'Content-Length']
 }));
 
+// Parse JSON bodies
+app.use(express.json());
+
+// Serve static files from the dist directory
+app.use(express.static('dist'));
+
 // Additional headers for all routes
 app.use((req, res, next) => {
-  // Set headers for all responses
-  res.header('Access-Control-Allow-Origin', 'https://www.ayaonsui.xyz');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', '*');
-  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
-  
-  // Handle OPTIONS requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': '*',
+    'Access-Control-Allow-Credentials': 'true',
+    'Cross-Origin-Resource-Policy': 'cross-origin'
+  });
   next();
 });
 
-// Handle module requests first
-app.get('*.mjs', (req, res) => {
-  const filePath = path.join(__dirname, 'dist', req.path);
-  
-  // Check if file exists
-  if (fs.existsSync(filePath)) {
-    res.set({
-      'Content-Type': 'application/javascript; charset=utf-8',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': '*',
-      'Cache-Control': 'no-cache',
-      'Cross-Origin-Resource-Policy': 'cross-origin'
-    });
-    res.sendFile(filePath);
-  } else {
-    res.status(404).send('Module not found');
-  }
+// Existing Web3 endpoints
+app.post('/api/scores/:mode', require('./src/routes/scoreRoutes').submitScore);
+app.get('/api/scores/leaderboard/:gameType/:mode', require('./src/routes/scoreRoutes').getLeaderboard);
+
+// New Web2 endpoints
+app.post('/api/web2/scores', require('./src/controllers/scoreController').submitWeb2Score);
+app.get('/api/web2/leaderboard', require('./src/controllers/scoreController').getWeb2Leaderboard);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve static files with correct MIME types
-app.use(express.static(path.join(__dirname, 'dist'), {
-  setHeaders: (res, filePath) => {
-    // Set correct MIME types for different file extensions
-    if (filePath.endsWith('.js')) {
-      res.set('Content-Type', 'application/javascript; charset=utf-8');
-    }
-    if (filePath.endsWith('.mjs') || filePath.match(/\.js\?v=\d+$/)) {
-      res.set('Content-Type', 'application/javascript; charset=utf-8');
-    }
-    if (filePath.endsWith('.css')) {
-      res.set('Content-Type', 'text/css; charset=utf-8');
-    }
-    
-    // Set CORS headers
-    res.set({
-      'Access-Control-Allow-Origin': 'https://www.ayaonsui.xyz',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': '*',
-      'Access-Control-Allow-Credentials': 'true',
-      'Cross-Origin-Resource-Policy': 'cross-origin'
-    });
-  }
-}));
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error', 
+    message: err.message 
+  });
+});
 
-// All other routes
+// All other routes - serve the index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });

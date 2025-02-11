@@ -2,13 +2,11 @@ services:
   - type: web
     name: aya-game
     env: node
-    buildCommand: npm run render-build
+    buildCommand: npm run build
     startCommand: node server.cjs
     envVars:
       - key: NODE_VERSION
         value: 18.0.0
-      - key: PORT
-        value: 10000
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
