@@ -68,11 +68,38 @@ const GameApp = () => {
   const [username, setUsername] = useState({ name: '', imageUrl: null });
   const [loading, setLoading] = useState(false);
   
+  // Add this after other useState declarations (around line 70)
+  const [selectedLeaderboards, setSelectedLeaderboards] = useState({
+    free: 'main',
+    paid: 'main'
+  });
+  
+  // Add these new state variables at the top with other state declarations
+  const [topScores, setTopScores] = useState([]);
+  const [qualifyingTier, setQualifyingTier] = useState(null);
+  
+  // Add this state at the top with other state declarations
+  const [primaryWalletBalance, setPrimaryWalletBalance] = useState(null);
+  
+  // Add this state for tracking qualification
+  const [qualifiedForPaid, setQualifiedForPaid] = useState(false);
+  
+  // Add this state for all balances
+  const [allBalances, setAllBalances] = useState({});
+  
+  // Add NFT state at the top of your component
+  const [nfts, setNFTs] = useState([]);
+  
+  // Add this state at the top with other state declarations
+  const [isAssetsExpanded, setIsAssetsExpanded] = useState(false);
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
   // Add cache state
   const [suinsCache, setSuinsCache] = useState({});
+  
+
   
   useEffect(() => {
     const checkMobile = () => {
@@ -323,104 +350,143 @@ useEffect(() => {
 
   const handleScoreSubmit = async () => {
     if (!wallet.connected || !wallet.account) {
-      alert('Please connect your wallet first');
-      return;
+        alert('Please connect your wallet first');
+        return;
     }
 
     try {
-      let requestBody = {
-        playerWallet: wallet.account.address,
-        score: gameState.score
-      };
-
-      if (gameMode === 'paid') {
-        if (!paymentStatus.verified || !paymentStatus.transactionId) {
-          alert('Payment verification required for paid mode');
-          return;
-        }
-        requestBody = {
-          ...requestBody,
-          sessionToken: paymentStatus.transactionId,
-          gameMode: 'paid'
+        let requestBody = {
+            playerWallet: wallet.account.address,
+            score: gameState.score
         };
-      }
 
-      // Submit to both main and secondary leaderboards
-      const submissions = ['main', 'secondary'].map(async (type) => {
-        // Updated endpoint URL structure
-        const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          mode: 'cors',
-          body: JSON.stringify({ ...requestBody, gameType: type })
+        // Handle paid mode submissions
+        if (gameMode === 'paid') {
+            if (!paymentStatus.verified || !paymentStatus.transactionId) {
+                alert('Payment verification required for paid mode');
+                return;
+            }
+            requestBody = {
+                ...requestBody,
+                sessionToken: paymentStatus.transactionId,
+                gameMode: 'paid'
+            };
+        } 
+        // Handle qualifying free scores that want to submit to paid leaderboard
+        else if (qualifyingTier && qualifiedForPaid) {
+            const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
+            if (!tierConfig) {
+                throw new Error('Invalid qualifying tier');
+            }
+
+            // Handle payment first
+            await handleGamePayment();
+            if (!paymentStatus.verified || !paymentStatus.transactionId) {
+                throw new Error('Payment failed');
+            }
+
+            requestBody = {
+                ...requestBody,
+                sessionToken: paymentStatus.transactionId,
+                gameMode: 'paid'
+            };
+        }
+        // Regular free mode submission
+        else {
+            requestBody = {
+                ...requestBody,
+                gameMode: 'free'
+            };
+        }
+
+        // Submit to both main and secondary leaderboards
+        const submissions = ['main', 'secondary'].map(async (type) => {
+            const endpoint = `${config.apiBaseUrl}/api/scores/${requestBody.gameMode}`;
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                mode: 'cors',
+                body: JSON.stringify({ ...requestBody, gameType: type })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`${type} submission failed: ${errorData.error}`);
+            }
+
+            return response.json();
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`${type} submission failed: ${errorData.error}`);
+        await Promise.all(submissions);
+        console.log('Score submissions successful');
+
+        if (gameMode === 'paid') {
+            const newAttempts = paidGameAttempts + 1;
+            setPaidGameAttempts(newAttempts);
+            if (newAttempts >= maxAttempts) {
+                setGameState(prev => ({ ...prev, hasValidPayment: false }));
+            }
         }
 
-        return response.json();
-      });
-
-      await Promise.all(submissions);
-      console.log('Score submissions successful');
-
-      if (gameMode === 'paid') {
-        const newAttempts = paidGameAttempts + 1;
-        setPaidGameAttempts(newAttempts);
-        if (newAttempts >= maxAttempts) {
-          setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        // Reset qualification states if this was a qualifying submission
+        if (qualifyingTier && qualifiedForPaid) {
+            setQualifiedForPaid(false);
+            setQualifyingTier(null);
         }
-      }
 
-      await fetchLeaderboards();
-      
+        await fetchLeaderboards();
+        
     } catch (error) {
-      console.error('Score submission error:', error);
-      alert(`Failed to submit score: ${error.message}`);
+        console.error('Score submission error:', error);
+        alert(`Failed to submit score: ${error.message}`);
     }
-  };
+};
 
   // Leaderboard functions
   const fetchLeaderboards = async () => {
     setIsLeaderboardLoading(true);
-    
     try {
-      const baseUrl = `https://ayagame.onrender.com/api/scores/leaderboard`;
-      
-      const [mainFree, mainPaid] = await Promise.all([
-        fetch(`${baseUrl}/main/free`),
-        fetch(`${baseUrl}/main/paid`)
-      ].map(promise => 
-        promise
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return res.json();
-          })
-          .catch(error => {
-            console.error('Leaderboard fetch error:', error);
-            return [];
-          })
-      ));
+        const baseUrl = `${config.apiBaseUrl}/api/scores/leaderboard`;
+        
+        // Fetch all leaderboard types with correct URL structure
+        const [mainFree, secondaryFree, mainPaid, secondaryPaid] = await Promise.all([
+            fetch(`${baseUrl}/main/free`),
+            fetch(`${baseUrl}/secondary/free`),
+            fetch(`${baseUrl}/main/paid`),
+            fetch(`${baseUrl}/secondary/paid`)
+        ].map(promise => 
+            promise
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                    return res.json();
+                })
+                .catch(error => {
+                    console.error('Leaderboard fetch error:', error);
+                    return [];
+                })
+        ));
 
-      setLeaderboardData({
-        mainFree,
-        mainPaid
-      });
+        console.log('Fetched leaderboard data:', {
+            mainFree,
+            secondaryFree,
+            mainPaid,
+            secondaryPaid
+        });
+
+        setLeaderboardData({
+            mainFree,
+            secondaryFree,
+            mainPaid,
+            secondaryPaid
+        });
     } catch (error) {
-      console.error('Error fetching leaderboards:', error);
-      setLeaderboardData({
-        mainFree: [],
-        mainPaid: []
-      });
+        console.error('Error fetching leaderboards:', error);
     } finally {
-      setIsLeaderboardLoading(false);
+        setIsLeaderboardLoading(false);
     }
-  };
+};
 
   // Updated SuiNS client initialization for mainnet
   useEffect(() => {
@@ -707,88 +773,35 @@ useEffect(() => {
     }
   };
 
-  // Modify window.gameManager.onGameOver to properly handle score submissions
+  // Modify window.gameManager.onGameOver
   window.gameManager.onGameOver = async (finalScore) => {
     console.log('Game Over triggered with score:', finalScore);
     
     setGameState(prev => ({
-      ...prev,
-      score: finalScore,
-      isGameOver: true,
-      gameStarted: false,
-      // Don't reset hasValidPayment here since we still have attempts left
+        ...prev,
+        score: finalScore,
+        isGameOver: true,
+        gameStarted: false,
     }));
 
     try {
-      if (!wallet.connected || !wallet.account) {
-        console.log('No wallet connected, skipping submission');
-        return;
-      }
-
-      let requestBody = {
-        playerWallet: wallet.account.address,
-        score: finalScore
-      };
-
-      if (gameMode === 'paid') {
-        if (!paymentStatus.verified || !paymentStatus.transactionId) {
-          console.error('Missing payment verification for paid mode');
-          return;
+        if (gameMode === 'free') {
+            // Submit to free leaderboard using existing function
+            await handleScoreSubmit();
+            // Then check if score qualifies for paid leaderboard
+            const qualification = await checkScoreQualification(finalScore);
+            if (qualification) {
+                console.log('Score qualifies for paid leaderboard:', qualification);
+                setQualifiedForPaid(true);
+                setQualifyingTier(qualification);
+            }
+        } else if (gameMode === 'paid' && wallet.connected) {
+            await handleScoreSubmit();
         }
-        requestBody = {
-          ...requestBody,
-          sessionToken: paymentStatus.transactionId,
-          gameMode: 'paid'
-        };
-      }
-
-      // Submit to both main and secondary leaderboards
-      const submissions = ['main', 'secondary'].map(async (type) => {
-        // Updated endpoint URL structure
-        const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          mode: 'cors',
-          body: JSON.stringify({ ...requestBody, gameType: type })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`${type} submission failed: ${errorData.error}`);
-        }
-
-        return response.json();
-      });
-
-      await Promise.all(submissions);
-      console.log('Score submissions successful');
-
-      await fetchLeaderboards();
-      
-      if (gameMode === 'paid') {
-        const newAttempts = paidGameAttempts + 1;
-        setPaidGameAttempts(newAttempts);
-        
-        // Only reset hasValidPayment if we've used all attempts
-        if (newAttempts >= maxAttempts) {
-          setGameState(prev => ({ 
-            ...prev, 
-            hasValidPayment: false 
-          }));
-          console.log('All paid attempts used, requiring new payment');
-        } else {
-          console.log(`${maxAttempts - newAttempts} paid attempts remaining`);
-        }
-      }
-
     } catch (error) {
-      console.error('Error in game over handler:', error);
-      alert(`Failed to submit score: ${error.message}`);
+        console.error('Error in game over handler:', error);
     }
-  };
+};
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
@@ -803,7 +816,7 @@ useEffect(() => {
         const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd');
         const data = await response.json();
         setSuiPrice(data.sui.usd);
-      } catch (error) {
+    } catch (error) {
         console.error('Error fetching SUI price:', error);
         setSuiPrice(null);
       }
@@ -816,75 +829,91 @@ useEffect(() => {
 
   // Modify handleGamePayment to use selected tier
   const handleGamePayment = async () => {
-    if (!wallet.connected || !selectedTier) {
-      alert('Please connect wallet and select a payment tier');
-      return;
+    console.log('Payment handler state:', {
+        walletConnected: wallet.connected,
+        walletAccount: wallet.account,
+        selectedTier: selectedTier,
+        qualifyingTier: qualifyingTier,
+        gameMode: gameMode
+    });
+
+    // Use different tier configs based on context
+    const tierToUse = selectedTier || qualifyingTier;
+    
+    if (!wallet.connected || !tierToUse) {
+        console.log('Wallet or tier check failed:', {
+            walletConnected: wallet.connected,
+            tierToUse: tierToUse
+        });
+        alert('Please connect wallet and select a payment tier');
+        return;
     }
 
-    const tierConfig = config.paymentTiers[selectedTier];
-    
+    // Use different tier configurations based on the game mode
+    const tierConfig = gameMode === 'free' ? 
+        config.scoreSubmissionTiers[qualifyingTier] : 
+        config.paymentTiers[selectedTier];
+
+    if (!tierConfig) {
+        console.error('Invalid tier configuration:', {
+            tierToUse,
+            gameMode,
+            availableTiers: gameMode === 'free' ? config.scoreSubmissionTiers : config.paymentTiers
+        });
+        alert('Invalid payment tier configuration');
+        return;
+    }
+
     try {
-      console.log('Starting game payment for tier:', selectedTier);
-      const recipients = config.getCurrentRecipients();
-      const totalAmount = tierConfig.amount;
-      
-      // Calculate amounts based on shares
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-      
-      console.log('Payment distribution:', {
-        total: totalAmount,
-        primary: { address: recipients.primary, amount: primaryAmount },
-        secondary: { address: recipients.secondary, amount: secondaryAmount },
-        tertiary: { address: recipients.tertiary, amount: tertiaryAmount }
-      });
-      const txb = new TransactionBlock();
-      
-      // Split the coins for each recipient
-      const [primaryCoin, secondaryCoin, tertiaryCoin] = txb.splitCoins(
-        txb.gas,
-        [primaryAmount, secondaryAmount, tertiaryAmount]
-      );
-      // Transfer to primary recipient
-      txb.transferObjects(
-        [primaryCoin],
-        txb.pure(recipients.primary)
-      );
-      // Transfer to secondary recipient
-      txb.transferObjects(
-        [secondaryCoin],
-        txb.pure(recipients.secondary)
-      );
-      // Transfer to tertiary recipient
-      txb.transferObjects(
-        [tertiaryCoin],
-        txb.pure(recipients.tertiary)
-      );
-      const response = await wallet.signAndExecuteTransaction({
-        transaction: txb,
-        options: { showEffects: true }
-      });
-      console.log('Full Payment Response:', {
-        response,
-        digest: response.digest,
-        effects: response.effects,
-        status: response.effects?.status,
-        statusDetails: response.effects?.status?.status
-      });
-      
-      if (response.digest) {
-        console.log('Transaction submitted with digest:', response.digest);
-        setDigest(response.digest);
+        console.log('Starting game payment for tier:', tierToUse);
+        const recipients = config.getCurrentRecipients();
+        const totalAmount = tierConfig.amount;
         
-        setPaymentStatus(prev => ({
-          ...prev,
-          verified: true,
-          transactionId: response.digest,
-          timestamp: Date.now()
-        }));
-        setGameState(prev => ({
-          ...prev,
+        // Calculate amounts based on shares
+        const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+        const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+        const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+        const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
+        
+        const txb = new TransactionBlock();
+        
+        // Split the coins for all recipients
+        const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
+          txb.gas,
+          [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
+        );
+
+        // Transfer to all recipients
+        txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+        txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+        txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+        txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+
+        const response = await wallet.signAndExecuteTransaction({
+          transaction: txb,
+          options: { showEffects: true }
+        });
+
+        console.log('Full Payment Response:', {
+          response,
+          digest: response.digest,
+          effects: response.effects,
+          status: response.effects?.status,
+          statusDetails: response.effects?.status?.status
+        });
+        
+        if (response.digest) {
+          console.log('Transaction submitted with digest:', response.digest);
+          setDigest(response.digest);
+          
+          setPaymentStatus(prev => ({
+            ...prev,
+            verified: true,
+            transactionId: response.digest,
+            timestamp: Date.now()
+          }));
+    setGameState(prev => ({
+        ...prev,
           hasValidPayment: true,
           currentSessionId: response.digest
         }));
@@ -952,7 +981,7 @@ useEffect(() => {
         const canAfford = canAffordTier(tier.amount);
         
         return (
-          <button
+        <button 
             key={tierId}
             className={`tier-button ${selectedTier === tierId ? 'selected' : ''} ${canAfford ? '' : 'disabled'}`}
             onClick={() => setSelectedTier(tierId)}
@@ -962,7 +991,7 @@ useEffect(() => {
             <div className="tier-price">{suiAmount} SUI (${usdAmount})</div>
             <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
             {!canAfford && <div className="insufficient-funds">Insufficient Balance</div>}
-          </button>
+        </button>
         );
       })}
     </div>
@@ -981,6 +1010,165 @@ useEffect(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
+  // Add this function to check score qualification
+const checkScoreQualification = async (score) => {
+    try {
+        // Use the correct URL pattern for the main paid leaderboard
+        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const leaderboardData = await response.json();
+        setTopScores(leaderboardData);
+
+        // Compare against paid leaderboard scores
+        if (leaderboardData.length === 0 || score > leaderboardData[0].score) {
+            return 'firstPlace';
+        } else if (score > leaderboardData[2]?.score) {
+            return 'topThree';
+        } else if (score > leaderboardData[7]?.score) {
+            return 'topEight';
+        }
+        return null;
+    } catch (error) {
+        console.error('Error checking score qualification:', error);
+        return null;
+    }
+};
+
+
+
+
+// Modify fetchPrimaryWalletBalance to set all balances
+const fetchPrimaryWalletBalance = async () => {
+    console.log('fetchPrimaryWalletBalance called', {
+        isWalletConnected: wallet.connected,
+        chainName: wallet.chain?.name,
+        client: !!client
+    });
+
+    try {
+        if (!wallet.chain?.name) {
+            console.log('Wallet chain not yet available');
+            return;
+        }
+        
+        config.updateNetwork(wallet.chain.name);
+        const recipients = config.getCurrentRecipients();
+        
+        if (!recipients?.primary) {
+            console.error('Primary recipient address is undefined or null');
+            return;
+        }
+
+        // Fetch both coins and NFTs
+        const [allCoins, allNFTs] = await Promise.all([
+            client.getAllCoins({ owner: recipients.primary }),
+            client.getOwnedObjects({
+                owner: recipients.primary,
+                options: { showContent: true }
+            })
+        ]);
+
+        console.log('Received coins:', allCoins.data);
+        console.log('Received NFTs:', allNFTs.data);
+
+        let totalSuiBalance = BigInt(0);
+        const balancesByCoin = {};
+        const nfts = [];
+
+        // Process coins
+        for (const coin of allCoins.data) {
+            const coinType = coin.coinType;
+            const balance = BigInt(coin.balance);
+            
+            if (coinType === '0x2::sui::SUI') {
+                totalSuiBalance += balance;
+            }
+            
+            const parts = coinType.split('::');
+            const symbol = parts.length >= 3 ? parts[2] : coinType;
+            
+            if (balancesByCoin[symbol]) {
+                balancesByCoin[symbol] = balancesByCoin[symbol] + balance;
+            } else {
+                balancesByCoin[symbol] = balance;
+            }
+        }
+
+        // Process NFTs
+        for (const nft of allNFTs.data) {
+            if (nft.data?.content?.type?.includes('::nft::')) {
+                nfts.push({
+                    id: nft.data.objectId,
+                    type: nft.data.content.type,
+                    name: nft.data.content.fields?.name || 'Unnamed NFT',
+                    description: nft.data.content.fields?.description,
+                    url: nft.data.content.fields?.url
+                });
+            }
+        }
+        
+        console.log('Final balances:', {
+            totalSui: totalSuiBalance.toString(),
+            byCoin: balancesByCoin,
+            nfts: nfts
+        });
+
+        setAllBalances(balancesByCoin);
+        setPrimaryWalletBalance(totalSuiBalance);
+        setNFTs(nfts); // Add this state variable
+        
+    } catch (error) {
+        console.error('Balance check error:', error);
+        setPrimaryWalletBalance(null);
+        setAllBalances({});
+        setNFTs([]);
+    }
+};
+
+
+useEffect(() => {
+  if (wallet.connected) {
+      fetchPrimaryWalletBalance();
+      const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
+      return () => clearInterval(interval);
+  }
+}, [wallet.connected, wallet.chain?.name]);
+
+const resetGameState = () => {
+    if (window.gameManager) {
+        window.gameManager.cleanup();
+        window.gameManager.initGame(); // Reinitialize the game manager
+    }
+    
+    setGameState({
+        gameStarted: false,
+        score: 0,
+        isGameOver: false,
+        hasValidPayment: false
+    });
+    
+    setQualifyingTier(null);
+    setQualifiedForPaid(false);
+    setPaidGameAttempts(0);
+    setMaxAttempts(0);
+    setSelectedTier(null);
+};
+
+const handlePaidGameAttempt = () => {
+    const newAttempts = paidGameAttempts + 1;
+    setPaidGameAttempts(newAttempts);
+    
+    if (newAttempts >= maxAttempts) {
+        setGameState(prev => ({
+            ...prev,
+            hasValidPayment: false
+        }));
+        alert('All paid attempts used. Please make a new payment to continue playing.');
+    }
+};
+
   // Render method
   return (
     
@@ -1036,21 +1224,60 @@ useEffect(() => {
 
           {wallet.connected && (
             <div className="wallet-info">
-              <p className="creator-credit">
-            Created by <a 
-              href="https://x.com/Zombfyd" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="creator-name"
-            >
-             🎮 Zombfyd 🎮
-            </a>
-          </p>
+                <div 
+                    className="assets-header" 
+                    onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
+                >
+                    <h3>Prize Pool Assets</h3>
+                    <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
+                        ▼
+                    </span>
+                </div>
+                
+                <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
+                    <div className="balance-list">
+                        {Object.entries(allBalances).map(([symbol, balance]) => (
+                            <p key={symbol} className="balance-item">
+                                {formatSUI(balance)} {symbol}
+                            </p>
+                        ))}
+                    </div>
+                    {nfts.length > 0 && (
+                        <>
+                            <h3>NFTs:</h3>
+                            <div className="nft-list">
+                                {nfts.map((nft) => (
+                                    <div key={nft.id} className="nft-item">
+                                        {nft.url && (
+                                            <img 
+                                                src={nft.url} 
+                                                alt={nft.name} 
+                                                className="nft-image"
+                                            />
+                                        )}
+                                        <p>{nft.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+                
             </div>
           )}
+          <p className="creator-credit">
+                    Created by <a 
+                        href="https://x.com/Zombfyd" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="creator-name"
+                    >
+                        🎮 Zombfyd 🎮
+                    </a>
+                </p>
 
           <div className="mode-selector">
-            <button 
+        <button 
               onClick={() => setGameMode('free')}
               className={gameMode === 'free' ? 'active' : ''}
               disabled={!wallet.connected}
@@ -1063,14 +1290,14 @@ useEffect(() => {
               disabled={!wallet.connected}
             >
               Paid Mode
-            </button>
+        </button>
           </div>
 
           {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
             <div className="attempts-info">
               <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-            </div>
-          )}
+    </div>
+)}
 
           {wallet.connected && (
   gameMode === 'free' ? (
@@ -1125,60 +1352,50 @@ useEffect(() => {
     <div className="game-over-popup">
       <h2>Game Over!</h2>
       <p>Final Score: {gameState.score}</p>
-      {gameMode === 'paid' && (
-        <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-      )}
       
-      {(gameMode === 'free' || paidGameAttempts < maxAttempts) && (
-        <div className="game-over-buttons">  {/* Added wrapper div */}
-          <button 
-            onClick={restartGame} 
-            className="restart-button"
-          >
-            Play Again
-          </button>
-          <button 
+      {/* Add qualification notice here - for free mode only */}
+      {gameMode === 'free' && qualifiedForPaid && (
+    <div className="qualification-notice">
+        <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
+        <p>Would you like to submit your score to the paid leaderboard?</p>
+        <button 
             onClick={() => {
-              setGameState(prev => ({
-                ...prev,
-                isGameOver: false,
-                hasValidPayment: false
-              }));
+                // Set the tier based on qualification level
+                setSelectedTier(qualifyingTier);
+                handleGamePayment();
             }}
-            className="return-menu-button"
-          >
-            Return to Menu
-          </button>
-        </div>
-      )}
-      
-      {gameMode === 'paid' && paidGameAttempts >= maxAttempts && (
-        <div className="game-over-buttons">
-          <button 
-            onClick={handleGamePayment}
-            className="new-payment-button"
-          >
-            Make New Payment
-          </button>
-          <button 
-            onClick={() => {
-              setGameState(prev => ({
-                ...prev,
-                isGameOver: false,
-                hasValidPayment: false
-              }));
-              setPaidGameAttempts(0);
-            }}
-            className="return-menu-button"
-          >
-            Return to Menu
-          </button>
-        </div>
-      )}
+            className="submit-paid-button"
+        >
+            Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
+        </button>
     </div>
-  </div>
 )}
-      
+
+      {/* Existing game over buttons */}
+      <div className="game-over-buttons">
+        <button 
+          onClick={() => {
+            resetGameState();
+            restartGame();
+                      }}
+          
+          className="restart-button"
+        >
+          Play Again
+        </button>
+        <button 
+          onClick={() => {
+    resetGameState();
+          }}
+          className="return-menu-button"
+        >
+          Return to Menu
+        </button>
+      </div>
+    </div>
+    </div>
+)}
+
       {process.env.NODE_ENV === 'development' && (
         <div className="debug-info">
           <p>Wallet Connected: {String(wallet.connected)}</p>
@@ -1199,7 +1416,18 @@ useEffect(() => {
           ) : (
             <>
               <div className="leaderboard-section">
-                <h2>Free Mode Leaderboard</h2>
+                <h2>Free Leaderboards</h2>
+                <select 
+                  className="leaderboard-type-selector"
+                  value={selectedLeaderboards.free}
+                  onChange={(e) => setSelectedLeaderboards(prev => ({
+                    ...prev,
+                    free: e.target.value
+                  }))}
+                >
+                  <option value="main">All Time Leaderboard</option>
+                  <option value="secondary">Weekly Leaderboard</option>
+                </select>
                 <table className="leaderboard-table">
                   <thead>
                     <tr>
@@ -1209,7 +1437,7 @@ useEffect(() => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboardData.mainFree.slice(0, 10).map((entry, index) => (
+                    {leaderboardData[`${selectedLeaderboards.free}Free`].slice(0, 10).map((entry, index) => (
                       <tr key={index} className={`rank-${index + 1}`}>
                         <td>{index + 1}</td>
                         <td className="wallet-cell">
@@ -1223,7 +1451,18 @@ useEffect(() => {
               </div>
 
               <div className="leaderboard-section">
-                <h2>Paid Mode Leaderboard</h2>
+                <h2>Paid Leaderboards</h2>
+                <select 
+                  className="leaderboard-type-selector"
+                  value={selectedLeaderboards.paid}
+                  onChange={(e) => setSelectedLeaderboards(prev => ({
+        ...prev,
+                    paid: e.target.value
+                  }))}
+                >
+                  <option value="main">All Time Leaderboard</option>
+                  <option value="secondary">Weekly Leaderboard</option>
+                </select>
                 <table className="leaderboard-table">
                   <thead>
                     <tr>
@@ -1233,7 +1472,7 @@ useEffect(() => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboardData.mainPaid.slice(0, 10).map((entry, index) => (
+                    {leaderboardData[`${selectedLeaderboards.paid}Paid`].slice(0, 10).map((entry, index) => (
                       <tr key={index} className={`rank-${index + 1}`}>
                         <td>{index + 1}</td>
                         <td className="wallet-cell">
@@ -1274,3 +1513,5 @@ useEffect(() => {
 };
 
 export default GameApp;
+
+// Add this useEffect after your other useEffects

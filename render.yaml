@@ -9,6 +9,9 @@ services:
         value: 18.0.0
       - key: PORT
         value: 10000
+    secretFiles:
+      - key: .env
+        path: /etc/secrets/.env
     headers:
       - path: /*
         name: Access-Control-Allow-Origin

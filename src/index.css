@@ -169,8 +169,77 @@ header.scrolled {
   color: #2054c9;
   font-weight: 500;
   overflow-wrap: anywhere;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
 }
 
+.assets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.assets-header h3 {
+  margin: 0;
+}
+
+.dropdown-arrow {
+  transition: transform 0.3s ease;
+}
+
+.dropdown-arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.assets-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.assets-content.expanded {
+  max-height: 1000px; /* Adjust this value based on your content */
+}
+
+.balance-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.balance-item {
+   margin: 0;
+  min-width: 150px;
+  text-align: center;
+}
+.nft-list {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.nft-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem;
+  border-radius: 8px;
+  text-align: center;
+  width: 150px;
+}
+
+.nft-image {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
 /* Mode selector styles merged */
 .mode-selector {
   display: flex;
@@ -561,6 +630,7 @@ th, td {
 .game-over-popup {
   background: white;
   padding: 20px;
+  color: #2054c9;
   border-radius: 10px;
   text-align: center;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
@@ -850,4 +920,31 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 .player-name {
   align-items: center;
   gap: 5px;
+}
+
+.leaderboard-type-selector {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border: 2px solid #2054c9;
+  border-radius: 6px;
+  background-color: white;
+  color: #2054c9;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.leaderboard-type-selector:hover {
+  background-color: #f0f0f0;
+}
+
+.leaderboard-type-selector:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(32, 84, 201, 0.3);
+}
+
+.leaderboard-type-selector option {
+  padding: 8px;
+  background-color: white;
+  color: #2054c9;
 }
