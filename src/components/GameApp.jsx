@@ -341,67 +341,99 @@ useEffect(() => {
 
   const handleScoreSubmit = async () => {
     if (!wallet.connected || !wallet.account) {
-      alert('Please connect your wallet first');
-      return;
+        alert('Please connect your wallet first');
+        return;
     }
 
     try {
-      let requestBody = {
-        playerWallet: wallet.account.address,
-        score: gameState.score
-      };
-
-      if (gameMode === 'paid') {
-        if (!paymentStatus.verified || !paymentStatus.transactionId) {
-          alert('Payment verification required for paid mode');
-          return;
-        }
-        requestBody = {
-          ...requestBody,
-          sessionToken: paymentStatus.transactionId,
-          gameMode: 'paid'
+        let requestBody = {
+            playerWallet: wallet.account.address,
+            score: gameState.score
         };
-      }
 
-      // Submit to both main and secondary leaderboards
-      const submissions = ['main', 'secondary'].map(async (type) => {
-        // Updated endpoint URL structure
-        const endpoint = `https://ayagame.onrender.com/api/scores/${gameMode}`;
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          mode: 'cors',
-          body: JSON.stringify({ ...requestBody, gameType: type })
+        // Handle paid mode submissions
+        if (gameMode === 'paid') {
+            if (!paymentStatus.verified || !paymentStatus.transactionId) {
+                alert('Payment verification required for paid mode');
+                return;
+            }
+            requestBody = {
+                ...requestBody,
+                sessionToken: paymentStatus.transactionId,
+                gameMode: 'paid'
+            };
+        } 
+        // Handle qualifying free scores that want to submit to paid leaderboard
+        else if (qualifyingTier && qualifiedForPaid) {
+            const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
+            if (!tierConfig) {
+                throw new Error('Invalid qualifying tier');
+            }
+
+            // Handle payment first
+            await handleGamePayment();
+            if (!paymentStatus.verified || !paymentStatus.transactionId) {
+                throw new Error('Payment failed');
+            }
+
+            requestBody = {
+                ...requestBody,
+                sessionToken: paymentStatus.transactionId,
+                gameMode: 'paid'
+            };
+        }
+        // Regular free mode submission
+        else {
+            requestBody = {
+                ...requestBody,
+                gameMode: 'free'
+            };
+        }
+
+        // Submit to both main and secondary leaderboards
+        const submissions = ['main', 'secondary'].map(async (type) => {
+            const endpoint = `${config.apiBaseUrl}/api/scores/${requestBody.gameMode}`;
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                mode: 'cors',
+                body: JSON.stringify({ ...requestBody, gameType: type })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`${type} submission failed: ${errorData.error}`);
+            }
+
+            return response.json();
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`${type} submission failed: ${errorData.error}`);
+        await Promise.all(submissions);
+        console.log('Score submissions successful');
+
+        if (gameMode === 'paid') {
+            const newAttempts = paidGameAttempts + 1;
+            setPaidGameAttempts(newAttempts);
+            if (newAttempts >= maxAttempts) {
+                setGameState(prev => ({ ...prev, hasValidPayment: false }));
+            }
         }
 
-        return response.json();
-      });
-
-      await Promise.all(submissions);
-      console.log('Score submissions successful');
-
-      if (gameMode === 'paid') {
-        const newAttempts = paidGameAttempts + 1;
-        setPaidGameAttempts(newAttempts);
-        if (newAttempts >= maxAttempts) {
-          setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        // Reset qualification states if this was a qualifying submission
+        if (qualifyingTier && qualifiedForPaid) {
+            setQualifiedForPaid(false);
+            setQualifyingTier(null);
         }
-      }
 
-      await fetchLeaderboards();
-      
+        await fetchLeaderboards();
+        
     } catch (error) {
-      console.error('Score submission error:', error);
-      alert(`Failed to submit score: ${error.message}`);
+        console.error('Score submission error:', error);
+        alert(`Failed to submit score: ${error.message}`);
     }
-  };
+};
 
   // Leaderboard functions
   const fetchLeaderboards = async () => {
@@ -745,8 +777,8 @@ useEffect(() => {
 
     try {
         if (gameMode === 'free') {
-            // Submit to free leaderboard
-            await submitFreeScore(finalScore);
+            // Submit to free leaderboard using existing function
+            await handleScoreSubmit();
             // Then check if score qualifies for paid leaderboard
             const qualification = await checkScoreQualification(finalScore);
             if (qualification) {
@@ -755,35 +787,10 @@ useEffect(() => {
                 setQualifyingTier(qualification);
             }
         } else if (gameMode === 'paid' && wallet.connected) {
-            await handleScoreSubmission(finalScore);
+            await handleScoreSubmit();
         }
     } catch (error) {
         console.error('Error in game over handler:', error);
-    }
-};
-
-  // Add this new function for free score submissions
-  const submitFreeScore = async (score) => {
-    try {
-        const requestBody = {
-            playerWallet: wallet.account?.address || 'anonymous',
-            score: score,
-            gameMode: 'free'
-        };
-
-        await Promise.all(['main', 'secondary'].map(async (type) => {
-            const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/${type}/free`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) throw new Error(`${type} submission failed`);
-        }));
-
-        await fetchLeaderboards(); // Refresh leaderboards after submission
-    } catch (error) {
-        console.error('Free score submission error:', error);
     }
 };
 
@@ -1021,58 +1028,7 @@ const checkScoreQualification = async (score) => {
 };
 
 
-// Add the score submission handler
-const handleScoreSubmission = async () => {
-    if (!qualifyingTier || !gameState.score) return;
-    
-    try {
-        console.log('Starting score submission process:', {
-            tier: qualifyingTier,
-            score: gameState.score,
-            wallet: wallet.account.address
-        });
 
-        // Get the payment amount for the qualifying tier
-        const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
-        if (!tierConfig) {
-            throw new Error('Invalid qualifying tier');
-        }
-
-        // Handle payment first
-        const paymentResponse = await handleGamePayment(tierConfig.amount);
-        if (!paymentResponse || !paymentResponse.digest) {
-            throw new Error('Payment failed');
-        }
-
-        // After successful payment, submit score to paid leaderboard
-        const requestBody = {
-            playerWallet: wallet.account.address,
-            score: gameState.score,
-            sessionToken: paymentResponse.digest,
-            gameMode: 'paid'
-        };
-
-        // Submit to both main and secondary paid leaderboards
-        await Promise.all(['main', 'secondary'].map(async (type) => {
-            const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/${type}/paid`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) throw new Error(`${type} submission failed`);
-        }));
-
-        console.log('Score successfully submitted to paid leaderboard');
-        await fetchLeaderboards(); // Refresh leaderboards
-        setQualifiedForPaid(false); // Reset qualification state
-        setQualifyingTier(null);
-
-    } catch (error) {
-        console.error('Score submission error:', error);
-        alert(`Failed to submit score: ${error.message}`);
-    }
-};
 
 // Add this function to fetch primary wallet balance
 const fetchPrimaryWalletBalance = async () => {
