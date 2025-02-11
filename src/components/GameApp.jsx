@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createAvatar } from '@dicebear/core';
-import { pixelArt } from '@dicebear/collection';
+import { pixelArt, lorelei, adventurer } from '@dicebear/collection';
 import config from '../config/web2Config';
 import { gameManager } from '../game/GameManager.js';
 window.gameManager = gameManager;
@@ -46,26 +46,20 @@ const GameApp = () => {
   // Web3 discovery modal
   const [showWeb3Info, setShowWeb3Info] = useState(false);
 
-  // Enhanced error handling for avatar generation
-  const generateAvatarOptions = (seed) => {
+  // Avatar generation helper function
+  const generateAvatar = (style, seed, size = 32) => {
     try {
-      log(`Generating avatars for seed: ${seed}`, 'info');
-      return Array(3).fill(null).map((_, index) => {
-        try {
-          const avatar = createAvatar(pixelArt, {
-            seed: `${seed}-${index}`,
-            size: 128,
-            backgroundColor: ['b6e3f4','c0aede','d1d4f9']
-          });
-          return avatar.toDataUriSync();
-        } catch (error) {
-          log(`Failed to generate avatar ${index}: ${error.message}`, 'error');
-          return config.fallbacks.avatarUrl;
-        }
+      const avatar = createAvatar(style, {
+        seed,
+        size: size,
+        backgroundColor: ['b6e3f4','c0aede','d1d4f9']
       });
+      
+      // Use toDataUriSync() instead of toDataUrl
+      return avatar.toDataUriSync();
     } catch (error) {
-      log('Avatar generation failed completely', 'error');
-      return Array(3).fill(config.fallbacks.avatarUrl);
+      console.error(`Avatar generation failed for style ${style.name}:`, error);
+      return config.fallbacks.avatarUrl;
     }
   };
 
@@ -78,8 +72,18 @@ const GameApp = () => {
           throw new Error('GameManager not found on window object');
         }
 
-        // Wait for DOM to be fully loaded
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Ensure canvas element exists first
+        const canvas = document.getElementById('tearCatchGameCanvas');
+        if (!canvas) {
+          throw new Error('Canvas element not found');
+        }
+
+        // Set initial canvas dimensions
+        canvas.width = 800;
+        canvas.height = 600;
+
+        // Wait for next frame to ensure DOM is ready
+        await new Promise(resolve => requestAnimationFrame(resolve));
         
         const success = await window.gameManager.initialize();
         if (success) {
@@ -95,7 +99,8 @@ const GameApp = () => {
       }
     };
 
-    initializeGameManager();
+    // Delay initialization slightly to ensure DOM is ready
+    setTimeout(initializeGameManager, 100);
   }, []);
 
   // Mobile detection
@@ -141,7 +146,7 @@ const GameApp = () => {
     }
 
     // Generate avatar options
-    const avatarOptions = generateAvatarOptions(userState.username);
+    const avatarOptions = generatePlayerAvatars(userState.username);
     setUserState(prev => ({
       ...prev,
       avatarOptions,
@@ -286,10 +291,8 @@ const GameApp = () => {
           </thead>
           <tbody>
             {leaderboardData.map((entry, index) => {
-              const avatarUri = createAvatar(pixelArt, {
-                seed: entry.playerName,
-                size: 32
-              }).toDataUriSync();
+              // Generate avatar with fallback
+              const avatarUri = generateAvatar(pixelArt, entry.playerName);
               
               return (
                 <tr key={index} className={`rank-${index + 1}`}>
@@ -299,6 +302,9 @@ const GameApp = () => {
                       src={avatarUri}
                       alt="avatar" 
                       className="player-avatar"
+                      onError={(e) => {
+                        e.target.src = config.fallbacks.avatarUrl;
+                      }}
                     />
                     {entry.playerName}
                   </td>
@@ -332,6 +338,25 @@ const GameApp = () => {
       </div>
     )
   );
+
+  // Update player avatar generation
+  const generatePlayerAvatars = (seed) => {
+    try {
+      log(`Generating avatars for seed: ${seed}`, 'info');
+      return {
+        pixelArt: generateAvatar(pixelArt, `${seed}-pixel`, 128),
+        lorelei: generateAvatar(lorelei, `${seed}-lorelei`, 128),
+        adventurer: generateAvatar(adventurer, `${seed}-adventurer`, 128)
+      };
+    } catch (error) {
+      log('Avatar generation failed completely', 'error');
+      return {
+        pixelArt: config.fallbacks.avatarUrl,
+        lorelei: config.fallbacks.avatarUrl,
+        adventurer: config.fallbacks.avatarUrl
+      };
+    }
+  };
 
   // Main render method
   return (
