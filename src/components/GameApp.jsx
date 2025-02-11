@@ -84,6 +84,9 @@ const GameApp = () => {
   // Add this state for tracking qualification
   const [qualifiedForPaid, setQualifiedForPaid] = useState(false);
   
+  // Add this state for all balances
+  const [allBalances, setAllBalances] = useState({});
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -1030,7 +1033,7 @@ const checkScoreQualification = async (score) => {
 
 
 
-// Add this function to fetch primary wallet balance
+// Modify fetchPrimaryWalletBalance to set all balances
 const fetchPrimaryWalletBalance = async () => {
     try {
         if (!wallet.chain?.name) {
@@ -1038,71 +1041,72 @@ const fetchPrimaryWalletBalance = async () => {
             return;
         }
         
-        // Update network configuration first
         config.updateNetwork(wallet.chain.name);
-        
-        // Now get the recipients after network is updated
         const recipients = config.getCurrentRecipients();
-        console.log('Network:', config.network);
-        console.log('All recipients:', recipients);
         
         if (!recipients?.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
         }
 
-        // Get all coins owned by the address
         const allCoins = await client.getAllCoins({
             owner: recipients.primary
         });
 
-        // Calculate total balance across all coin types
-        let totalBalance = BigInt(0);
+        let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
 
         for (const coin of allCoins.data) {
             const coinType = coin.coinType;
             const balance = BigInt(coin.balance);
             
-            // Add to total if it's SUI
             if (coinType === '0x2::sui::SUI') {
-                totalBalance += balance;
+                totalSuiBalance += balance;
             }
             
-            // Store balance by coin type
-            if (!balancesByCoin[coinType]) {
-                balancesByCoin[coinType] = balance;
+            // Get coin symbol from type
+            const symbol = coinType.split('::').pop() || coinType;
+            
+            if (!balancesByCoin[symbol]) {
+                balancesByCoin[symbol] = balance;
             } else {
-                balancesByCoin[coinType] += balance;
+                balancesByCoin[symbol] += balance;
             }
         }
         
-        console.log('Primary wallet balance details:', {
-            address: recipients.primary,
-            totalSuiBalance: Number(totalBalance) / 1_000_000_000,
-            balanceInMist: totalBalance.toString(),
-            allBalances: Object.entries(balancesByCoin).map(([coinType, balance]) => ({
-                coinType,
-                balance: balance.toString(),
-                formattedBalance: Number(balance) / 1_000_000_000
-            }))
-        });
+        setAllBalances(balancesByCoin);
+        setPrimaryWalletBalance(totalSuiBalance);
         
-        setPrimaryWalletBalance(totalBalance);
     } catch (error) {
         console.error('Balance check error:', error);
         setPrimaryWalletBalance(null);
+        setAllBalances({});
     }
 };
 
-// Add useEffect to fetch balance periodically
-useEffect(() => {
-    if (client && wallet.chain?.name) {  // Only run when we have both client and chain name
-        fetchPrimaryWalletBalance();
-        const interval = setInterval(fetchPrimaryWalletBalance, 60000);
-        return () => clearInterval(interval);
-    }
-}, [client, wallet.chain?.name]); // Add chain name to dependencies
+// Replace the balance display with:
+{wallet.connected && (
+    <div className="wallet-info">
+        <h3>Prize Pool Balances:</h3>
+        <div className="balance-list">
+            {Object.entries(allBalances).map(([symbol, balance]) => (
+                <p key={symbol} className="balance-item">
+                    {formatSUI(balance)} {symbol}
+                </p>
+            ))}
+        </div>
+        <p className="creator-credit">
+            Created by <a 
+                href="https://x.com/Zombfyd" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="creator-name"
+            >
+                🎮 Zombfyd 🎮
+            </a>
+        </p>
+    </div>
+)}
 
 const resetGameState = () => {
     if (window.gameManager) {
@@ -1192,17 +1196,24 @@ const handlePaidGameAttempt = () => {
 
           {wallet.connected && (
             <div className="wallet-info">
-              <p>Prize Pool Balance: {primaryWalletBalance ? formatSUI(primaryWalletBalance) : '---'} SUI</p>
-              <p className="creator-credit">
-            Created by <a 
-              href="https://x.com/Zombfyd" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="creator-name"
-            >
-             🎮 Zombfyd 🎮
-            </a>
-          </p>
+                <h3>Prize Pool Balances:</h3>
+                <div className="balance-list">
+                    {Object.entries(allBalances).map(([symbol, balance]) => (
+                        <p key={symbol} className="balance-item">
+                            {formatSUI(balance)} {symbol}
+                        </p>
+                    ))}
+                </div>
+                <p className="creator-credit">
+                    Created by <a 
+                        href="https://x.com/Zombfyd" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="creator-name"
+                    >
+                        🎮 Zombfyd 🎮
+                    </a>
+                </p>
             </div>
           )}
 
