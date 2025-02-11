@@ -50,23 +50,22 @@ const GameApp = () => {
   const generateAvatarOptions = (seed) => {
     try {
       log(`Generating avatars for seed: ${seed}`, 'info');
-      const styles = ['pixelArt', 'lorelei', 'adventurer'];
-      return styles.map(style => {
+      return Array(3).fill(null).map((_, index) => {
         try {
-          return createAvatar(pixelArt, {
-            seed: `${seed}-${style}`,
+          const avatar = createAvatar(pixelArt, {
+            seed: `${seed}-${index}`,
             size: 128,
             backgroundColor: ['b6e3f4','c0aede','d1d4f9']
-          }).toDataUrl();
+          });
+          return avatar.toDataUriSync();
         } catch (error) {
-          log(`Failed to generate ${style} avatar: ${error.message}`, 'error');
-          // Return a fallback avatar URL
-          return `https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/default-avatar-${style}.png`;
+          log(`Failed to generate avatar ${index}: ${error.message}`, 'error');
+          return config.fallbacks.avatarUrl;
         }
       });
     } catch (error) {
       log('Avatar generation failed completely', 'error');
-      return Array(3).fill('https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/default-avatar.png');
+      return Array(3).fill(config.fallbacks.avatarUrl);
     }
   };
 
@@ -79,6 +78,9 @@ const GameApp = () => {
           throw new Error('GameManager not found on window object');
         }
 
+        // Wait for DOM to be fully loaded
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         const success = await window.gameManager.initialize();
         if (success) {
           log('Game manager initialized successfully', 'success');
@@ -283,20 +285,27 @@ const GameApp = () => {
             </tr>
           </thead>
           <tbody>
-            {leaderboardData.map((entry, index) => (
-              <tr key={index} className={`rank-${index + 1}`}>
-                <td>{index + 1}</td>
-                <td className="player-cell">
-                  <img 
-                    src={createAvatar(pixelArt, { seed: entry.playerName }).toDataUrl()} 
-                    alt="avatar" 
-                    className="player-avatar"
-                  />
-                  {entry.playerName}
-                </td>
-                <td className="score-cell">{entry.score}</td>
-              </tr>
-            ))}
+            {leaderboardData.map((entry, index) => {
+              const avatarUri = createAvatar(pixelArt, {
+                seed: entry.playerName,
+                size: 32
+              }).toDataUriSync();
+              
+              return (
+                <tr key={index} className={`rank-${index + 1}`}>
+                  <td>{index + 1}</td>
+                  <td className="player-cell">
+                    <img 
+                      src={avatarUri}
+                      alt="avatar" 
+                      className="player-avatar"
+                    />
+                    {entry.playerName}
+                  </td>
+                  <td className="score-cell">{entry.score}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

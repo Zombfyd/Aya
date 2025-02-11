@@ -73,15 +73,40 @@ app.post('/api/web2/scores', async (req, res) => {
   }
 });
 
+// Add retry logic for database requests
+const fetchWithRetry = async (url, options = {}, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) return response;
+      
+      if (response.status === 502) {
+        console.error(`Attempt ${i + 1}: Database server unavailable`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        continue;
+      }
+      
+      throw new Error(`HTTP error! status: ${response.status}`);
+    } catch (error) {
+      if (i === retries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Max retries reached');
+};
+
+// Update the endpoints to use retry logic
 app.get('/api/web2/leaderboard', async (req, res) => {
   try {
-    const response = await fetch(`${DATABASE_URL}/api/web2/leaderboard`);
-    if (!response.ok) throw new Error(`Database error: ${response.status}`);
+    const response = await fetchWithRetry(`${DATABASE_URL}/api/web2/leaderboard`);
     const data = await response.json();
     res.json(data);
   } catch (error) {
     console.error('Leaderboard fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+    res.status(500).json({ 
+      error: 'Failed to fetch leaderboard',
+      details: error.message 
+    });
   }
 });
 
