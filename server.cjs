@@ -2,8 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const fetch = require('node-fetch');
 
 const app = express();
+const DATABASE_URL = 'https://ayagame.onrender.com';
 
 // Enable pre-flight requests for all routes
 app.options('*', cors());
@@ -51,13 +53,53 @@ app.use((req, res, next) => {
   next();
 });
 
-// Existing Web3 endpoints
-app.post('/api/scores/:mode', require('./src/routes/scoreRoutes').submitScore);
-app.get('/api/scores/leaderboard/:gameType/:mode', require('./src/routes/scoreRoutes').getLeaderboard);
+// Proxy endpoints to the database server
+app.post('/api/web2/scores', async (req, res) => {
+  try {
+    const response = await fetch(`${DATABASE_URL}/api/web2/scores`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(req.body)
+    });
+    
+    if (!response.ok) throw new Error(`Database error: ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Score submission error:', error);
+    res.status(500).json({ error: 'Failed to submit score' });
+  }
+});
 
-// New Web2 endpoints
-app.post('/api/web2/scores', require('./src/controllers/scoreController').submitWeb2Score);
-app.get('/api/web2/leaderboard', require('./src/controllers/scoreController').getWeb2Leaderboard);
+app.get('/api/web2/leaderboard', async (req, res) => {
+  try {
+    const response = await fetch(`${DATABASE_URL}/api/web2/leaderboard`);
+    if (!response.ok) throw new Error(`Database error: ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Leaderboard fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
+// Proxy Web3 endpoints
+app.get('/api/scores/leaderboard/:gameType/:mode', async (req, res) => {
+  try {
+    const { gameType, mode } = req.params;
+    const response = await fetch(
+      `${DATABASE_URL}/api/scores/leaderboard/${gameType}/${mode}`
+    );
+    if (!response.ok) throw new Error(`Database error: ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Web3 leaderboard fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch Web3 leaderboard' });
+  }
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
