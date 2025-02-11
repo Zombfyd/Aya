@@ -68,23 +68,24 @@ const GameApp = () => {
     const initializeGameManager = async () => {
       try {
         log('Initializing game manager...', 'info');
-        if (!window.gameManager) {
-          throw new Error('GameManager not found on window object');
-        }
-
-        // Ensure canvas element exists first
+        
+        // Wait for React to render
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         const canvas = document.getElementById('tearCatchGameCanvas');
         if (!canvas) {
           throw new Error('Canvas element not found');
+        }
+
+        if (!window.gameManager) {
+          throw new Error('GameManager not found on window object');
         }
 
         // Set initial canvas dimensions
         canvas.width = 800;
         canvas.height = 600;
 
-        // Wait for next frame to ensure DOM is ready
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        
+        // Initialize game manager
         const success = await window.gameManager.initialize();
         if (success) {
           log('Game manager initialized successfully', 'success');
@@ -99,9 +100,11 @@ const GameApp = () => {
       }
     };
 
-    // Delay initialization slightly to ensure DOM is ready
-    setTimeout(initializeGameManager, 100);
-  }, []);
+    // Only initialize if the game has started
+    if (gameState.gameStarted) {
+      initializeGameManager();
+    }
+  }, [gameState.gameStarted]); // Add gameState.gameStarted as dependency
 
   // Mobile detection
   useEffect(() => {
@@ -388,7 +391,11 @@ const GameApp = () => {
           <canvas
             id="tearCatchGameCanvas"
             className="game-canvas"
-            style={{ display: gameState.gameStarted ? 'block' : 'none' }}
+            style={{ 
+              visibility: gameState.gameStarted ? 'visible' : 'hidden',
+              position: gameState.gameStarted ? 'relative' : 'absolute',
+              top: gameState.gameStarted ? 'auto' : '-9999px'
+            }}
           />
 
           {!gameState.gameStarted && !gameState.isGameOver && gameManagerInitialized && (
