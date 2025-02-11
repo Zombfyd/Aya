@@ -169,11 +169,7 @@ header.scrolled {
   color: #2054c9;
   font-weight: 500;
   overflow-wrap: anywhere;
-  margin: 1rem 0;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-}
+  }
 
 .balance-list {
   display: flex;

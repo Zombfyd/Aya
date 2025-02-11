@@ -1035,6 +1035,12 @@ const checkScoreQualification = async (score) => {
 
 // Modify fetchPrimaryWalletBalance to set all balances
 const fetchPrimaryWalletBalance = async () => {
+    console.log('fetchPrimaryWalletBalance called', {
+        isWalletConnected: wallet.connected,
+        chainName: wallet.chain?.name,
+        client: !!client // check if client exists
+    });
+
     try {
         if (!wallet.chain?.name) {
             console.log('Wallet chain not yet available');
@@ -1044,6 +1050,8 @@ const fetchPrimaryWalletBalance = async () => {
         config.updateNetwork(wallet.chain.name);
         const recipients = config.getCurrentRecipients();
         
+        console.log('Recipients:', recipients); // Check recipients
+
         if (!recipients?.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
