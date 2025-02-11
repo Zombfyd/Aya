@@ -745,8 +745,9 @@ useEffect(() => {
 
     try {
         if (gameMode === 'free') {
-            // Check if score qualifies for paid leaderboard
-            await handleScoreSubmission(finalScore);
+            // Submit to free leaderboard
+            await submitFreeScore(finalScore);
+            // Then check if score qualifies for paid leaderboard
             const qualification = await checkScoreQualification(finalScore);
             if (qualification) {
                 console.log('Score qualifies for paid leaderboard:', qualification);
@@ -761,7 +762,30 @@ useEffect(() => {
     }
 };
 
+  // Add this new function for free score submissions
+  const submitFreeScore = async (score) => {
+    try {
+        const requestBody = {
+            playerWallet: wallet.account?.address || 'anonymous',
+            score: score,
+            gameMode: 'free'
+        };
 
+        await Promise.all(['main', 'secondary'].map(async (type) => {
+            const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/${type}/free`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) throw new Error(`${type} submission failed`);
+        }));
+
+        await fetchLeaderboards(); // Refresh leaderboards after submission
+    } catch (error) {
+        console.error('Free score submission error:', error);
+    }
+};
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
@@ -1098,6 +1122,39 @@ useEffect(() => {
     }
 }, [client, wallet.chain?.name]); // Add chain name to dependencies
 
+const resetGameState = () => {
+    if (window.gameManager) {
+        window.gameManager.cleanup();
+        window.gameManager.initGame(); // Reinitialize the game manager
+    }
+    
+    setGameState({
+        gameStarted: false,
+        score: 0,
+        isGameOver: false,
+        hasValidPayment: false
+    });
+    
+    setQualifyingTier(null);
+    setQualifiedForPaid(false);
+    setPaidGameAttempts(0);
+    setMaxAttempts(0);
+    setSelectedTier(null);
+};
+
+const handlePaidGameAttempt = () => {
+    const newAttempts = paidGameAttempts + 1;
+    setPaidGameAttempts(newAttempts);
+    
+    if (newAttempts >= maxAttempts) {
+        setGameState(prev => ({
+            ...prev,
+            hasValidPayment: false
+        }));
+        alert('All paid attempts used. Please make a new payment to continue playing.');
+    }
+};
+
   // Render method
   return (
     
@@ -1272,12 +1329,7 @@ useEffect(() => {
         </button>
         <button 
           onClick={() => {
-    setGameState(prev => ({
-        ...prev,
-              isGameOver: false,
-              hasValidPayment: false
-            }));
-            setQualifyingTier(null);
+    resetGameState();
           }}
           className="return-menu-button"
         >
