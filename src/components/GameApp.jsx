@@ -87,6 +87,9 @@ const GameApp = () => {
   // Add this state for all balances
   const [allBalances, setAllBalances] = useState({});
   
+  // Add NFT state at the top of your component
+  const [nfts, setNFTs] = useState([]);
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -1038,7 +1041,7 @@ const fetchPrimaryWalletBalance = async () => {
     console.log('fetchPrimaryWalletBalance called', {
         isWalletConnected: wallet.connected,
         chainName: wallet.chain?.name,
-        client: !!client // check if client exists
+        client: !!client
     });
 
     try {
@@ -1050,63 +1053,74 @@ const fetchPrimaryWalletBalance = async () => {
         config.updateNetwork(wallet.chain.name);
         const recipients = config.getCurrentRecipients();
         
-        console.log('Recipients:', recipients); // Check recipients
-
         if (!recipients?.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
         }
 
-        console.log('Fetching balances for:', recipients.primary);
-
-        const allCoins = await client.getAllCoins({
-            owner: recipients.primary
-        });
+        // Fetch both coins and NFTs
+        const [allCoins, allNFTs] = await Promise.all([
+            client.getAllCoins({ owner: recipients.primary }),
+            client.getOwnedObjects({
+                owner: recipients.primary,
+                options: { showContent: true }
+            })
+        ]);
 
         console.log('Received coins:', allCoins.data);
+        console.log('Received NFTs:', allNFTs.data);
 
         let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
+        const nfts = [];
 
+        // Process coins
         for (const coin of allCoins.data) {
             const coinType = coin.coinType;
             const balance = BigInt(coin.balance);
             
-            // Handle SUI balance
             if (coinType === '0x2::sui::SUI') {
                 totalSuiBalance += balance;
             }
             
-            // Extract symbol more carefully
             const parts = coinType.split('::');
             const symbol = parts.length >= 3 ? parts[2] : coinType;
             
-            // Accumulate balances by symbol
             if (balancesByCoin[symbol]) {
                 balancesByCoin[symbol] = balancesByCoin[symbol] + balance;
             } else {
                 balancesByCoin[symbol] = balance;
             }
+        }
 
-            console.log('Processing coin:', {
-                coinType,
-                symbol,
-                balance: balance.toString()
-            });
+        // Process NFTs
+        for (const nft of allNFTs.data) {
+            if (nft.data?.content?.type?.includes('::nft::')) {
+                nfts.push({
+                    id: nft.data.objectId,
+                    type: nft.data.content.type,
+                    name: nft.data.content.fields?.name || 'Unnamed NFT',
+                    description: nft.data.content.fields?.description,
+                    url: nft.data.content.fields?.url
+                });
+            }
         }
         
         console.log('Final balances:', {
             totalSui: totalSuiBalance.toString(),
-            byCoin: balancesByCoin
+            byCoin: balancesByCoin,
+            nfts: nfts
         });
 
         setAllBalances(balancesByCoin);
         setPrimaryWalletBalance(totalSuiBalance);
+        setNFTs(nfts); // Add this state variable
         
     } catch (error) {
         console.error('Balance check error:', error);
         setPrimaryWalletBalance(null);
         setAllBalances({});
+        setNFTs([]);
     }
 };
 
@@ -1207,7 +1221,7 @@ const handlePaidGameAttempt = () => {
 
           {wallet.connected && (
             <div className="wallet-info">
-                <h3>Prize Pool Balances:</h3>
+                <h3>Prize Pool Assets:</h3>
                 <div className="balance-list">
                     {Object.entries(allBalances).map(([symbol, balance]) => (
                         <p key={symbol} className="balance-item">
@@ -1215,6 +1229,25 @@ const handlePaidGameAttempt = () => {
                         </p>
                     ))}
                 </div>
+                {nfts.length > 0 && (
+                    <>
+                        <h3>NFTs:</h3>
+                        <div className="nft-list">
+                            {nfts.map((nft) => (
+                                <div key={nft.id} className="nft-item">
+                                    {nft.url && (
+                                        <img 
+                                            src={nft.url} 
+                                            alt={nft.name} 
+                                            className="nft-image"
+                                        />
+                                    )}
+                                    <p>{nft.name}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
                 <p className="creator-credit">
                     Created by <a 
                         href="https://x.com/Zombfyd" 
