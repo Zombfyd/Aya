@@ -797,7 +797,7 @@ useEffect(() => {
         gameMode: gameMode
     });
 
-    // Use different tier configs based on context
+    // Use either selectedTier or qualifyingTier depending on context
     const tierToUse = selectedTier || qualifyingTier;
     
     if (!wallet.connected || !tierToUse) {
@@ -809,15 +809,12 @@ useEffect(() => {
         return;
     }
 
-    // Use different tier configurations based on the context
-    const tierConfig = gameMode === 'free' ? 
-        config.scoreSubmissionTiers[tierToUse] : 
-        config.paymentTiers[tierToUse];
-
+    // Use scoreSubmissionTiers instead of paymentTiers for qualification submissions
+    const tierConfig = config.scoreSubmissionTiers[tierToUse];
     if (!tierConfig) {
         console.error('Invalid tier configuration:', {
             tierToUse,
-            availableTiers: gameMode === 'free' ? config.scoreSubmissionTiers : config.paymentTiers
+            availableTiers: config.scoreSubmissionTiers
         });
         alert('Invalid payment tier configuration');
         return;
@@ -1029,7 +1026,7 @@ const handleScoreSubmission = async () => {
 
         // Submit to both main and secondary paid leaderboards
         await Promise.all(['main', 'secondary'].map(async (type) => {
-            const response = await fetch(`${config.apiBaseUrl}/api/scores/${type}/paid`, {
+            const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/${type}/paid`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
