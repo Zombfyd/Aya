@@ -1110,29 +1110,14 @@ const fetchPrimaryWalletBalance = async () => {
     }
 };
 
-// Replace the balance display with:
-{wallet.connected && (
-    <div className="wallet-info">
-        <h3>Prize Pool Balances:</h3>
-        <div className="balance-list">
-            {Object.entries(allBalances).map(([symbol, balance]) => (
-                <p key={symbol} className="balance-item">
-                    {formatSUI(balance)} {symbol}
-                </p>
-            ))}
-        </div>
-        <p className="creator-credit">
-            Created by <a 
-                href="https://x.com/Zombfyd" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="creator-name"
-            >
-                🎮 Zombfyd 🎮
-            </a>
-        </p>
-    </div>
-)}
+
+useEffect(() => {
+  if (wallet.connected) {
+      fetchPrimaryWalletBalance();
+      const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
+      return () => clearInterval(interval);
+  }
+}, [wallet.connected, wallet.chain?.name]);
 
 const resetGameState = () => {
     if (window.gameManager) {
@@ -1480,3 +1465,5 @@ const handlePaidGameAttempt = () => {
 };
 
 export default GameApp;
+
+// Add this useEffect after your other useEffects
