@@ -169,6 +169,27 @@ header.scrolled {
   color: #2054c9;
   font-weight: 500;
   overflow-wrap: anywhere;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.balance-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.balance-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  margin: 0;
+  min-width: 150px;
+  text-align: center;
 }
 
 /* Mode selector styles merged */
