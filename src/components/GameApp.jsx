@@ -745,7 +745,25 @@ useEffect(() => {
 
     try {
         if (gameMode === 'free') {
-            // Check if score qualifies for paid leaderboard
+            // Always submit to free leaderboard first
+            const requestBody = {
+                playerWallet: wallet.account.address,
+                score: finalScore,
+                gameMode: 'free'
+            };
+
+            // Submit to both main and secondary free leaderboards
+            await Promise.all(['main', 'secondary'].map(async (type) => {
+                const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/${type}/free`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) throw new Error(`${type} submission failed`);
+            }));
+
+            // Then check if score qualifies for paid leaderboard
             const qualification = await checkScoreQualification(finalScore);
             if (qualification) {
                 console.log('Score qualifies for paid leaderboard:', qualification);
