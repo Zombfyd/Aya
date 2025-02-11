@@ -1,4 +1,3 @@
-
 .mobile-wallet-guide {
   background: rgba(0, 0, 0, 0.05);
   padding: 15px;
@@ -383,4 +382,31 @@ tr:nth-child(even) {
 .countdown-popup p {
   margin: 0;
   opacity: 0.8;
+}
+
+.player-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-right: 8px;
+  object-fit: cover;
+  background-color: #f0f0f0; /* Placeholder color while loading */
+}
+
+.player-avatar.error {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+/* Add loading animation */
+@keyframes avatar-loading {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.player-avatar:not([src]), 
+.player-avatar[src=""] {
+  animation: avatar-loading 1.5s infinite;
+  background-color: #2054c9;
 }
