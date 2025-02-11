@@ -1262,7 +1262,10 @@ const handlePaidGameAttempt = () => {
                         </>
                     )}
                 </div>
-                <p className="creator-credit">
+                
+            </div>
+          )}
+          <p className="creator-credit">
                     Created by <a 
                         href="https://x.com/Zombfyd" 
                         target="_blank" 
@@ -1272,8 +1275,6 @@ const handlePaidGameAttempt = () => {
                         🎮 Zombfyd 🎮
                     </a>
                 </p>
-            </div>
-          )}
 
           <div className="mode-selector">
         <button 
