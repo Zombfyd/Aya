@@ -1051,15 +1051,41 @@ const fetchPrimaryWalletBalance = async () => {
             return;
         }
 
-        const { totalBalance } = await client.getBalance({
-            owner: recipients.primary,
-            coinType: '0x2::sui::SUI'
+        // Get all coins owned by the address
+        const allCoins = await client.getAllCoins({
+            owner: recipients.primary
         });
+
+        // Calculate total balance across all coin types
+        let totalBalance = BigInt(0);
+        const balancesByCoin = {};
+
+        for (const coin of allCoins.data) {
+            const coinType = coin.coinType;
+            const balance = BigInt(coin.balance);
+            
+            // Add to total if it's SUI
+            if (coinType === '0x2::sui::SUI') {
+                totalBalance += balance;
+            }
+            
+            // Store balance by coin type
+            if (!balancesByCoin[coinType]) {
+                balancesByCoin[coinType] = balance;
+            } else {
+                balancesByCoin[coinType] += balance;
+            }
+        }
         
         console.log('Primary wallet balance details:', {
             address: recipients.primary,
-            balanceInSui: Number(totalBalance) / 1_000_000_000,
-            balanceInMist: totalBalance.toString()
+            totalSuiBalance: Number(totalBalance) / 1_000_000_000,
+            balanceInMist: totalBalance.toString(),
+            allBalances: Object.entries(balancesByCoin).map(([coinType, balance]) => ({
+                coinType,
+                balance: balance.toString(),
+                formattedBalance: Number(balance) / 1_000_000_000
+            }))
         });
         
         setPrimaryWalletBalance(totalBalance);
@@ -1278,7 +1304,11 @@ const handlePaidGameAttempt = () => {
       {/* Existing game over buttons */}
       <div className="game-over-buttons">
         <button 
-          onClick={restartGame} 
+          onClick={() => {
+            resetGameState();
+            restartGame();
+                      }}
+          
           className="restart-button"
         >
           Play Again
