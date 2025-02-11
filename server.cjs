@@ -10,7 +10,12 @@ app.options('*', cors());
 
 // More permissive CORS configuration
 app.use(cors({
-  origin: ['https://www.ayaonsui.xyz', 'https://aya-3i9c.onrender.com', 'https://www.tears-of-aya.webflow.io'],
+  origin: [
+    'https://www.ayaonsui.xyz', 
+    'https://aya-3i9c.onrender.com', 
+    'https://www.tears-of-aya.webflow.io',
+    'https://aya-1.onrender.com'  // Added new URL
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -25,8 +30,19 @@ app.use(express.static('dist'));
 
 // Additional headers for all routes
 app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://www.ayaonsui.xyz',
+    'https://aya-3i9c.onrender.com',
+    'https://www.tears-of-aya.webflow.io',
+    'https://aya-1.onrender.com'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+  }
+
   res.set({
-    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': '*',
     'Access-Control-Allow-Credentials': 'true',
