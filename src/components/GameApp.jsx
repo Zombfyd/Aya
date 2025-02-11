@@ -1049,9 +1049,13 @@ const fetchPrimaryWalletBalance = async () => {
             return;
         }
 
+        console.log('Fetching balances for:', recipients.primary);
+
         const allCoins = await client.getAllCoins({
             owner: recipients.primary
         });
+
+        console.log('Received coins:', allCoins.data);
 
         let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
@@ -1060,20 +1064,34 @@ const fetchPrimaryWalletBalance = async () => {
             const coinType = coin.coinType;
             const balance = BigInt(coin.balance);
             
+            // Handle SUI balance
             if (coinType === '0x2::sui::SUI') {
                 totalSuiBalance += balance;
             }
             
-            // Get coin symbol from type
-            const symbol = coinType.split('::').pop() || coinType;
+            // Extract symbol more carefully
+            const parts = coinType.split('::');
+            const symbol = parts.length >= 3 ? parts[2] : coinType;
             
-            if (!balancesByCoin[symbol]) {
-                balancesByCoin[symbol] = balance;
+            // Accumulate balances by symbol
+            if (balancesByCoin[symbol]) {
+                balancesByCoin[symbol] = balancesByCoin[symbol] + balance;
             } else {
-                balancesByCoin[symbol] += balance;
+                balancesByCoin[symbol] = balance;
             }
+
+            console.log('Processing coin:', {
+                coinType,
+                symbol,
+                balance: balance.toString()
+            });
         }
         
+        console.log('Final balances:', {
+            totalSui: totalSuiBalance.toString(),
+            byCoin: balancesByCoin
+        });
+
         setAllBalances(balancesByCoin);
         setPrimaryWalletBalance(totalSuiBalance);
         
