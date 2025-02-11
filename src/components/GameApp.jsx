@@ -90,6 +90,9 @@ const GameApp = () => {
   // Add NFT state at the top of your component
   const [nfts, setNFTs] = useState([]);
   
+  // Add this state at the top with other state declarations
+  const [isAssetsExpanded, setIsAssetsExpanded] = useState(false);
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -1221,33 +1224,44 @@ const handlePaidGameAttempt = () => {
 
           {wallet.connected && (
             <div className="wallet-info">
-                <h3>Prize Pool Assets:</h3>
-                <div className="balance-list">
-                    {Object.entries(allBalances).map(([symbol, balance]) => (
-                        <p key={symbol} className="balance-item">
-                            {formatSUI(balance)} {symbol}
-                        </p>
-                    ))}
+                <div 
+                    className="assets-header" 
+                    onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
+                >
+                    <h3>Prize Pool Assets</h3>
+                    <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
+                        ▼
+                    </span>
                 </div>
-                {nfts.length > 0 && (
-                    <>
-                        <h3>NFTs:</h3>
-                        <div className="nft-list">
-                            {nfts.map((nft) => (
-                                <div key={nft.id} className="nft-item">
-                                    {nft.url && (
-                                        <img 
-                                            src={nft.url} 
-                                            alt={nft.name} 
-                                            className="nft-image"
-                                        />
-                                    )}
-                                    <p>{nft.name}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                )}
+                
+                <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
+                    <div className="balance-list">
+                        {Object.entries(allBalances).map(([symbol, balance]) => (
+                            <p key={symbol} className="balance-item">
+                                {formatSUI(balance)} {symbol}
+                            </p>
+                        ))}
+                    </div>
+                    {nfts.length > 0 && (
+                        <>
+                            <h3>NFTs:</h3>
+                            <div className="nft-list">
+                                {nfts.map((nft) => (
+                                    <div key={nft.id} className="nft-item">
+                                        {nft.url && (
+                                            <img 
+                                                src={nft.url} 
+                                                alt={nft.name} 
+                                                className="nft-image"
+                                            />
+                                        )}
+                                        <p>{nft.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
                 <p className="creator-credit">
                     Created by <a 
                         href="https://x.com/Zombfyd" 
