@@ -496,12 +496,12 @@ useEffect(() => {
                 sessionToken: paymentStatus.transactionId,
                 gameMode: 'paid'
             };
-        }
-        // Regular free mode submission
-        else {
+        } else {
+            // Regular free mode submission (wallet connected) – include player's name
             requestBody = {
                 ...requestBody,
-                gameMode: 'free'
+                gameMode: 'free',
+                playerName: playerName
             };
         }
 
@@ -882,43 +882,44 @@ useEffect(() => {
     }
   };
 
-  // Modify window.gameManager.onGameOver
-  window.gameManager.onGameOver = async (finalScore) => {
-    console.log('Game Over triggered with score:', finalScore);
-    
-    setGameState(prev => ({
-        ...prev,
-        score: finalScore,
-        isGameOver: true,
-        gameStarted: false,
-    }));
+  // Attach the game-over handler once after the game manager has been initialized
+  useEffect(() => {
+    if (window.gameManager) {
+      window.gameManager.onGameOver = async (finalScore) => {
+        console.log('Game Over triggered with score:', finalScore);
 
-    try {
-        // Handle free mode
-        if (gameMode === 'free') {
-            // Submit to appropriate leaderboard based on wallet connection
+        setGameState(prev => ({
+          ...prev,
+          score: finalScore,
+          isGameOver: true,
+          gameStarted: false,
+        }));
+
+        try {
+          // Handle free mode submissions
+          if (gameMode === 'free') {
             if (!wallet.connected) {
-                console.log('Submitting to web2 leaderboard with score:', finalScore);
-                await handleScoreSubmit(finalScore); // Pass the score directly
+              console.log('Submitting to web2 leaderboard with score:', finalScore);
+              await handleScoreSubmit(finalScore);
             } else {
-                // Submit to free leaderboard and check qualification
-                await handleScoreSubmit(finalScore);
-                const qualification = await checkScoreQualification(finalScore);
-                if (qualification) {
-                    console.log('Score qualifies for paid leaderboard:', qualification);
-                    setQualifiedForPaid(true);
-                    setQualifyingTier(qualification);
-                }
+              // For wallet connected free mode, submit score and then check for qualification
+              await handleScoreSubmit(finalScore);
+              const qualification = await checkScoreQualification(finalScore);
+              if (qualification) {
+                console.log('Score qualifies for paid leaderboard:', qualification);
+                setQualifiedForPaid(true);
+                setQualifyingTier(qualification);
+              }
             }
-        } 
-        // Handle paid mode (requires wallet connection)
-        else if (gameMode === 'paid' && wallet.connected) {
+          } else if (gameMode === 'paid' && wallet.connected) {
             await handleScoreSubmit(finalScore);
+          }
+        } catch (error) {
+          console.error('Error in game over handler:', error);
         }
-    } catch (error) {
-        console.error('Error in game over handler:', error);
+      };
     }
-};
+  }, [gameMode, wallet.connected]);
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
@@ -1547,7 +1548,7 @@ const handleSuinsChange = (e) => {
             onClick={handleGamePayment}
             className="submit-paid-button"
           >
-            Submit Score
+            Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
           </button>
         </div>
       )}
