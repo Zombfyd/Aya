@@ -826,12 +826,15 @@ useEffect(() => {
     }));
 
     try {
+        // Handle free mode
         if (gameMode === 'free') {
-            // Submit to free leaderboard using existing function
-            await handleScoreSubmit();
-            
-            // Only check qualification if wallet is connected
-            if (wallet.connected) {
+            // Submit to appropriate leaderboard based on wallet connection
+            if (!wallet.connected) {
+                console.log('Submitting to web2 leaderboard');
+                await handleScoreSubmit();
+            } else {
+                // Submit to free leaderboard and check qualification
+                await handleScoreSubmit();
                 const qualification = await checkScoreQualification(finalScore);
                 if (qualification) {
                     console.log('Score qualifies for paid leaderboard:', qualification);
@@ -839,7 +842,9 @@ useEffect(() => {
                     setQualifyingTier(qualification);
                 }
             }
-        } else if (gameMode === 'paid' && wallet.connected) {
+        } 
+        // Handle paid mode (requires wallet connection)
+        else if (gameMode === 'paid' && wallet.connected) {
             await handleScoreSubmit();
         }
     } catch (error) {
