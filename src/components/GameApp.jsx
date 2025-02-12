@@ -1232,14 +1232,32 @@ const handlePaidGameAttempt = () => {
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
       {!gameState.playerInitialized ? (
-        <UsernameInput onSubmit={(name) => {
-          setPlayerName(name);
-          localStorage.setItem('playerName', name);
-          setGameState(prev => ({
-            ...prev,
-            playerInitialized: true
-          }));
-        }} />
+        <header>
+          <div className="title">Tears of Aya</div>
+          <div className="wkit-connected-container">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const name = e.target.username.value.trim();
+              if (name && name.length <= 25) {
+                setPlayerName(name);
+                localStorage.setItem('playerName', name);
+                setGameState(prev => ({
+                  ...prev,
+                  playerInitialized: true
+                }));
+              }
+            }} className="username-form">
+              <input
+                type="text"
+                name="username"
+                placeholder="Enter your name to play"
+                maxLength={25}
+                required
+              />
+              <button type="submit">Start Playing</button>
+            </form>
+          </div>
+        </header>
       ) : (
         <>
           {playerName && (
