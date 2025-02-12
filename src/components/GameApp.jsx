@@ -1049,19 +1049,7 @@ const checkScoreQualification = async (score) => {
 
 // Modify fetchPrimaryWalletBalance to set all balances
 const fetchPrimaryWalletBalance = async () => {
-    console.log('fetchPrimaryWalletBalance called', {
-        isWalletConnected: wallet.connected,
-        chainName: wallet.chain?.name,
-        client: !!client
-    });
-
     try {
-        if (!wallet.chain?.name) {
-            console.log('Wallet chain not yet available');
-            return;
-        }
-        
-        config.updateNetwork(wallet.chain.name);
         const recipients = config.getCurrentRecipients();
         
         if (!recipients?.primary) {
@@ -1077,9 +1065,6 @@ const fetchPrimaryWalletBalance = async () => {
                 options: { showContent: true }
             })
         ]);
-
-        console.log('Received coins:', allCoins.data);
-        console.log('Received NFTs:', allNFTs.data);
 
         let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
@@ -1125,7 +1110,7 @@ const fetchPrimaryWalletBalance = async () => {
 
         setAllBalances(balancesByCoin);
         setPrimaryWalletBalance(totalSuiBalance);
-        setNFTs(nfts); // Add this state variable
+        setNFTs(nfts);
         
     } catch (error) {
         console.error('Balance check error:', error);
@@ -1137,12 +1122,10 @@ const fetchPrimaryWalletBalance = async () => {
 
 
 useEffect(() => {
-  if (wallet.connected) {
-      fetchPrimaryWalletBalance();
-      const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
-      return () => clearInterval(interval);
-  }
-}, [wallet.connected, wallet.chain?.name]);
+  fetchPrimaryWalletBalance(); // Initial fetch
+  const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
+  return () => clearInterval(interval);
+}, []);
 
 const resetGameState = () => {
     if (window.gameManager) {
@@ -1330,7 +1313,7 @@ const handleSuinsChange = (e) => {
             )}
           </div>
 
-          {wallet.connected && (
+          
             <div className="wallet-info">
                 <div 
                     className="assets-header" 
@@ -1372,7 +1355,7 @@ const handleSuinsChange = (e) => {
                 </div>
                 
             </div>
-          )}
+          
           <p className="creator-credit">
                     Created by <a 
                         href="https://x.com/Zombfyd" 
@@ -1400,7 +1383,6 @@ const handleSuinsChange = (e) => {
     </div>
 )}
 
-{/* Free mode start button */}
 {isUsernameSubmitted && gameMode === 'free' && (
   <button 
     onClick={handleGameStart}
@@ -1410,8 +1392,7 @@ const handleSuinsChange = (e) => {
   </button>
 )}
 
-{/* Paid mode payment tiers */}
-{!gameState.hasValidPayment && (
+{!gameState.hasValidPayment && wallet.connected && (
   <>
     {/* Only show payment tiers if game mode is 'paid' */}
     {gameMode === 'paid' && !gameState.hasValidPayment && (
