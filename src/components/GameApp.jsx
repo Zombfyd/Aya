@@ -104,8 +104,6 @@ const GameApp = () => {
   // Add cache state
   const [suinsCache, setSuinsCache] = useState({});
   
-  // Add these functions after your other state declarations
-  const [suinsClient] = useState(() => new SuinsClient());
   
   const handleSuinsCheck = async (address) => {
     try {
