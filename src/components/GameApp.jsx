@@ -66,7 +66,11 @@ const GameApp = () => {
   const [suinsClient, setSuinsClient] = useState(null);
   const [addressToNameCache, setAddressToNameCache] = useState({});
   const [displayName, setDisplayName] = useState('');
-  const [username, setUsername] = useState({ name: '', imageUrl: null });
+  const [usernameInput, setUsernameInput] = useState('');
+  const [isUsernameSubmitted, setIsUsernameSubmitted] = useState(false);
+  const [username, setUsername] = useState('');
+  const [useSuins, setUseSuins] = useState(false);
+  const [suinsData, setSuinsData] = useState(null);
   const [loading, setLoading] = useState(false);
   
   // Add this after other useState declarations (around line 70)
@@ -93,9 +97,6 @@ const GameApp = () => {
   
   // Add this state at the top with other state declarations
   const [isAssetsExpanded, setIsAssetsExpanded] = useState(false);
-  
-  // Add this state variable at the top of your component
-  const [usernameInput, setUsernameInput] = useState('');
   
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
@@ -1206,13 +1207,46 @@ const handlePaidGameAttempt = () => {
         <header>
           <div className="title">Tears of Aya</div>
           <div className="username-input-container">
-            <input
-              type="text"
-              placeholder="Enter your username"
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-              className="username-input"
-            />
+            {!isUsernameSubmitted ? (
+              <form onSubmit={handleUsernameSubmit}>
+                <input
+                  type="text"
+                  placeholder="Enter your username"
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  className="username-input"
+                  maxLength={25} // Restrict to 25 characters
+                  required
+                />
+                <button type="submit">Submit</button>
+              </form>
+            ) : (
+              <div>
+                <h2>Welcome, {useSuins && suinsData ? suinsData.name : username}!</h2>
+                <div>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={useSuins}
+                      onChange={() => setUseSuins(!useSuins)}
+                    />
+                    Use SUINS Name
+                  </label>
+                </div>
+                <div className="game-mode-options">
+                  <h2>Select Game Mode</h2>
+                  <div className="mode-selector">
+                    <button onClick={() => setGameMode('free')} className={gameMode === 'free' ? 'active' : ''}>
+                      Free Mode
+                    </button>
+                    <button onClick={() => setGameMode('paid')} className={gameMode === 'paid' ? 'active' : ''}>
+                      Paid Mode
+                    </button>
+                  </div>
+                  <button onClick={handleUsernameChange}>Change Username</button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="wkit-connected-container">
             {isMobile && !wallet.connected && (
