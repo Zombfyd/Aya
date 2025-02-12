@@ -1393,7 +1393,7 @@ const handleSuinsChange = (e) => {
               <div>
                 <h2>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h2>
                 <div>
-                <button onClick={handleUsernameChange}>Change Username</button>
+                  <button onClick={handleUsernameChange}>Change Username</button>
                   <label>
                     <input
                       type="checkbox"
@@ -1403,163 +1403,150 @@ const handleSuinsChange = (e) => {
                     use SUINS name.
                   </label>
                 </div>
-                <ConnectButton
-                label="Connect SUI Wallet"
-                onConnectError={(error) => {
-                  if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                    console.warn("User rejected connection to " + error.details?.wallet);
-                  } else {
-                    console.warn("Unknown connect error: ", error);
-                  }
-                }}
-              />
-                 </div>
-            )}
-          </div>
-          <div className="wkit-connected-container">
-            {isMobile && !wallet.connected && (
-              <div className="mobile-wallet-guide">
-                <p>To play on mobile:</p>
-                <ol>
-                  <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
-                  <li>Make sure you're on Sui Mainnet</li>
-                  <li>Connect your wallet using the button below</li>
-                </ol>
               </div>
             )}
-            {gameMode === 'paid' && (
-              <ConnectButton
-                label="Connect SUI Wallet"
-                onConnectError={(error) => {
-                  if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                    console.warn("User rejected connection to " + error.details?.wallet);
-                  } else {
-                    console.warn("Unknown connect error: ", error);
-                  }
-                }}
-              />
-            )}
           </div>
 
-          
-            <div className="wallet-info">
-                <div 
-                    className="assets-header" 
-                    onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
-                >
-                    <h3>Prize Pool Assets</h3>
-                    <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
-                        ▼
-                    </span>
-                </div>
-                
-                <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
-                    <div className="balance-list">
-                        {Object.entries(allBalances).map(([symbol, balance]) => {
-                            console.log('Rendering balance:', symbol, balance);
-                            return (
-                              <p key={symbol} className="balance-item">
-                                <TokenAmount amount={balance} symbol={symbol} /> {symbol}
-                              </p>
-                            );
-                        })}
-                    </div>
-                    {nfts.length > 0 && (
-                        <>
-                            <h3>NFTs:</h3>
-                            <div className="nft-list">
-                                {nfts.map((nft) => (
-                                    <div key={nft.id} className="nft-item">
-                                        {nft.url && (
-                                            <img 
-                                                src={nft.url} 
-                                                alt={nft.name} 
-                                                className="nft-image"
-                                            />
-                                        )}
-                                        <p>{nft.name}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-                
+          {isMobile && !wallet.connected && (
+            <div className="mobile-wallet-guide">
+              <p>To play on mobile:</p>
+              <ol>
+                <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
+                <li>Make sure you're on Sui Mainnet</li>
+                <li>Connect your wallet using the button below</li>
+              </ol>
             </div>
-          
-          <p className="creator-credit">
-                    Created by <a 
-                        href="https://x.com/Zombfyd" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="creator-name"
-                    >
-                        🎮 Zombfyd 🎮
-                    </a>
-                </p>
+          )}
 
-                <h2>Select Game Mode</h2>
-                  <div className="mode-selector">
-                    <button onClick={() => handleGameModeSelection('free')} className={gameMode === 'free' ? 'active' : ''}>
-                      Free Mode
-                    </button>
-                    <button onClick={() => handleGameModeSelection('paid')} className={gameMode === 'paid' ? 'active' : ''}>
-                      Paid Mode
-                    </button>
+          <ConnectButton
+            label="Connect SUI Wallet"
+            onConnectError={(error) => {
+              if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
+                console.warn("User rejected connection to " + error.details?.wallet);
+              } else {
+                console.warn("Unknown connect error: ", error);
+              }
+            }}
+          />
+
+          <div className="wallet-info">
+            <div 
+              className="assets-header" 
+              onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
+            >
+              <h3>Prize Pool Assets</h3>
+              <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
+                ▼
+              </span>
+            </div>
+            
+            <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
+              <div className="balance-list">
+                {Object.entries(allBalances).map(([symbol, balance]) => {
+                  console.log('Rendering balance:', symbol, balance);
+                  return (
+                    <p key={symbol} className="balance-item">
+                      <TokenAmount amount={balance} symbol={symbol} /> {symbol}
+                    </p>
+                  );
+                })}
+              </div>
+              {nfts.length > 0 && (
+                <>
+                  <h3>NFTs:</h3>
+                  <div className="nft-list">
+                    {nfts.map((nft) => (
+                      <div key={nft.id} className="nft-item">
+                        {nft.url && (
+                          <img 
+                            src={nft.url} 
+                            alt={nft.name} 
+                            className="nft-image"
+                          />
+                        )}
+                        <p>{nft.name}</p>
+                      </div>
+                    ))}
                   </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <p className="creator-credit">
+            Created by <a 
+                href="https://x.com/Zombfyd" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="creator-name"
+            >
+              🎮 Zombfyd 🎮
+            </a>
+          </p>
+
+          <h2>Select Game Mode</h2>
+          <div className="mode-selector">
+            <button 
+              onClick={() => handleGameModeSelection('free')} 
+              className={gameMode === 'free' ? 'active' : ''}
+            >
+              Free Mode
+            </button>
+            <button 
+              onClick={() => handleGameModeSelection('paid')} 
+              className={gameMode === 'paid' ? 'active' : ''}
+            >
+              Paid Mode
+            </button>
+          </div>
 
           {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
             <div className="attempts-info">
               <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-    </div>
-)}
+            </div>
+          )}
 
-{isUsernameSubmitted && gameMode === 'free' && (
-  <button 
-    onClick={handleGameStart}
-    className="start-button"
-  >
-    Start Free Game
-  </button>
-)}
-
-{!gameState.hasValidPayment && wallet.connected && (
-  <>
-    {/* Only show payment tiers if game mode is 'paid' */}
-    {gameMode === 'paid' && !gameState.hasValidPayment && (
-      <>
-        <div className="payment-section">
-          <h3>Select Payment Tier</h3>
-          
-          {/* Mobile dropdown */}
-          <div className="payment-tiers-mobile">
-            <select 
-              className="tier-select"
-              value={selectedTier || ''}
-              onChange={(e) => setSelectedTier(e.target.value)}
+          {isUsernameSubmitted && gameMode === 'free' && (
+            <button 
+              onClick={handleGameStart}
+              className="start-button"
             >
-              <option value="">Select Payment Tier</option>
-              <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
-              <option value="tier2">Short Brake - 0.8 SUI (2 Plays)</option>
-              <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
-            </select>
-          </div>
+              Start Free Game
+            </button>
+          )}
 
-          {/* Desktop payment tiers */}
-          {renderPaymentTiers()}
-        </div>
+          {!gameState.hasValidPayment && wallet.connected && gameMode === 'paid' && (
+            <>
+              <div className="payment-section">
+                <h3>Select Payment Tier</h3>
+                
+                {/* Mobile dropdown */}
+                <div className="payment-tiers-mobile">
+                  <select 
+                    className="tier-select"
+                    value={selectedTier || ''}
+                    onChange={(e) => setSelectedTier(e.target.value)}
+                  >
+                    <option value="">Select Payment Tier</option>
+                    <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
+                    <option value="tier2">Short Brake - 0.8 SUI (2 Plays)</option>
+                    <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
+                  </select>
+                </div>
 
-        <button 
-          onClick={handleGamePayment}
-          disabled={paying || !selectedTier}
-          className="start-button"
-        >
-          {paying ? 'Processing...' : `Pay for ${config.paymentTiers[selectedTier]?.plays || ''} Games`}
-        </button>
-      </>
-    )}
-  </>
-)}
+                {/* Desktop payment tiers */}
+                {renderPaymentTiers()}
+              </div>
+
+              <button 
+                onClick={handleGamePayment}
+                disabled={paying || !selectedTier}
+                className="start-button"
+              >
+                {paying ? 'Processing...' : `Pay for ${config.paymentTiers[selectedTier]?.plays || ''} Games`}
+              </button>
+            </>
+          )}
         </header>
       )}
 
