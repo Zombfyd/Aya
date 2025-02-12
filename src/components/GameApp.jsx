@@ -18,6 +18,12 @@ import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 // import { JsonRpcProvider } from "@mysten/sui.js";
 
+// Helper function to format a wallet address by truncating it
+function formatWalletAddress(addr) {
+  if (!addr) return 'Unknown';
+  return addr.slice(0, 4) + '...' + addr.slice(-4);
+}
+
 const GameApp = () => {
   // Remove provider initialization
   // const provider = new JsonRpcProvider('https://fullnode.mainnet.sui.io:443');
@@ -1634,7 +1640,9 @@ const handleSuinsChange = (e) => {
                           <td>{index + 1}</td>
                           <td className="playername-cell">{entry.playerName}</td>
                           <td className="wallet-cell">
-                            {wallet.connected ? getDisplayName(entry.playerWallet) : (entry.playerWallet || 'Unknown')}
+                            {wallet.connected && useSuins && suinsData && suinsData.name
+                               ? suinsData.name
+                               : formatWalletAddress(entry.playerWallet)}
                           </td>
                           <td className="score-cell">{entry.score}</td>
                         </tr>
@@ -1672,7 +1680,9 @@ const handleSuinsChange = (e) => {
                         <td>{index + 1}</td>
                         <td className="playername-cell">{entry.playerName}</td>
                         <td className="wallet-cell">
-                          {wallet.connected ? getDisplayName(entry.playerWallet) : (entry.playerWallet || 'Unknown')}
+                          {wallet.connected && useSuins && suinsData && suinsData.name
+                             ? suinsData.name
+                             : formatWalletAddress(entry.playerWallet)}
                         </td>
                         <td className="score-cell">{entry.score}</td>
                       </tr>
