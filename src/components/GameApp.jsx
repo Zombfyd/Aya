@@ -192,8 +192,7 @@ const GameApp = () => {
           console.log('Game manager initialized successfully', {
             environment: process.env.NODE_ENV,
             gameMode: gameMode,
-            networkConfig: config.network,
-            playerName: playerName
+            networkConfig: config.network
           });
           setGameManagerInitialized(true);
         } else {
@@ -207,11 +206,8 @@ const GameApp = () => {
       }
     };
   
-    // Only initialize if we have a player name
-    if (playerName) {
-      initializeGameManager();
-    }
-  }, [playerName]);
+    initializeGameManager();
+  }, []);
 
 // Modify payment status monitoring
 useEffect(() => {
@@ -507,15 +503,15 @@ useEffect(() => {
   const fetchLeaderboards = async () => {
     setIsLeaderboardLoading(true);
     try {
-        const baseUrl = `${config.apiBaseUrl}/api/scores/leaderboard`;
+        const baseUrl = `${config.apiBaseUrl}/api`;
         
         // Fetch all leaderboard types with correct URL structure
         const [mainFree, secondaryFree, mainPaid, secondaryPaid, web2] = await Promise.all([
-            fetch(`${baseUrl}/main/free`),
-            fetch(`${baseUrl}/secondary/free`),
-            fetch(`${baseUrl}/main/paid`),
-            fetch(`${baseUrl}/secondary/paid`),
-            fetch(`${baseUrl}/api/web2/leaderboard`)
+            fetch(`${baseUrl}/scores/leaderboard/main/free`),
+            fetch(`${baseUrl}/scores/leaderboard/secondary/free`),
+            fetch(`${baseUrl}/scores/leaderboard/main/paid`),
+            fetch(`${baseUrl}/scores/leaderboard/secondary/paid`),
+            fetch(`${baseUrl}/web2/leaderboard`)
         ].map(promise => 
             promise
                 .then(res => {
@@ -1256,27 +1252,46 @@ const handlePaidGameAttempt = () => {
             <header>
               <div className="title">Tears of Aya</div>
                <div className="wkit-connected-container">
-                {isMobile && !wallet.connected && (
-                  <div className="mobile-wallet-guide">
-                    <p>To play on mobile:</p>
-                    <ol>
-                      <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
-                      <li>Make sure you're on Sui Mainnet</li>
-                      <li>Connect your wallet using the button below</li>
-                    </ol>
-                  </div>
-                )}
-                 
-                <ConnectButton
-                  label="Connect SUI Wallet"
-                  onConnectError={(error) => {
-                    if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                      console.warn("User rejected connection to " + error.details?.wallet);
-                    } else {
-                      console.warn("Unknown connect error: ", error);
+                {!playerName ? (
+                  // Show username input if no name set
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const name = e.target.username.value.trim();
+                    if (name && name.length <= 25) {
+                      setPlayerName(name);
+                      localStorage.setItem('playerName', name);
                     }
-                  }}
-                />
+                  }} className="username-form">
+                    <input
+                      type="text"
+                      name="username"
+                      placeholder="Enter your name to play"
+                      maxLength={25}
+                      required
+                    />
+                    <button type="submit">Start Playing</button>
+                  </form>
+                ) : (
+                  // Show normal wallet connect after name is set
+                  <>
+                    {isMobile && (
+                      <div className="mobile-wallet-guide">
+                        <p>To play paid mode on mobile:</p>
+                        <ol>
+                          <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
+                          <li>Make sure you're on Sui Mainnet</li>
+                          <li>Connect your wallet using the button below</li>
+                        </ol>
+                      </div>
+                    )}
+                    <ConnectButton
+                      label="Connect Wallet to Play Paid Mode"
+                      onConnectError={(error) => {
+                        console.warn("Connect error:", error);
+                      }}
+                    />
+                  </>
+                )}
               </div>
 
               {wallet.connected && (
