@@ -133,7 +133,49 @@ const GameApp = () => {
         return "Unknown";
     }
   };
+  // Add this component near the top of your file
+const TokenAmount = ({ amount }) => {
+  const formatLargeNumber = (num) => {
+      const absNum = Math.abs(Number(num));
+      
+      // Show full number if less than 1000
+      if (absNum < 1000) {
+          return num.toString();
+      }
+
+      const trillion = 1e12;
+      const billion = 1e9;
+      const million = 1e6;
+      const thousand = 1e3;
+
+      if (absNum >= trillion) {
+          return (num / trillion).toFixed(2) + 'T';
+      } else if (absNum >= billion) {
+          return (num / billion).toFixed(2) + 'B';
+      } else if (absNum >= million) {
+          return (num / million).toFixed(2) + 'M';
+      } else if (absNum >= thousand) {
+          return (num / thousand).toFixed(2) + 'K';
+      }
+  };
+
+  // Convert from MIST to SUI (1 SUI = 1e9 MIST)
+  const suiAmount = Number(amount) / 1e9;
   
+  return (
+      <div className="token-amount" title={suiAmount.toLocaleString()}>
+          {formatLargeNumber(suiAmount)}
+      </div>
+  );
+};
+
+// Add this CSS to your stylesheet
+
+
+// Add the styles to the document
+const styleSheet = document.createElement("style");
+styleSheet.innerText = styles;
+document.head.appendChild(styleSheet);
   
   // Add mobile detection on component mount
   useEffect(() => {

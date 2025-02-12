@@ -967,3 +967,34 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   width: 100%;
   max-width: 300px; /* Adjust as needed */
 }
+.token-amount {
+  position: relative;
+  cursor: help;
+  display: inline-block;
+}
+
+.token-amount:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border-radius: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+  z-index: 1000;
+}
+
+.token-amount:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.8);
+  margin-bottom: -5px;
+}
