@@ -17,7 +17,6 @@ import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 // import { JsonRpcProvider } from "@mysten/sui.js";
-import UsernameInput from './UsernameInput';
 
 const GameApp = () => {
   // Remove provider initialization
