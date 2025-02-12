@@ -108,7 +108,8 @@ const GameApp = () => {
     url: 'https://fullnode.mainnet.sui.io',
     network: 'mainnet' // Explicitly set the network
   });
-    
+  console.log('SUI Client initialized:', !!client);
+  
   useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -574,7 +575,15 @@ useEffect(() => {
                 })
         ));
 
-                setLeaderboardData({
+        console.log('Fetched leaderboard data:', {
+            mainFree,
+            secondaryFree,
+            mainPaid,
+            secondaryPaid,
+            web2
+        });
+
+        setLeaderboardData({
             mainFree,
             secondaryFree,
             mainPaid,
@@ -629,7 +638,7 @@ useEffect(() => {
         return suinsCache[walletAddress];
       }
 
-      
+      console.log('Fetching SUINS for wallet:', walletAddress);
 
       // Add delay to prevent rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1150,24 +1159,26 @@ const checkScoreQualification = async (score) => {
 
 // Modify fetchPrimaryWalletBalance to set all balances
 const fetchPrimaryWalletBalance = async () => {
-    
-
+    console.log('fetchPrimaryWalletBalance called');
 
     try {
         // Set default network context
         config.updateNetwork('mainnet');
         
         const recipients = config.getCurrentRecipients();
+        console.log('Recipients from config:', recipients);
         
         if (!recipients?.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
         }
 
+        console.log('Attempting to fetch from address:', recipients.primary);
 
         // Test the client connection
         try {
             const testConnection = await client.getChainIdentifier();
+            console.log('Client connection test:', testConnection);
         } catch (e) {
             console.error('Client connection test failed:', e);
         }
@@ -1181,7 +1192,8 @@ const fetchPrimaryWalletBalance = async () => {
             })
         ]);
 
-        
+        console.log('Raw coin response:', allCoins);
+        console.log('Raw NFT response:', allNFTs);
         
         let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
@@ -1219,7 +1231,11 @@ const fetchPrimaryWalletBalance = async () => {
             }
         }
         
-        
+        console.log('Final balances:', {
+            totalSui: totalSuiBalance.toString(),
+            byCoin: balancesByCoin,
+            nfts: nfts
+        });
 
         setAllBalances(balancesByCoin);
         setPrimaryWalletBalance(totalSuiBalance);
@@ -1408,6 +1424,7 @@ const handleSuinsChange = (e) => {
             <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
               <div className="balance-list">
                 {Object.entries(allBalances).map(([symbol, balance]) => {
+                  console.log('Rendering balance:', symbol, balance);
                   return (
                     <p key={symbol} className="balance-item">
                       <TokenAmount amount={balance} symbol={symbol} /> {symbol}
