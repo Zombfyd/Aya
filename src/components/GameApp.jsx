@@ -185,6 +185,13 @@ const GameApp = () => {
           return;
         }
   
+        // Add canvas check
+        const canvas = document.getElementById('tearCatchGameCanvas');
+        if (!canvas) {
+          console.log('Canvas not found, waiting for DOM...');
+          return;
+        }
+  
         const success = await window.gameManager.initialize();
         
         if (success) {
@@ -205,7 +212,8 @@ const GameApp = () => {
       }
     };
   
-    initializeGameManager();
+    // Add a small delay to ensure DOM is ready
+    setTimeout(initializeGameManager, 100);
   }, []);
 
 // Modify payment status monitoring
