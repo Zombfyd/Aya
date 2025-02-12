@@ -134,39 +134,56 @@ const GameApp = () => {
     }
   };
   // Add this component near the top of your file
-const TokenAmount = ({ amount }) => {
-  const formatLargeNumber = (num) => {
-      const absNum = Math.abs(Number(num));
-      
-      // Show full number if less than 1000
-      if (absNum < 1000) {
-          return num.toString();
-      }
+const TokenAmount = ({ amount, symbol }) => {
+    const formatLargeNumber = (num, tokenSymbol) => {
+        // Different conversion rates for different tokens
+        let convertedAmount;
+        if (tokenSymbol === 'SUI') {
+            convertedAmount = Number(num) / 1e9; // SUI uses 9 decimals
+        } else if (tokenSymbol === 'AYA') {
+            convertedAmount = Number(num) / 1e3; // AYA uses 3 decimals
+        } else {
+            convertedAmount = Number(num); // Default no conversion
+        }
 
-      const trillion = 1e12;
-      const billion = 1e9;
-      const million = 1e6;
-      const thousand = 1e3;
+        const absNum = Math.abs(convertedAmount);
+        
+        // Show full number with appropriate decimals if less than 1000
+        if (absNum < 1000) {
+            return convertedAmount.toFixed(2);
+        }
 
-      if (absNum >= trillion) {
-          return (num / trillion).toFixed(2) + 'T';
-      } else if (absNum >= billion) {
-          return (num / billion).toFixed(2) + 'B';
-      } else if (absNum >= million) {
-          return (num / million).toFixed(2) + 'M';
-      } else if (absNum >= thousand) {
-          return (num / thousand).toFixed(2) + 'K';
-      }
-  };
+        const trillion = 1e12;
+        const billion = 1e9;
+        const million = 1e6;
+        const thousand = 1e3;
 
-  // Convert from MIST to SUI (1 SUI = 1e9 MIST)
-  const suiAmount = Number(amount) / 1e9;
-  
-  return (
-      <div className="token-amount" title={suiAmount.toLocaleString()}>
-          {formatLargeNumber(suiAmount)}
-      </div>
-  );
+        if (absNum >= trillion) {
+            return (convertedAmount / trillion).toFixed(2) + 'T';
+        } else if (absNum >= billion) {
+            return (convertedAmount / billion).toFixed(2) + 'B';
+        } else if (absNum >= million) {
+            return (convertedAmount / million).toFixed(2) + 'M';
+        } else if (absNum >= thousand) {
+            return (convertedAmount / thousand).toFixed(2) + 'K';
+        }
+    };
+
+    // Format the full amount for the tooltip with appropriate conversion
+    const getFullAmount = (num, tokenSymbol) => {
+        if (tokenSymbol === 'SUI') {
+            return (Number(num) / 1e9).toFixed(2);
+        } else if (tokenSymbol === 'AYA') {
+            return (Number(num) / 1e3).toFixed(2);
+        }
+        return Number(num).toFixed(2);
+    };
+    
+    return (
+        <div className="token-amount" title={`${getFullAmount(amount, symbol)} ${symbol}`}>
+            {formatLargeNumber(amount, symbol)}
+        </div>
+    );
 };
 
 // Add this CSS to your stylesheet
@@ -399,11 +416,15 @@ useEffect(() => {
     try {
         // Web2 submission for non-wallet users in free mode
         if (!wallet.connected && gameMode === 'free') {
-            console.log('Submitting to web2 leaderboard');
+            console.log('Submitting to web2 leaderboard', {
+                playerName: playerName || 'Anonymous',
+                score: gameState.score
+            });
+            
             const web2Endpoint = `${config.apiBaseUrl}/api/web2/scores`;
             const web2RequestBody = {
                 playerName: playerName || 'Anonymous',
-                score: gameState.score
+                score: Number(gameState.score) // Ensure score is a number
             };
 
             const response = await fetch(web2Endpoint, {
@@ -1429,7 +1450,7 @@ const handleSuinsChange = (e) => {
                             console.log('Rendering balance:', symbol, balance);
                             return (
                               <p key={symbol} className="balance-item">
-                                <TokenAmount amount={balance} /> {symbol}
+                                <TokenAmount amount={balance} symbol={symbol} /> {symbol}
                               </p>
                             );
                         })}
