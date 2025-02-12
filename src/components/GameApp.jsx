@@ -141,7 +141,7 @@ const TokenAmount = ({ amount, symbol }) => {
         if (tokenSymbol === 'SUI') {
             convertedAmount = Number(num) / 1e9; // SUI uses 9 decimals
         } else if (tokenSymbol === 'AYA') {
-            convertedAmount = Number(num) / 1e3; // AYA uses 3 decimals
+            convertedAmount = Number(num) / 1e6; // AYA uses 6 decimals (adjusted from 1e3)
         } else {
             convertedAmount = Number(num); // Default no conversion
         }
@@ -174,7 +174,7 @@ const TokenAmount = ({ amount, symbol }) => {
         if (tokenSymbol === 'SUI') {
             return (Number(num) / 1e9).toFixed(2);
         } else if (tokenSymbol === 'AYA') {
-            return (Number(num) / 1e3).toFixed(2);
+            return (Number(num) / 1e6).toFixed(2); // Adjusted from 1e3 to 1e6
         }
         return Number(num).toFixed(2);
     };
@@ -412,20 +412,27 @@ useEffect(() => {
     }
   };
 
-  const handleScoreSubmit = async () => {
+  const handleScoreSubmit = async (finalScore) => {
     try {
         // Web2 submission for non-wallet users in free mode
         if (!wallet.connected && gameMode === 'free') {
+            if (!playerName) {
+                alert('Please enter a name before submitting your score');
+                return;
+            }
+
             console.log('Submitting to web2 leaderboard', {
-                playerName: playerName || 'Anonymous',
-                score: gameState.score
+                playerName: playerName,
+                score: finalScore
             });
             
             const web2Endpoint = `${config.apiBaseUrl}/api/web2/scores`;
             const web2RequestBody = {
-                playerName: playerName || 'Anonymous',
-                score: Number(gameState.score) // Ensure score is a number
+                playerName: playerName,
+                score: Number(finalScore) // Use finalScore instead of gameState.score
             };
+
+            console.log('Sending web2 request:', web2RequestBody);
 
             const response = await fetch(web2Endpoint, {
                 method: 'POST',
@@ -441,7 +448,9 @@ useEffect(() => {
                 throw new Error(`Web2 submission failed: ${errorData.error}`);
             }
 
-            console.log('Web2 score submission successful');
+            const result = await response.json();
+            console.log('Web2 score submission result:', result);
+            
             await fetchLeaderboards();
             return;
         }
@@ -454,7 +463,7 @@ useEffect(() => {
 
         let requestBody = {
             playerWallet: wallet.account.address,
-            score: gameState.score
+            score: finalScore
         };
 
         // Handle paid mode submissions
@@ -889,11 +898,11 @@ useEffect(() => {
         if (gameMode === 'free') {
             // Submit to appropriate leaderboard based on wallet connection
             if (!wallet.connected) {
-                console.log('Submitting to web2 leaderboard');
-                await handleScoreSubmit();
+                console.log('Submitting to web2 leaderboard with score:', finalScore);
+                await handleScoreSubmit(finalScore); // Pass the score directly
             } else {
                 // Submit to free leaderboard and check qualification
-                await handleScoreSubmit();
+                await handleScoreSubmit(finalScore);
                 const qualification = await checkScoreQualification(finalScore);
                 if (qualification) {
                     console.log('Score qualifies for paid leaderboard:', qualification);
@@ -904,7 +913,7 @@ useEffect(() => {
         } 
         // Handle paid mode (requires wallet connection)
         else if (gameMode === 'paid' && wallet.connected) {
-            await handleScoreSubmit();
+            await handleScoreSubmit(finalScore);
         }
     } catch (error) {
         console.error('Error in game over handler:', error);
