@@ -1052,15 +1052,17 @@ const checkScoreQualification = async (score) => {
 
 // Modify fetchPrimaryWalletBalance to set all balances
 const fetchPrimaryWalletBalance = async () => {
+    console.log('fetchPrimaryWalletBalance called');
+
     try {
-        console.log('Fetching prize pool balances...');
         const recipients = config.getCurrentRecipients();
         
         if (!recipients?.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
         }
-        console.log('Primary recipient address:', recipients.primary);
+
+        console.log('Fetching balances for prize pool address:', recipients.primary);
 
         // Fetch both coins and NFTs
         const [allCoins, allNFTs] = await Promise.all([
@@ -1071,8 +1073,8 @@ const fetchPrimaryWalletBalance = async () => {
             })
         ]);
 
-        console.log('Received coins:', allCoins);
-        console.log('Received NFTs:', allNFTs);
+        console.log('Received coins:', allCoins.data);
+        console.log('Received NFTs:', allNFTs.data);
 
         let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
@@ -1097,8 +1099,6 @@ const fetchPrimaryWalletBalance = async () => {
             }
         }
 
-        console.log('Processed balances:', balancesByCoin);
-
         // Process NFTs
         for (const nft of allNFTs.data) {
             if (nft.data?.content?.type?.includes('::nft::')) {
@@ -1112,10 +1112,10 @@ const fetchPrimaryWalletBalance = async () => {
             }
         }
         
-        console.log('Setting states with:', {
-            balancesByCoin,
-            totalSuiBalance: totalSuiBalance.toString(),
-            nfts
+        console.log('Final balances:', {
+            totalSui: totalSuiBalance.toString(),
+            byCoin: balancesByCoin,
+            nfts: nfts
         });
 
         setAllBalances(balancesByCoin);
