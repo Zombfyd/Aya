@@ -1187,6 +1187,21 @@ const handleUsernameSubmit = (e) => {
     }
 };
 
+const handleGameModeSelection = (mode) => {
+    setGameMode(mode);
+    if (mode === 'paid' && !wallet.connected) {
+      alert('Please connect your wallet to play in paid mode.');
+    }
+};
+
+// Add handleUsernameChange function
+const handleUsernameChange = () => {
+    setIsUsernameSubmitted(false);
+    setUsernameInput('');
+    setUseSuins(false);
+    setGameMode(null); // Reset game mode when changing username
+};
+
   // Render method
   return (
     
@@ -1246,10 +1261,10 @@ const handleUsernameSubmit = (e) => {
                 <div className="game-mode-options">
                   <h2>Select Game Mode</h2>
                   <div className="mode-selector">
-                    <button onClick={() => setGameMode('free')} className={gameMode === 'free' ? 'active' : ''}>
+                    <button onClick={() => handleGameModeSelection('free')} className={gameMode === 'free' ? 'active' : ''}>
                       Free Mode
                     </button>
-                    <button onClick={() => setGameMode('paid')} className={gameMode === 'paid' ? 'active' : ''}>
+                    <button onClick={() => handleGameModeSelection('paid')} className={gameMode === 'paid' ? 'active' : ''}>
                       Paid Mode
                     </button>
                   </div>
@@ -1339,14 +1354,14 @@ const handleUsernameSubmit = (e) => {
 
           <div className="mode-selector">
         <button 
-              onClick={() => setGameMode('free')}
+              onClick={() => handleGameModeSelection('free')}
               className={gameMode === 'free' ? 'active' : ''}
               disabled={!wallet.connected}
             >
               Free Mode
             </button>
             <button 
-              onClick={() => setGameMode('paid')}
+              onClick={() => handleGameModeSelection('paid')}
               className={gameMode === 'paid' ? 'active' : ''}
               disabled={!wallet.connected}
             >
