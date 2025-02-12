@@ -1640,8 +1640,8 @@ const handleSuinsChange = (e) => {
                           <td>{index + 1}</td>
                           <td className="playername-cell">{entry.playerName}</td>
                           <td className="wallet-cell">
-                            {wallet.connected && useSuins && suinsData && suinsData.name
-                               ? suinsData.name
+                            {suinsCache[entry.playerWallet]
+                               ? suinsCache[entry.playerWallet]
                                : formatWalletAddress(entry.playerWallet)}
                           </td>
                           <td className="score-cell">{entry.score}</td>
@@ -1680,8 +1680,8 @@ const handleSuinsChange = (e) => {
                         <td>{index + 1}</td>
                         <td className="playername-cell">{entry.playerName}</td>
                         <td className="wallet-cell">
-                          {wallet.connected && useSuins && suinsData && suinsData.name
-                             ? suinsData.name
+                          {suinsCache[entry.playerWallet]
+                             ? suinsCache[entry.playerWallet]
                              : formatWalletAddress(entry.playerWallet)}
                         </td>
                         <td className="score-cell">{entry.score}</td>
