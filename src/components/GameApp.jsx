@@ -24,7 +24,6 @@ const GameApp = () => {
   
   // Wallet and client hooks
   const wallet = useWallet();
-  const client = useSuiClient();
   const { balance } = useAccountBalance();
   const [digest, setDigest] = useState('');
   
