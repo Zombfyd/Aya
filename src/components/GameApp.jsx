@@ -17,6 +17,7 @@ import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 // import { JsonRpcProvider } from "@mysten/sui.js";
+import UsernameInput from './UsernameInput';
 
 const GameApp = () => {
   // Remove provider initialization
@@ -38,13 +39,15 @@ const GameApp = () => {
     gameStarted: false,
     score: 0,
     isGameOver: false,
-    hasValidPayment: false
+    hasValidPayment: false,
+    playerInitialized: false
   });
   const [leaderboardData, setLeaderboardData] = useState({
     mainFree: [],
     secondaryFree: [],
     mainPaid: [],
     secondaryPaid: [],
+    web2: []
   });
   const [gameMode, setGameMode] = useState('free');
   const [paying, setPaying] = useState(false);
@@ -64,7 +67,9 @@ const GameApp = () => {
   const [suiPrice, setSuiPrice] = useState(null);
   const [suinsClient, setSuinsClient] = useState(null);
   const [addressToNameCache, setAddressToNameCache] = useState({});
-  const [displayName, setDisplayName] = useState('');
+  const [playerName, setPlayerName] = useState(() => {
+    return localStorage.getItem('playerName') || '';
+  });
   const [username, setUsername] = useState({ name: '', imageUrl: null });
   const [loading, setLoading] = useState(false);
   
@@ -99,7 +104,37 @@ const GameApp = () => {
   // Add cache state
   const [suinsCache, setSuinsCache] = useState({});
   
-
+  // Add these functions after your other state declarations
+  const [suinsClient] = useState(() => new SuinsClient());
+  
+  const handleSuinsCheck = async (address) => {
+    try {
+      const domains = await suinsClient.getDomainsByOwner({ address });
+      if (domains && domains.length > 0) {
+        // Get the first SUINS domain
+        const primaryDomain = domains[0].domain;
+        
+        // Ask user which name they prefer
+        const useSuins = window.confirm(
+          `Would you like to use your SUINS name "${primaryDomain}" instead of "${playerName}"?`
+        );
+        
+        if (useSuins) {
+          setPlayerName(primaryDomain);
+          localStorage.setItem('playerName', primaryDomain);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking SUINS:', error);
+    }
+  };
+  
+  // Add this useEffect to check SUINS when wallet connects
+  useEffect(() => {
+    if (wallet.connected && wallet.account) {
+      handleSuinsCheck(wallet.account.address);
+    }
+  }, [wallet.connected, wallet.account?.address]);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -350,6 +385,28 @@ useEffect(() => {
 
   const handleScoreSubmit = async () => {
     if (!wallet.connected || !wallet.account) {
+        // For free mode without wallet, submit to Web2 endpoint
+        if (gameMode === 'free') {
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/api/web2/scores`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        playerName: playerName,
+                        score: gameState.score
+                    })
+                });
+                if (!response.ok) throw new Error('Failed to submit Web2 score');
+                await fetchLeaderboards();
+                return;
+            } catch (error) {
+                console.error('Web2 score submission error:', error);
+                alert('Failed to submit score. Please try again.');
+                return;
+            }
+        }
         alert('Please connect your wallet first');
         return;
     }
@@ -391,7 +448,7 @@ useEffect(() => {
                 gameMode: 'paid'
             };
         }
-        // Regular free mode submission
+        // Regular free mode submission with wallet
         else {
             requestBody = {
                 ...requestBody,
@@ -437,10 +494,10 @@ useEffect(() => {
         }
 
         await fetchLeaderboards();
-        
+
     } catch (error) {
         console.error('Score submission error:', error);
-        alert(`Failed to submit score: ${error.message}`);
+        alert('Failed to submit score. Please try again.');
     }
 };
 
@@ -451,11 +508,12 @@ useEffect(() => {
         const baseUrl = `${config.apiBaseUrl}/api/scores/leaderboard`;
         
         // Fetch all leaderboard types with correct URL structure
-        const [mainFree, secondaryFree, mainPaid, secondaryPaid] = await Promise.all([
+        const [mainFree, secondaryFree, mainPaid, secondaryPaid, web2] = await Promise.all([
             fetch(`${baseUrl}/main/free`),
             fetch(`${baseUrl}/secondary/free`),
             fetch(`${baseUrl}/main/paid`),
-            fetch(`${baseUrl}/secondary/paid`)
+            fetch(`${baseUrl}/secondary/paid`),
+            fetch(`${baseUrl}/api/web2/leaderboard`)
         ].map(promise => 
             promise
                 .then(res => {
@@ -472,14 +530,16 @@ useEffect(() => {
             mainFree,
             secondaryFree,
             mainPaid,
-            secondaryPaid
+            secondaryPaid,
+            web2
         });
 
         setLeaderboardData({
             mainFree,
             secondaryFree,
             mainPaid,
-            secondaryPaid
+            secondaryPaid,
+            web2
         });
     } catch (error) {
         console.error('Error fetching leaderboards:', error);
@@ -1146,7 +1206,8 @@ const resetGameState = () => {
         gameStarted: false,
         score: 0,
         isGameOver: false,
-        hasValidPayment: false
+        hasValidPayment: false,
+        playerInitialized: false
     });
     
     setQualifyingTier(null);
@@ -1173,341 +1234,359 @@ const handlePaidGameAttempt = () => {
   return (
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {username && username.name && (
-        <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
-          Playing as: 
-          <span className="player-name">
-            {username.imageUrl && (
-              <img 
-                src={username.imageUrl} 
-                alt="SUINS avatar" 
-                className="suins-avatar"
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  marginRight: '5px',
-                  verticalAlign: 'middle'
-                }}
-              />
-            )}
-            <span>{username.name}</span>
-          </span>
-        </div>
-      )}
-      {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
-        <header>
-          <div className="title">Tears of Aya</div>
-           <div className="wkit-connected-container">
-            {isMobile && !wallet.connected && (
-              <div className="mobile-wallet-guide">
-                <p>To play on mobile:</p>
-                <ol>
-                  <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
-                  <li>Make sure you're on Sui Mainnet</li>
-                  <li>Connect your wallet using the button below</li>
-                </ol>
-              </div>
-            )}
-             
-            <ConnectButton
-              label="Connect SUI Wallet"
-              onConnectError={(error) => {
-                if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                  console.warn("User rejected connection to " + error.details?.wallet);
-                } else {
-                  console.warn("Unknown connect error: ", error);
-                }
-              }}
-            />
-          </div>
-
-          {wallet.connected && (
-            <div className="wallet-info">
-                <div 
-                    className="assets-header" 
-                    onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
-                >
-                    <h3>Prize Pool Assets</h3>
-                    <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
-                        ▼
-                    </span>
-                </div>
-                
-                <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
-                    <div className="balance-list">
-                        {Object.entries(allBalances).map(([symbol, balance]) => (
-                            <p key={symbol} className="balance-item">
-                                {formatSUI(balance)} {symbol}
-                            </p>
-                        ))}
-                    </div>
-                    {nfts.length > 0 && (
-                        <>
-                            <h3>NFTs:</h3>
-                            <div className="nft-list">
-                                {nfts.map((nft) => (
-                                    <div key={nft.id} className="nft-item">
-                                        {nft.url && (
-                                            <img 
-                                                src={nft.url} 
-                                                alt={nft.name} 
-                                                className="nft-image"
-                                            />
-                                        )}
-                                        <p>{nft.name}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-                
+      {!gameState.playerInitialized ? (
+        <UsernameInput onSubmit={(name) => {
+          setPlayerName(name);
+          localStorage.setItem('playerName', name);
+          setGameState(prev => ({
+            ...prev,
+            playerInitialized: true
+          }));
+        }} />
+      ) : (
+        <>
+          {playerName && (
+            <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
+              Playing as: <span className="player-name">{playerName}</span>
             </div>
           )}
-          <p className="creator-credit">
-                    Created by <a 
-                        href="https://x.com/Zombfyd" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="creator-name"
+          {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
+            <header>
+              <div className="title">Tears of Aya</div>
+               <div className="wkit-connected-container">
+                {isMobile && !wallet.connected && (
+                  <div className="mobile-wallet-guide">
+                    <p>To play on mobile:</p>
+                    <ol>
+                      <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
+                      <li>Make sure you're on Sui Mainnet</li>
+                      <li>Connect your wallet using the button below</li>
+                    </ol>
+                  </div>
+                )}
+                 
+                <ConnectButton
+                  label="Connect SUI Wallet"
+                  onConnectError={(error) => {
+                    if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
+                      console.warn("User rejected connection to " + error.details?.wallet);
+                    } else {
+                      console.warn("Unknown connect error: ", error);
+                    }
+                  }}
+                />
+              </div>
+
+              {wallet.connected && (
+                <div className="wallet-info">
+                    <div 
+                        className="assets-header" 
+                        onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
                     >
-                        🎮 Zombfyd 🎮
-                    </a>
-                </p>
+                        <h3>Prize Pool Assets</h3>
+                        <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
+                            ▼
+                        </span>
+                    </div>
+                    
+                    <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
+                        <div className="balance-list">
+                            {Object.entries(allBalances).map(([symbol, balance]) => (
+                                <p key={symbol} className="balance-item">
+                                    {formatSUI(balance)} {symbol}
+                                </p>
+                            ))}
+                        </div>
+                        {nfts.length > 0 && (
+                            <>
+                                <h3>NFTs:</h3>
+                                <div className="nft-list">
+                                    {nfts.map((nft) => (
+                                        <div key={nft.id} className="nft-item">
+                                            {nft.url && (
+                                                <img 
+                                                    src={nft.url} 
+                                                    alt={nft.name} 
+                                                    className="nft-image"
+                                                />
+                                            )}
+                                            <p>{nft.name}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    
+                </div>
+              )}
+              <p className="creator-credit">
+                        Created by <a 
+                            href="https://x.com/Zombfyd" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="creator-name"
+                        >
+                            🎮 Zombfyd 🎮
+                        </a>
+                    </p>
 
-          <div className="mode-selector">
-        <button 
-              onClick={() => setGameMode('free')}
-              className={gameMode === 'free' ? 'active' : ''}
-              disabled={!wallet.connected}
-            >
-              Free Mode
-            </button>
+              <div className="mode-selector">
             <button 
-              onClick={() => setGameMode('paid')}
-              className={gameMode === 'paid' ? 'active' : ''}
-              disabled={!wallet.connected}
-            >
-              Paid Mode
-        </button>
-          </div>
-
-          {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
-            <div className="attempts-info">
-              <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-    </div>
-)}
-
-          {wallet.connected && (
-  gameMode === 'free' ? (
-    <button 
-      onClick={handleGameStart}
-      className="start-button"
-    >
-      Start Free Game
-    </button>
-  ) : (
-    !gameState.hasValidPayment && (
-      <>
-        <div className="payment-section">
-          <h3>Select Payment Tier</h3>
-          
-          {/* Mobile dropdown */}
-          <div className="payment-tiers-mobile">
-            <select 
-              className="tier-select"
-              value={selectedTier || ''}
-              onChange={(e) => setSelectedTier(e.target.value)}
-            >
-              <option value="">Select Payment Tier</option>
-              <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
-              <option value="tier2">Short Brake - 0.8 SUI (2 Plays)</option>
-              <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
-            </select>
-          </div>
-
-          {/* Desktop payment tiers */}
-          {renderPaymentTiers()}
-        </div>
-
-        <button 
-          onClick={handleGamePayment}
-          disabled={paying || !selectedTier}
-          className="start-button"
-        >
-          {paying ? 'Processing...' : `Pay for ${config.paymentTiers[selectedTier]?.plays || ''} Games`}
-        </button>
-      </>
-    )
-  )
-)}
-        </header>
-      )}
-
-      <canvas id="tearCatchGameCanvas" className={`game-canvas ${gameState.gameStarted ? 'centered-canvas' : ''}`} />
-
-      {gameState.isGameOver && (
-  <div className="game-over-overlay">
-    <div className="game-over-popup">
-      <h2>Game Over!</h2>
-      <p>Final Score: {gameState.score}</p>
-      
-      {/* Add qualification notice here - for free mode only */}
-      {gameMode === 'free' && qualifiedForPaid && (
-    <div className="qualification-notice">
-        <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
-        <p>Would you like to submit your score to the paid leaderboard?</p>
-        <button 
-            onClick={() => {
-                // Set the tier based on qualification level
-                setSelectedTier(qualifyingTier);
-                handleGamePayment();
-            }}
-            className="submit-paid-button"
-        >
-            Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
-        </button>
-    </div>
-)}
-
-      {/* Existing game over buttons */}
-      <div className="game-over-buttons">
-        <button 
-          onClick={() => {
-            resetGameState();
-            restartGame();
-                      }}
-          
-          className="restart-button"
-        >
-          Play Again
-        </button>
-        <button 
-          onClick={() => {
-    resetGameState();
-          }}
-          className="return-menu-button"
-        >
-          Return to Menu
-        </button>
-      </div>
-    </div>
-    </div>
-)}
-
-      {process.env.NODE_ENV === 'development' && (
-        <div className="debug-info">
-          <p>Wallet Connected: {String(wallet.connected)}</p>
-          <p>Wallet Initialized: {String(walletInitialized)}</p>
-          <p>Game Manager Initialized: {String(gameManagerInitialized)}</p>
-          <p>Wallet Name: {wallet.adapter?.name || 'None'}</p>
-          <p>Wallet Address: {wallet.account?.address || 'None'}</p>
-          <p>Game Mode: {gameMode}</p>
-          <p>Game Started: {String(gameState.gameStarted)}</p>
-          <p>Score: {gameState.score}</p>
-        </div>
-      )}
-
-      {!gameState.gameStarted && (
-        <div className="leaderboards-container">
-          {isLeaderboardLoading ? (
-            <div className="leaderboard-loading">Loading leaderboards...</div>
-          ) : (
-            <>
-              <div className="leaderboard-section">
-                <h2>Free Leaderboards</h2>
-                <select 
-                  className="leaderboard-type-selector"
-                  value={selectedLeaderboards.free}
-                  onChange={(e) => setSelectedLeaderboards(prev => ({
-                    ...prev,
-                    free: e.target.value
-                  }))}
+                  onClick={() => setGameMode('free')}
+                  className={gameMode === 'free' ? 'active' : ''}
+                  disabled={!wallet.connected}
                 >
-                  <option value="main">All Time Leaderboard</option>
-                  <option value="secondary">Weekly Leaderboard</option>
-                </select>
-                <table className="leaderboard-table">
-                  <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>Player</th>
-                      <th>Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboardData[`${selectedLeaderboards.free}Free`].slice(0, 10).map((entry, index) => (
-                      <tr key={index} className={`rank-${index + 1}`}>
-                        <td>{index + 1}</td>
-                        <td className="wallet-cell">
-                          {getDisplayName(entry.playerWallet)}
-                        </td>
-                        <td className="score-cell">{entry.score}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  Free Mode
+                </button>
+                <button 
+                  onClick={() => setGameMode('paid')}
+                  className={gameMode === 'paid' ? 'active' : ''}
+                  disabled={!wallet.connected}
+                >
+                  Paid Mode
+            </button>
               </div>
 
-              <div className="leaderboard-section">
-                <h2>Paid Leaderboards</h2>
-                <select 
-                  className="leaderboard-type-selector"
-                  value={selectedLeaderboards.paid}
-                  onChange={(e) => setSelectedLeaderboards(prev => ({
-        ...prev,
-                    paid: e.target.value
-                  }))}
-                >
-                  <option value="main">All Time Leaderboard</option>
-                  <option value="secondary">Weekly Leaderboard</option>
-                </select>
-                <table className="leaderboard-table">
-                  <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>Player</th>
-                      <th>Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboardData[`${selectedLeaderboards.paid}Paid`].slice(0, 10).map((entry, index) => (
-                      <tr key={index} className={`rank-${index + 1}`}>
-                        <td>{index + 1}</td>
-                        <td className="wallet-cell">
-                          {getDisplayName(entry.playerWallet)}
-                        </td>
-                        <td className="score-cell">{entry.score}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+              {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
+                <div className="attempts-info">
+                  <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
         </div>
-      )}
+    )}
 
-      {countdown !== null && (
-        <div className="countdown-overlay">
-          <div className="countdown-popup">
-            <h2>Get Ready!</h2>
-            <p>Move your mouse to control the bucket</p>
-            <p>Catch the tears to score points!</p>
-            <div className="countdown-number">{countdown}</div>
-            <div className="countdown-progress">
-              <div 
-                className="countdown-bar" 
-                style={{ 
-                  width: `${(countdown / 3) * 100}%`,
-                  transition: 'width 1s linear'
-                }}
-              />
+              {wallet.connected && (
+    gameMode === 'free' ? (
+      <button 
+        onClick={handleGameStart}
+        className="start-button"
+      >
+        Start Free Game
+      </button>
+    ) : (
+      !gameState.hasValidPayment && (
+        <>
+          <div className="payment-section">
+            <h3>Select Payment Tier</h3>
+            
+            {/* Mobile dropdown */}
+            <div className="payment-tiers-mobile">
+              <select 
+                className="tier-select"
+                value={selectedTier || ''}
+                onChange={(e) => setSelectedTier(e.target.value)}
+              >
+                <option value="">Select Payment Tier</option>
+                <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
+                <option value="tier2">Short Brake - 0.8 SUI (2 Plays)</option>
+                <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
+              </select>
             </div>
+
+            {/* Desktop payment tiers */}
+            {renderPaymentTiers()}
           </div>
+
+          <button 
+            onClick={handleGamePayment}
+            disabled={paying || !selectedTier}
+            className="start-button"
+          >
+            {paying ? 'Processing...' : `Pay for ${config.paymentTiers[selectedTier]?.plays || ''} Games`}
+          </button>
+        </>
+      )
+    )
+)}
+            </header>
+          )}
+
+          <canvas id="tearCatchGameCanvas" className={`game-canvas ${gameState.gameStarted ? 'centered-canvas' : ''}`} />
+
+          {gameState.isGameOver && (
+    <div className="game-over-overlay">
+      <div className="game-over-popup">
+        <h2>Game Over!</h2>
+        <p>Final Score: {gameState.score}</p>
+        
+        {/* Add qualification notice here - for free mode only */}
+        {gameMode === 'free' && qualifiedForPaid && (
+      <div className="qualification-notice">
+          <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
+          <p>Would you like to submit your score to the paid leaderboard?</p>
+          <button 
+              onClick={() => {
+                  // Set the tier based on qualification level
+                  setSelectedTier(qualifyingTier);
+                  handleGamePayment();
+              }}
+              className="submit-paid-button"
+          >
+              Submit Score ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
+          </button>
+      </div>
+  )}
+
+        {/* Existing game over buttons */}
+        <div className="game-over-buttons">
+          <button 
+            onClick={() => {
+              resetGameState();
+              restartGame();
+                        }}
+            
+            className="restart-button"
+          >
+            Play Again
+          </button>
+          <button 
+            onClick={() => {
+      resetGameState();
+            }}
+            className="return-menu-button"
+          >
+            Return to Menu
+          </button>
         </div>
+      </div>
+      </div>
+)}
+
+          {process.env.NODE_ENV === 'development' && (
+            <div className="debug-info">
+              <p>Wallet Connected: {String(wallet.connected)}</p>
+              <p>Wallet Initialized: {String(walletInitialized)}</p>
+              <p>Game Manager Initialized: {String(gameManagerInitialized)}</p>
+              <p>Wallet Name: {wallet.adapter?.name || 'None'}</p>
+              <p>Wallet Address: {wallet.account?.address || 'None'}</p>
+              <p>Game Mode: {gameMode}</p>
+              <p>Game Started: {String(gameState.gameStarted)}</p>
+              <p>Score: {gameState.score}</p>
+            </div>
+          )}
+
+          {!gameState.gameStarted && (
+            <div className="leaderboards-container">
+              {isLeaderboardLoading ? (
+                <div className="leaderboard-loading">Loading leaderboards...</div>
+              ) : (
+                <>
+                  <div className="leaderboards-section">
+                    {/* Free Mode Leaderboards */}
+                    <div className="leaderboard-group">
+                      <h2>Free Mode Leaderboards</h2>
+                      <select 
+                        className="leaderboard-type-selector"
+                        value={selectedLeaderboards.free}
+                        onChange={(e) => setSelectedLeaderboards(prev => ({
+                          ...prev,
+                          free: e.target.value
+                        }))}
+                      >
+                        <option value="main">All Time</option>
+                        <option value="secondary">Weekly</option>
+                        <option value="web2">Web2 Players</option>
+                      </select>
+                      {selectedLeaderboards.free === 'web2' 
+                        ? (
+                          renderLeaderboardTable(leaderboardData.web2, 'web2')
+                        ) : (
+                          renderLeaderboardTable(
+                              leaderboardData[`${selectedLeaderboards.free}Free`], 
+                              'free'
+                          )
+                        )}
+                    </div>
+
+                    {/* Paid Mode Leaderboards */}
+                    <div className="leaderboard-group">
+                      <h2>Paid Mode Leaderboards</h2>
+                      <select 
+                        className="leaderboard-type-selector"
+                        value={selectedLeaderboards.paid}
+                        onChange={(e) => setSelectedLeaderboards(prev => ({
+                          ...prev,
+                          paid: e.target.value
+                        }))}
+                      >
+                        <option value="main">All Time</option>
+                        <option value="secondary">Weekly</option>
+                      </select>
+                      {isLeaderboardLoading ? (
+                        <div className="loading">Loading...</div>
+                      ) : (
+                        renderLeaderboardTable(
+                          leaderboardData[`${selectedLeaderboards.paid}Paid`],
+                          'paid'
+                        )
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {countdown !== null && (
+            <div className="countdown-overlay">
+              <div className="countdown-popup">
+                <h2>Get Ready!</h2>
+                <p>Move your mouse to control the bucket</p>
+                <p>Catch the tears to score points!</p>
+                <div className="countdown-number">{countdown}</div>
+                <div className="countdown-progress">
+                  <div 
+                    className="countdown-bar" 
+                    style={{ 
+                      width: `${(countdown / 3) * 100}%`,
+                      transition: 'width 1s linear'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
+    </div>
+  );
+};
+
+// Add/modify the leaderboard rendering functions
+const renderLeaderboardEntry = (entry, index, type) => {
+  return (
+    <tr key={index} className={`rank-${index + 1}`}>
+      <td>{index + 1}</td>
+      <td className="player-cell">
+        {type === 'web2' ? (
+          // Web2 entries just show player name
+          <span>{entry.playerName}</span>
+        ) : (
+          // Web3 entries can show wallet/SUINS
+          getDisplayName(entry.playerWallet)
+        )}
+      </td>
+      <td className="score-cell">{entry.score}</td>
+    </tr>
+  );
+};
+
+const renderLeaderboardTable = (data, type) => {
+  return (
+    <div className="leaderboard-container">
+      <table className="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.slice(0, 10).map((entry, index) => 
+            renderLeaderboardEntry(entry, index, type)
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };

@@ -948,3 +948,34 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   background-color: white;
   color: #2054c9;
 }
+
+.username-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.username-input-container input {
+  padding: 0.75rem;
+  border: 2px solid #2054c9;
+  border-radius: 6px;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.username-input-container button {
+  padding: 0.75rem;
+  background: #2054c9;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.username-input-container button:hover {
+  background: #1a4098;
+}
