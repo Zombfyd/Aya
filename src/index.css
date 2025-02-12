@@ -113,6 +113,7 @@
 /* Header and wallet styles from App.css */
 header {
   position: fixed;
+  color: #2054c9;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -169,8 +170,6 @@ header.scrolled {
   color: #2054c9;
   font-weight: 500;
   overflow-wrap: anywhere;
-  margin: 1rem 0;
-  padding: 1rem;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
 }
@@ -951,6 +950,9 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 
 .username-input-container {
   margin-bottom: 1rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
 }
 
 .username-input {
