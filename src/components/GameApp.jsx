@@ -276,7 +276,7 @@ useEffect(() => {
   };
   // Modify handleGameStart
   const handleGameStart = async () => {
-    if (gameMode === 'free' || !wallet.connected) {
+    if (gameMode === 'free') {
       // Single countdown for free mode
       setCountdown(3);
       await new Promise((resolve) => {
@@ -1526,6 +1526,39 @@ const handlePaidGameAttempt = () => {
         </div>
       )}
     </div>
+  );
+};
+
+const renderLeaderboardTable = (data, type) => {
+  return (
+    <table className="leaderboard-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>{type === 'web2' ? 'Player Name' : 'Player Wallet'}</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((entry, index) => renderLeaderboardEntry(entry, index, type))}
+      </tbody>
+    </table>
+  );
+};
+
+const renderLeaderboardEntry = (entry, index, type) => {
+  return (
+    <tr key={index} className={`rank-${index + 1}`}>
+      <td>{index + 1}</td>
+      <td className="player-cell">
+        {type === 'web2' ? (
+          <span>{entry.playerName}</span>
+        ) : (
+          getDisplayName(entry.playerWallet)
+        )}
+      </td>
+      <td className="score-cell">{entry.score}</td>
+    </tr>
   );
 };
 
