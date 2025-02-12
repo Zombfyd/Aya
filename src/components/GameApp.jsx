@@ -1249,28 +1249,27 @@ const handleUsernameChange = () => {
               <div>
                 <h2>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h2>
                 <div>
+                <button onClick={handleUsernameChange}>Change Username</button>
                   <label>
                     <input
                       type="checkbox"
                       checked={useSuins}
                       onChange={(e) => setUseSuins(!e.target.checked)}
                     />
-                    Use SUINS Name
+                    use SUINS name.
                   </label>
                 </div>
-                <div className="game-mode-options">
-                  <h2>Select Game Mode</h2>
-                  <div className="mode-selector">
-                    <button onClick={() => handleGameModeSelection('free')} className={gameMode === 'free' ? 'active' : ''}>
-                      Free Mode
-                    </button>
-                    <button onClick={() => handleGameModeSelection('paid')} className={gameMode === 'paid' ? 'active' : ''}>
-                      Paid Mode
-                    </button>
-                  </div>
-                  <button onClick={handleUsernameChange}>Change Username</button>
-                </div>
-              </div>
+                <ConnectButton
+                label="Connect SUI Wallet"
+                onConnectError={(error) => {
+                  if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
+                    console.warn("User rejected connection to " + error.details?.wallet);
+                  } else {
+                    console.warn("Unknown connect error: ", error);
+                  }
+                }}
+              />
+                 </div>
             )}
           </div>
           <div className="wkit-connected-container">
@@ -1352,22 +1351,15 @@ const handleUsernameChange = () => {
                     </a>
                 </p>
 
-          <div className="mode-selector">
-        <button 
-              onClick={() => handleGameModeSelection('free')}
-              className={gameMode === 'free' ? 'active' : ''}
-              disabled={!wallet.connected}
-            >
-              Free Mode
-            </button>
-            <button 
-              onClick={() => handleGameModeSelection('paid')}
-              className={gameMode === 'paid' ? 'active' : ''}
-              disabled={!wallet.connected}
-            >
-              Paid Mode
-        </button>
-          </div>
+                <h2>Select Game Mode</h2>
+                  <div className="mode-selector">
+                    <button onClick={() => handleGameModeSelection('free')} className={gameMode === 'free' ? 'active' : ''}>
+                      Free Mode
+                    </button>
+                    <button onClick={() => handleGameModeSelection('paid')} className={gameMode === 'paid' ? 'active' : ''}>
+                      Paid Mode
+                    </button>
+                  </div>
 
           {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
             <div className="attempts-info">
