@@ -1614,7 +1614,8 @@ const handleSuinsChange = (e) => {
                   <thead>
                     <tr>
                       <th>Rank</th>
-                      <th>Player</th>
+                      <th>Player Name</th>
+                      <th>Wallet</th>
                       <th>Score</th>
                     </tr>
                   </thead>
@@ -1623,9 +1624,7 @@ const handleSuinsChange = (e) => {
                       leaderboardData.web2.slice(0, 10).map((entry, index) => (
                         <tr key={index} className={`rank-${index + 1}`}>
                           <td>{index + 1}</td>
-                          <td className="wallet-cell">
-                            {entry.playerName}
-                          </td>
+                          <td className="playername-cell">{entry.playerName}</td>
                           <td className="score-cell">{entry.score}</td>
                         </tr>
                       ))
@@ -1633,8 +1632,9 @@ const handleSuinsChange = (e) => {
                       leaderboardData[`${selectedLeaderboards.free}Free`].slice(0, 10).map((entry, index) => (
                         <tr key={index} className={`rank-${index + 1}`}>
                           <td>{index + 1}</td>
+                          <td className="playername-cell">{entry.playerName}</td>
                           <td className="wallet-cell">
-                            {getDisplayName(entry.playerWallet)}
+                            {wallet.connected ? getDisplayName(entry.playerWallet) : (entry.playerWallet || 'Unknown')}
                           </td>
                           <td className="score-cell">{entry.score}</td>
                         </tr>
@@ -1661,7 +1661,8 @@ const handleSuinsChange = (e) => {
                   <thead>
                     <tr>
                       <th>Rank</th>
-                      <th>Player</th>
+                      <th>Player Name</th>
+                      <th>Wallet</th>
                       <th>Score</th>
                     </tr>
                   </thead>
@@ -1669,8 +1670,9 @@ const handleSuinsChange = (e) => {
                     {leaderboardData[`${selectedLeaderboards.paid}Paid`].slice(0, 10).map((entry, index) => (
                       <tr key={index} className={`rank-${index + 1}`}>
                         <td>{index + 1}</td>
+                        <td className="playername-cell">{entry.playerName}</td>
                         <td className="wallet-cell">
-                          {getDisplayName(entry.playerWallet)}
+                          {wallet.connected ? getDisplayName(entry.playerWallet) : (entry.playerWallet || 'Unknown')}
                         </td>
                         <td className="score-cell">{entry.score}</td>
                       </tr>

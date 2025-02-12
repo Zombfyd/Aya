@@ -242,18 +242,12 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    console.log('Spawning new teardrop');
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
     // Explicitly set initial state
     tear.state = 'sliding';
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
-    console.log('Teardrop spawned with properties:', {
-      state: tear.state,
-      scaleY: tear.scaleY,
-      y: tear.y
-    });
     this.teardrops.push(tear);
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
@@ -605,15 +599,6 @@ class Teardrop extends Entity {
         this.y += this.speed;
         break;
     }
-    
-    if (previousState !== this.state) {
-      console.log('Teardrop state changed:', {
-        from: previousState,
-        to: this.state,
-        scaleY: this.scaleY,
-        formationProgress: this.formationProgress
-      });
-    }
   }
 
   updateSliding() {
@@ -682,14 +667,6 @@ class Teardrop extends Entity {
 
   draw(ctx, image) {
     if (!ctx || !image) return;
-
-    // Log drawing state
-    console.log('Drawing tear:', {
-      state: this.state,
-      scaleY: this.scaleY,
-      x: this.x,
-      y: this.y
-    });
 
     const currentWidth = this.width * this.scaleX;
     const currentHeight = this.height * this.scaleY;
