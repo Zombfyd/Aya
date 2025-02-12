@@ -1313,27 +1313,7 @@ const handleUsernameChange = () => {
     setGameMode(null); // Reset game mode when changing username
 };
 
-// Add this near your other useEffect hooks
-useEffect(() => {
-  const fetchSuinsData = async () => {
-    if (wallet.connected) {
-      try {
-        const suinsClient = new SuinsClient({ client });
-        const domain = await suinsClient.getDefaultDomain(wallet.account.address);
-        if (domain) {
-          setSuinsData({
-            name: domain,
-            // Add other SUINS data as needed
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching SUINS data:', error);
-      }
-    }
-  };
 
-  fetchSuinsData();
-}, [wallet.connected, client]);
 
 // Update the checkbox handler
 const handleSuinsChange = (e) => {
