@@ -104,7 +104,12 @@ const GameApp = () => {
   // Add cache state
   const [suinsCache, setSuinsCache] = useState({});
   
-
+  // At the top of your component, add this log
+  const client = new SuiClient({ 
+    url: 'https://fullnode.mainnet.sui.io',
+    network: 'mainnet' // Explicitly set the network
+  });
+  console.log('SUI Client initialized:', !!client);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -354,12 +359,41 @@ useEffect(() => {
   };
 
   const handleScoreSubmit = async () => {
-    if (!wallet.connected || !wallet.account) {
-        alert('Please connect your wallet first');
-        return;
-    }
-
     try {
+        // Web2 submission for non-wallet users in free mode
+        if (!wallet.connected && gameMode === 'free') {
+            console.log('Submitting to web2 leaderboard');
+            const web2Endpoint = `${config.apiBaseUrl}/api/web2/scores`;
+            const web2RequestBody = {
+                playerName: playerName || 'Anonymous',
+                score: gameState.score
+            };
+
+            const response = await fetch(web2Endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                mode: 'cors',
+                body: JSON.stringify(web2RequestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Web2 submission failed: ${errorData.error}`);
+            }
+
+            console.log('Web2 score submission successful');
+            await fetchLeaderboards();
+            return;
+        }
+
+        // Existing wallet-connected logic
+        if (!wallet.connected || !wallet.account) {
+            alert('Please connect your wallet first');
+            return;
+        }
+
         let requestBody = {
             playerWallet: wallet.account.address,
             score: gameState.score
@@ -1055,14 +1089,26 @@ const fetchPrimaryWalletBalance = async () => {
     console.log('fetchPrimaryWalletBalance called');
 
     try {
+        // Set default network context
+        config.updateNetwork('mainnet');
+        
         const recipients = config.getCurrentRecipients();
+        console.log('Recipients from config:', recipients);
         
         if (!recipients?.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
         }
 
-        console.log('Fetching balances for prize pool address:', recipients.primary);
+        console.log('Attempting to fetch from address:', recipients.primary);
+
+        // Test the client connection
+        try {
+            const testConnection = await client.getChainIdentifier();
+            console.log('Client connection test:', testConnection);
+        } catch (e) {
+            console.error('Client connection test failed:', e);
+        }
 
         // Fetch both coins and NFTs
         const [allCoins, allNFTs] = await Promise.all([
@@ -1073,9 +1119,9 @@ const fetchPrimaryWalletBalance = async () => {
             })
         ]);
 
-        console.log('Received coins:', allCoins.data);
-        console.log('Received NFTs:', allNFTs.data);
-
+        console.log('Raw coin response:', allCoins);
+        console.log('Raw NFT response:', allNFTs);
+        
         let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
         const nfts = [];
@@ -1522,7 +1568,7 @@ const handleSuinsChange = (e) => {
                 >
                   <option value="main">All Time Leaderboard</option>
                   <option value="secondary">Weekly Leaderboard</option>
-                  <option value="web2">Web2 Players</option>
+                  <option value="web2">Normal Players</option>
                 </select>
                 <table className="leaderboard-table">
                   <thead>
