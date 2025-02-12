@@ -1367,15 +1367,14 @@ const handleUsernameChange = () => {
     </div>
 )}
 
-          {wallet.connected && (
-  gameMode === 'free' ? (
-    <button 
-      onClick={handleGameStart}
-      className="start-button"
-    >
-      Start Free Game
-    </button>
-  ) : (
+{isUsernameSubmitted && gameMode === 'free' && (
+  <button 
+    onClick={handleGameStart}
+    className="start-button"
+  >
+    Start Free Game
+  </button>
+)} : (
     !gameState.hasValidPayment && (
       <>
         <div className="payment-section">
@@ -1605,5 +1604,3 @@ const handleUsernameChange = () => {
 };
 
 export default GameApp;
-
-// Add this useEffect after your other useEffects
