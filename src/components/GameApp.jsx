@@ -1439,70 +1439,94 @@ const handlePaidGameAttempt = () => {
 
       {!gameState.gameStarted && (
         <div className="leaderboards-container">
-          <div className="leaderboard-group">
-            <h2>Free Mode Leaderboards</h2>
-            <select 
-              className="leaderboard-type-selector"
-              value={selectedLeaderboards.free}
-              onChange={(e) => setSelectedLeaderboards(prev => ({
-                ...prev,
-                free: e.target.value
-              }))}
-            >
-              <option value="main">All Time</option>
-              <option value="secondary">Weekly</option>
-              <option value="web2">Web2 Players</option>
-            </select>
-            {isLeaderboardLoading ? (
-              <div className="loading">Loading...</div>
-            ) : (
-              selectedLeaderboards.free === 'web2' 
-                ? renderLeaderboardTable(leaderboardData.web2, 'web2')
-                : renderLeaderboardTable(
-                    leaderboardData[`${selectedLeaderboards.free}Free`], 
-                    'free'
-                  )
-            )}
-          </div>
+          {isLeaderboardLoading ? (
+            <div className="leaderboard-loading">Loading leaderboards...</div>
+          ) : (
+            <>
+              <div className="leaderboard-section">
+                <h2>Free Leaderboards</h2>
+                <select 
+                  className="leaderboard-type-selector"
+                  value={selectedLeaderboards.free}
+                  onChange={(e) => setSelectedLeaderboards(prev => ({
+                    ...prev,
+                    free: e.target.value
+                  }))}
+                >
+                  <option value="main">All Time Leaderboard</option>
+                  <option value="secondary">Weekly Leaderboard</option>
+                  <option value="web2">Web2 Players</option>
+                </select>
+                <table className="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedLeaderboards.free === 'web2' ? (
+                      leaderboardData.web2.slice(0, 10).map((entry, index) => (
+                        <tr key={index} className={`rank-${index + 1}`}>
+                          <td>{index + 1}</td>
+                          <td className="wallet-cell">
+                            {entry.playerName}
+                          </td>
+                          <td className="score-cell">{entry.score}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      leaderboardData[`${selectedLeaderboards.free}Free`].slice(0, 10).map((entry, index) => (
+                        <tr key={index} className={`rank-${index + 1}`}>
+                          <td>{index + 1}</td>
+                          <td className="wallet-cell">
+                            {getDisplayName(entry.playerWallet)}
+                          </td>
+                          <td className="score-cell">{entry.score}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-          <div className="leaderboard-section">
-            <h2>Paid Leaderboards</h2>
-            <select 
-              className="leaderboard-type-selector"
-              value={selectedLeaderboards.paid}
-              onChange={(e) => setSelectedLeaderboards(prev => ({
-        ...prev,
+              <div className="leaderboard-section">
+                <h2>Paid Leaderboards</h2>
+                <select 
+                  className="leaderboard-type-selector"
+                  value={selectedLeaderboards.paid}
+                  onChange={(e) => setSelectedLeaderboards(prev => ({
+                    ...prev,
                     paid: e.target.value
                   }))}
-            >
-              <option value="main">All Time Leaderboard</option>
-              <option value="secondary">Weekly Leaderboard</option>
-            </select>
-            <table className="leaderboard-table">
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Player</th>
-                  <th>Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboardData[`${selectedLeaderboards.paid}Paid`].slice(0, 10).map((entry, index) => (
-                  <tr key={index} className={`rank-${index + 1}`}>
-                    <td>{index + 1}</td>
-                    <td className="player-cell">
-                      {selectedLeaderboards.paid === 'web2' ? (
-                        <span>{entry.playerName}</span>
-                      ) : (
-                        getDisplayName(entry.playerWallet)
-                      )}
-                    </td>
-                    <td className="score-cell">{entry.score}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                >
+                  <option value="main">All Time Leaderboard</option>
+                  <option value="secondary">Weekly Leaderboard</option>
+                </select>
+                <table className="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardData[`${selectedLeaderboards.paid}Paid`].slice(0, 10).map((entry, index) => (
+                      <tr key={index} className={`rank-${index + 1}`}>
+                        <td>{index + 1}</td>
+                        <td className="wallet-cell">
+                          {getDisplayName(entry.playerWallet)}
+                        </td>
+                        <td className="score-cell">{entry.score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1526,39 +1550,6 @@ const handlePaidGameAttempt = () => {
         </div>
       )}
     </div>
-  );
-};
-
-const renderLeaderboardTable = (data, type) => {
-  return (
-    <table className="leaderboard-table">
-      <thead>
-        <tr>
-          <th>Rank</th>
-          <th>{type === 'web2' ? 'Player Name' : 'Player Wallet'}</th>
-          <th>Score</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((entry, index) => renderLeaderboardEntry(entry, index, type))}
-      </tbody>
-    </table>
-  );
-};
-
-const renderLeaderboardEntry = (entry, index, type) => {
-  return (
-    <tr key={index} className={`rank-${index + 1}`}>
-      <td>{index + 1}</td>
-      <td className="player-cell">
-        {type === 'web2' ? (
-          <span>{entry.playerName}</span>
-        ) : (
-          getDisplayName(entry.playerWallet)
-        )}
-      </td>
-      <td className="score-cell">{entry.score}</td>
-    </tr>
   );
 };
 
