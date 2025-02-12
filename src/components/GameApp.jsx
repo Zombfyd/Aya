@@ -796,12 +796,15 @@ useEffect(() => {
         if (gameMode === 'free') {
             // Submit to free leaderboard using existing function
             await handleScoreSubmit();
-            // Then check if score qualifies for paid leaderboard
-            const qualification = await checkScoreQualification(finalScore);
-            if (qualification) {
-                console.log('Score qualifies for paid leaderboard:', qualification);
-                setQualifiedForPaid(true);
-                setQualifyingTier(qualification);
+            
+            // Only check qualification if wallet is connected
+            if (wallet.connected) {
+                const qualification = await checkScoreQualification(finalScore);
+                if (qualification) {
+                    console.log('Score qualifies for paid leaderboard:', qualification);
+                    setQualifiedForPaid(true);
+                    setQualifyingTier(qualification);
+                }
             }
         } else if (gameMode === 'paid' && wallet.connected) {
             await handleScoreSubmit();
@@ -1050,12 +1053,14 @@ const checkScoreQualification = async (score) => {
 // Modify fetchPrimaryWalletBalance to set all balances
 const fetchPrimaryWalletBalance = async () => {
     try {
+        console.log('Fetching prize pool balances...');
         const recipients = config.getCurrentRecipients();
         
         if (!recipients?.primary) {
             console.error('Primary recipient address is undefined or null');
             return;
         }
+        console.log('Primary recipient address:', recipients.primary);
 
         // Fetch both coins and NFTs
         const [allCoins, allNFTs] = await Promise.all([
@@ -1065,6 +1070,9 @@ const fetchPrimaryWalletBalance = async () => {
                 options: { showContent: true }
             })
         ]);
+
+        console.log('Received coins:', allCoins);
+        console.log('Received NFTs:', allNFTs);
 
         let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
@@ -1089,6 +1097,8 @@ const fetchPrimaryWalletBalance = async () => {
             }
         }
 
+        console.log('Processed balances:', balancesByCoin);
+
         // Process NFTs
         for (const nft of allNFTs.data) {
             if (nft.data?.content?.type?.includes('::nft::')) {
@@ -1102,10 +1112,10 @@ const fetchPrimaryWalletBalance = async () => {
             }
         }
         
-        console.log('Final balances:', {
-            totalSui: totalSuiBalance.toString(),
-            byCoin: balancesByCoin,
-            nfts: nfts
+        console.log('Setting states with:', {
+            balancesByCoin,
+            totalSuiBalance: totalSuiBalance.toString(),
+            nfts
         });
 
         setAllBalances(balancesByCoin);
@@ -1327,11 +1337,14 @@ const handleSuinsChange = (e) => {
                 
                 <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
                     <div className="balance-list">
-                        {Object.entries(allBalances).map(([symbol, balance]) => (
-                            <p key={symbol} className="balance-item">
-                                {formatSUI(balance)} {symbol}
-                            </p>
-                        ))}
+                        {Object.entries(allBalances).map(([symbol, balance]) => {
+                            console.log('Rendering balance:', symbol, balance);
+                            return (
+                              <p key={symbol} className="balance-item">
+                                <TokenAmount amount={balance} /> {symbol}
+                              </p>
+                            );
+                        })}
                     </div>
                     {nfts.length > 0 && (
                         <>
@@ -1440,37 +1453,21 @@ const handleSuinsChange = (e) => {
       <h2>Game Over!</h2>
       <p>Final Score: {gameState.score}</p>
       
-      {/* Check if the user qualifies for the paid leaderboard */}
-      {gameMode === 'free' && qualifyingTier && (
+      {/* Only show qualification notice if wallet is connected */}
+      {gameMode === 'free' && qualifyingTier && wallet.connected && (
         <div className="qualification-notice">
           <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
           <p>Would you like to submit your score to the paid leaderboard?</p>
-          {wallet.connected ? (
-            <button 
-              onClick={() => {
-                // Call the function to submit the score
-                handleGamePayment();
-              }}
-              className="submit-paid-button"
-            >
-              Submit Score
-            </button>
-          ) : (
-            <ConnectButton
-              label="Connect SUI Wallet"
-              onConnectError={(error) => {
-                if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                  console.warn("User rejected connection to " + error.details?.wallet);
-                } else {
-                  console.warn("Unknown connect error: ", error);
-                }
-              }}
-            />
-          )}
+          <button 
+            onClick={handleGamePayment}
+            className="submit-paid-button"
+          >
+            Submit Score
+          </button>
         </div>
       )}
 
-      {/* Existing game over buttons */}
+      {/* Game over buttons */}
       <div className="game-over-buttons">
         <button 
           onClick={() => {
