@@ -172,11 +172,7 @@ const TokenAmount = ({ amount }) => {
 // Add this CSS to your stylesheet
 
 
-// Add the styles to the document
-const styleSheet = document.createElement("style");
-styleSheet.innerText = styles;
-document.head.appendChild(styleSheet);
-  
+
   // Add mobile detection on component mount
   useEffect(() => {
     const checkMobile = () => {
