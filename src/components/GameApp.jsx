@@ -68,7 +68,7 @@ const GameApp = () => {
   const [displayName, setDisplayName] = useState('');
   const [usernameInput, setUsernameInput] = useState('');
   const [isUsernameSubmitted, setIsUsernameSubmitted] = useState(false);
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState({ name: '', imageUrl: null });
   const [useSuins, setUseSuins] = useState(false);
   const [suinsData, setSuinsData] = useState(null);
   const [loading, setLoading] = useState(false);
