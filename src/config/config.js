@@ -55,7 +55,11 @@ const config = {
     api: {
         scores: {
             submit: (gameMode) => `https://ayagame.onrender.com/api/scores/submit/${gameMode}`,
-            leaderboard: (type, mode) => `https://ayagame.onrender.com/api/scores/leaderboard/${type}/${mode}`
+            leaderboard: (type, mode) => `https://ayagame.onrender.com/api/scores/leaderboard/${type}/${mode}`,
+            web2: {
+                leaderboard: 'https://ayagame.onrender.com/api/web2/leaderboard',
+                submit: 'https://ayagame.onrender.com/api/web2/scores'
+            }
         }
     },
     

@@ -173,41 +173,45 @@ const GameApp = () => {
   // Utility function for chain name
   
   useEffect(() => {
-  const initializeGameManager = async () => {
-    try {
-      console.log('Initializing game manager...', {
-        environment: process.env.NODE_ENV,
-        network: config.network,
-        packageId: config.packageId
-      });
-
-      if (!window.gameManager) {
-        console.error('GameManager not found on window object');
-        return;
-      }
-
-      const success = await window.gameManager.initialize();
-      
-      if (success) {
-        console.log('Game manager initialized successfully', {
+    const initializeGameManager = async () => {
+      try {
+        console.log('Initializing game manager...', {
           environment: process.env.NODE_ENV,
-          gameMode: gameMode,
-          networkConfig: config.network
+          network: config.network,
+          packageId: config.packageId
         });
-        setGameManagerInitialized(true);
-      } else {
-        console.error('Game manager initialization returned false', {
-          environment: process.env.NODE_ENV,
-          gameMode: gameMode
-        });
+  
+        if (!window.gameManager) {
+          console.error('GameManager not found on window object');
+          return;
+        }
+  
+        const success = await window.gameManager.initialize();
+        
+        if (success) {
+          console.log('Game manager initialized successfully', {
+            environment: process.env.NODE_ENV,
+            gameMode: gameMode,
+            networkConfig: config.network,
+            playerName: playerName
+          });
+          setGameManagerInitialized(true);
+        } else {
+          console.error('Game manager initialization returned false', {
+            environment: process.env.NODE_ENV,
+            gameMode: gameMode
+          });
+        }
+      } catch (error) {
+        console.error('Error initializing game manager:', error);
       }
-    } catch (error) {
-      console.error('Error initializing game manager:', error);
+    };
+  
+    // Only initialize if we have a player name
+    if (playerName) {
+      initializeGameManager();
     }
-  };
-
-  initializeGameManager();
-}, []);
+  }, [playerName]);
 
 // Modify payment status monitoring
 useEffect(() => {
@@ -1484,15 +1488,16 @@ const handlePaidGameAttempt = () => {
                         <option value="secondary">Weekly</option>
                         <option value="web2">Web2 Players</option>
                       </select>
-                      {selectedLeaderboards.free === 'web2' 
-                        ? (
-                          renderLeaderboardTable(leaderboardData.web2, 'web2')
-                        ) : (
-                          renderLeaderboardTable(
+                      {isLeaderboardLoading ? (
+                        <div className="loading">Loading...</div>
+                      ) : (
+                        selectedLeaderboards.free === 'web2' 
+                          ? renderLeaderboardTable(leaderboardData.web2, 'web2')
+                          : renderLeaderboardTable(
                               leaderboardData[`${selectedLeaderboards.free}Free`], 
                               'free'
-                          )
-                        )}
+                            )
+                      )}
                     </div>
 
                     {/* Paid Mode Leaderboards */}
@@ -1590,5 +1595,3 @@ const renderLeaderboardTable = (data, type) => {
 };
 
 export default GameApp;
-
-// Add this useEffect after your other useEffects
