@@ -68,7 +68,7 @@ const GameApp = () => {
   const [displayName, setDisplayName] = useState('');
   const [usernameInput, setUsernameInput] = useState('');
   const [isUsernameSubmitted, setIsUsernameSubmitted] = useState(false);
-  const [username, setUsername] = useState({ name: '', imageUrl: null });
+  const [playerName, setPlayerName] = useState('');
   const [useSuins, setUseSuins] = useState(false);
   const [suinsData, setSuinsData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -613,10 +613,10 @@ useEffect(() => {
         try {
           const suiData = await getSuiNSName(wallet.account.address);
           if (suiData) {
-            setUsername(suiData);
+            setSuinsData(suiData);
           } else {
             const truncatedAddress = `${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}`;
-            setUsername({
+            setSuinsData({
               name: truncatedAddress,
               imageUrl: null
             });
@@ -624,13 +624,13 @@ useEffect(() => {
         } catch (error) {
           console.error('Error updating display name:', error);
           const truncatedAddress = `${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}`;
-          setUsername({
+          setSuinsData({
             name: truncatedAddress,
             imageUrl: null
           });
         }
       } else {
-        setUsername({ name: '', imageUrl: null });
+        setSuinsData(null);
       }
     };
 
@@ -1177,17 +1177,27 @@ const handlePaidGameAttempt = () => {
     }
 };
 
+const handleUsernameSubmit = (e) => {
+    e.preventDefault();
+    if (usernameInput.trim() && usernameInput.length <= 25) {
+        setPlayerName(usernameInput);
+        setIsUsernameSubmitted(true);
+    } else {
+        alert('Please enter a valid username (max 25 characters).');
+    }
+};
+
   // Render method
   return (
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {username && username.name && (
+      {usernameInput && usernameInput.length > 0 && (
         <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
           Playing as: 
           <span className="player-name">
-            {username.imageUrl && (
+            {suinsData?.imageUrl && (
               <img 
-                src={username.imageUrl} 
+                src={suinsData.imageUrl} 
                 alt="SUINS avatar" 
                 className="suins-avatar"
                 style={{
@@ -1199,7 +1209,7 @@ const handlePaidGameAttempt = () => {
                 }}
               />
             )}
-            <span>{username.name}</span>
+            <span>{playerName}</span>
           </span>
         </div>
       )}
@@ -1222,13 +1232,13 @@ const handlePaidGameAttempt = () => {
               </form>
             ) : (
               <div>
-                <h2>Welcome, {useSuins && suinsData ? suinsData.name : username}!</h2>
+                <h2>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h2>
                 <div>
                   <label>
                     <input
                       type="checkbox"
                       checked={useSuins}
-                      onChange={() => setUseSuins(!useSuins)}
+                      onChange={(e) => setUseSuins(!e.target.checked)}
                     />
                     Use SUINS Name
                   </label>
