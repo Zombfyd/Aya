@@ -975,7 +975,7 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 
 .token-amount:hover::after {
   content: attr(title);
-  position: absolute;
+  position: relative;
   bottom: 100%;
   left: 50%;
   
@@ -990,7 +990,7 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 
 .token-amount:hover::before {
   content: '';
-  position: absolute;
+  position: relative;
   bottom: 100%;
   left: 50%;
   
