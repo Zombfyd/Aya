@@ -109,6 +109,8 @@ const GameApp = () => {
   // Add this state at the top with other state declarations
   const [isAssetsExpanded, setIsAssetsExpanded] = useState(false);
   
+  const [showGameModeOptions, setShowGameModeOptions] = useState(false);
+  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -408,157 +410,102 @@ const TokenAmount = ({ amount, symbol }) => {
     }
   };
 
-  const handleScoreSubmit = async (finalScore) => {
+  const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType = 'TOA') => {
+    console.log('handleScoreSubmit received:', { 
+      finalScore, 
+      playerName, 
+      gameMode: submissionGameMode,
+      gameType
+    });
+
     try {
-        console.log('handleScoreSubmit received:', {
-            score: finalScore,
-            playerName: playerName,
-            gameMode: gameMode
-        });
-        
-        const scoreToSubmit = Number(finalScore);
+      const requestBody = {
+        score: finalScore,
+        playerName,
+        playerWallet: wallet.account?.address,
+        gameType,
+        type: submissionGameMode === 'paid' ? 'main' : 'secondary'
+      };
 
-        // Web2 submission for non-wallet users in free mode
-        if (!wallet.connected && gameMode === 'free') {
-            console.log('Submitting web2 score:', { 
-                playerName: playerName, 
-                score: scoreToSubmit 
-            });
-            
-            const web2RequestBody = {
-                playerName: playerName,
-                score: scoreToSubmit
-            };
+      // Add session token for paid leaderboard submissions
+      if (submissionGameMode === 'paid' && paymentStatus.verified) {
+        requestBody.sessionToken = paymentStatus.transactionId;
+      }
 
-            // Updated Web2 submission endpoint
-            const response = await fetch('https://ayagame.onrender.com/api/web2/scores', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                mode: 'cors',
-                body: JSON.stringify(web2RequestBody)
-            });
+      const response = await fetch(config.api.scores.submit(submissionGameMode), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Web2 submission failed: ${errorData.error}`);
-            }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-            console.log('Web2 submission successful');
-            await fetchLeaderboards();
-            return;
-        }
-
-        // Wallet-connected submission logic
-        if (!wallet.connected || !wallet.account) {
-            throw new Error('Wallet connection required');
-        }
-
-        let requestBody = {
-            playerWallet: wallet.account.address,
-            score: scoreToSubmit,
-            playerName: playerName,
-            gameMode: gameMode
-        };
-
-        if (gameMode === 'paid' || (qualifyingTier && qualifiedForPaid)) {
-            if (!paymentStatus.verified || !paymentStatus.transactionId) {
-                throw new Error('Payment verification required');
-            }
-            requestBody.sessionToken = paymentStatus.transactionId;
-        }
-
-        // Updated score submission endpoint
-        const endpoint = `https://ayagame.onrender.com/api/scores/${requestBody.gameMode}`;
-        console.log('Submitting scores to endpoint:', endpoint, 'with body:', requestBody);
-
-        // Submit to both leaderboards concurrently
-        const results = await Promise.all(['main', 'secondary'].map(async (type) => {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                mode: 'cors',
-                body: JSON.stringify({ ...requestBody, gameType: type })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`${type} submission failed: ${errorData.error}`);
-            }
-            return response.json();
-        }));
-
-        console.log('Score submissions successful:', results);
-
-        // Update game state after successful submission
-        if (gameMode === 'paid') {
-            setPaidGameAttempts(prev => {
-                const newAttempts = prev + 1;
-                if (newAttempts >= maxAttempts) {
-                    setGameState(prev => ({ ...prev, hasValidPayment: false }));
-                }
-                return newAttempts;
-            });
-        }
-
-        // Reset qualification states
-        if (qualifyingTier && qualifiedForPaid) {
-            setQualifiedForPaid(false);
-            setQualifyingTier(null);
-        }
-
-        await fetchLeaderboards();
+      const result = await response.json();
+      console.log('Score submitted successfully:', result);
+      
+      // Refresh leaderboards after submission
+      await fetchLeaderboards();
     } catch (error) {
-        console.error('Score submission error:', error);
-        alert(`Failed to submit score: ${error.message}`);
+      console.error('Score submission error:', error);
+      alert(`Failed to submit score: ${error.message}`);
     }
-};
+  };
 
   // Leaderboard functions
   const fetchLeaderboards = async () => {
     setIsLeaderboardLoading(true);
     try {
-        const baseUrl = `${config.apiBaseUrl}/api`;
-        
-        // Fetch all leaderboard types with correct URL structure
-        const [mainFree, secondaryFree, mainPaid, secondaryPaid, web2] = await Promise.all([
-            fetch(`${baseUrl}/scores/leaderboard/main/free`),
-            fetch(`${baseUrl}/scores/leaderboard/secondary/free`),
-            fetch(`${baseUrl}/scores/leaderboard/main/paid`),
-            fetch(`${baseUrl}/scores/leaderboard/secondary/paid`),
-            fetch(`${baseUrl}/web2/leaderboard`)
-        ].map(promise => 
-            promise
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                    return res.json();
-                })
-                .catch(error => {
-                    console.error('Leaderboard fetch error:', error);
-                    return [];
-                })
-        ));
+      const baseUrl = `${config.apiBaseUrl}/api`;
 
-        console.log('Fetched leaderboard data:', {
-            mainFree,
-            secondaryFree,
-            mainPaid,
-            secondaryPaid,
-            web2
-        });
+      // Fetch all leaderboard types with correct URL structure
+      const [mainFreeTOA, secondaryFreeTOA, mainPaidTOA, secondaryPaidTOA, 
+             mainFreeTOB, secondaryFreeTOB, mainPaidTOB, secondaryPaidTOB, 
+             web2TOA, web2TOB] = await Promise.all([
+        fetch(`${baseUrl}/scores/leaderboard/main/free?gameType=TOA`),
+        fetch(`${baseUrl}/scores/leaderboard/secondary/free?gameType=TOA`),
+        fetch(`${baseUrl}/scores/leaderboard/main/paid?gameType=TOA`),
+        fetch(`${baseUrl}/scores/leaderboard/secondary/paid?gameType=TOA`),
+        fetch(`${baseUrl}/scores/leaderboard/main/free?gameType=TOB`),
+        fetch(`${baseUrl}/scores/leaderboard/secondary/free?gameType=TOB`),
+        fetch(`${baseUrl}/scores/leaderboard/main/paid?gameType=TOB`),
+        fetch(`${baseUrl}/scores/leaderboard/secondary/paid?gameType=TOB`),
+        fetch(`${baseUrl}/web2/leaderboard?gameType=TOA`),
+        fetch(`${baseUrl}/web2/leaderboard?gameType=TOB`)
+      ].map(promise => 
+        promise
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            return res.json();
+          })
+          .catch(error => {
+            console.error('Error fetching leaderboard:', error);
+            return [];
+          })
+      ));
 
-        setLeaderboardData({
-            mainFree,
-            secondaryFree,
-            mainPaid,
-            secondaryPaid,
-            web2
-        });
+      // Process and set leaderboard data as needed
+      setLeaderboardData({
+        mainFreeTOA,
+        secondaryFreeTOA,
+        mainPaidTOA,
+        secondaryPaidTOA,
+        mainFreeTOB,
+        secondaryFreeTOB,
+        mainPaidTOB,
+        secondaryPaidTOB,
+        web2TOA,
+        web2TOB
+      });
     } catch (error) {
-        console.error('Error fetching leaderboards:', error);
+      console.error('Error fetching leaderboards:', error);
     } finally {
-        setIsLeaderboardLoading(false);
+      setIsLeaderboardLoading(false);
     }
-};
+  };
 
   // Updated SuiNS client initialization for mainnet
   useEffect(() => {
@@ -820,6 +767,11 @@ const TokenAmount = ({ amount, symbol }) => {
         isGameOver: false,
       }));
 
+      // Track attempts for paid games
+      if (gameMode === 'paid') {
+        handlePaidGameAttempt();
+      }
+
       const canvas = document.getElementById('tearCatchGameCanvas');
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
@@ -861,25 +813,26 @@ const TokenAmount = ({ amount, symbol }) => {
             gameStarted: false,
           }));
 
-          if (gameMode === 'free') {
-            try {
-              if (!wallet.connected) {
-                // Non-wallet users - direct submission to free leaderboard
-                await handleScoreSubmit(finalScore);
-              } else {
-                // Check qualification before showing options
-                const qualification = await checkScoreQualification(finalScore);
-                if (qualification) {
-                  setQualifiedForPaid(true);
-                  setQualifyingTier(qualification);
-                  // Don't submit yet - let user choose via UI
-                } else {
-                  // Not qualified - submit to free leaderboard
-                  await handleScoreSubmit(finalScore);
-                }
+          if (gameMode === 'free' && qualifiedForPaid) {
+            // Use existing UI to notify the user of qualification
+            // Assume there's a button or UI element that triggers the payment and submission
+            // Example: A button that calls this function when clicked
+            const submitToPaidLeaderboard = async () => {
+              try {
+                await handleGamePayment(); // Process payment
+                await handleScoreSubmit(finalScore, 'paid'); // Submit to paid leaderboard
+              } catch (error) {
+                console.error('Error during payment or submission:', error);
               }
-            } catch (error) {
-              console.error('Error handling free mode game over:', error);
+            };
+
+            if (wantsToSubmitToPaid) {
+              // Handle payment and submit to paid leaderboard
+              await handleGamePayment();
+              await handleScoreSubmit(finalScore, 'paid');
+            } else {
+              // Submit to free leaderboard
+              await handleScoreSubmit(finalScore, 'free');
             }
           } else if (gameMode === 'paid' && wallet.connected) {
             try {
@@ -1019,6 +972,9 @@ const TokenAmount = ({ amount, symbol }) => {
           setMaxAttempts(tierConfig.plays);
           startGame(type);
         }
+
+        // After successful payment, show game mode options
+        setShowGameModeOptions(true);
       }
     } catch (error) {
       console.error('Payment error:', error);
@@ -1303,11 +1259,10 @@ const handleSuinsChange = (e) => {
       return;
     }
 
-    if (gameMode === 'free') {
-      handleGameStart(type);
+    if (gameMode === 'free' || gameState.hasValidPayment) {
+      startGame(type);
     } else {
-      // For paid mode, we'll pass the type through the payment flow
-      handleGamePayment(type);
+      alert('Please complete payment to play in paid mode.');
     }
   };
 
@@ -1460,18 +1415,13 @@ const handleSuinsChange = (e) => {
             </div>
           )}
 
-          {isUsernameSubmitted && gameMode === 'free' && !gameState.gameStarted && (
-            <div className="game-type-buttons">
-              <button 
-                onClick={() => handleGameTypeStart('aya')}
-                className="start-button aya"
-              >
+          {showGameModeOptions && !gameState.gameStarted && (
+            <div className="game-mode-selection">
+              <h2>Select Your Game Mode</h2>
+              <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
                 Play Tears of Aya
               </button>
-              <button 
-                onClick={() => handleGameTypeStart('blood')}
-                className="start-button blood"
-              >
+              <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
                 Play Tears of Blood
               </button>
             </div>
@@ -1526,9 +1476,16 @@ const handleSuinsChange = (e) => {
           <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
           <p>Choose where to submit your score:</p>
           <button 
-            onClick={() => {
-              setSelectedTier(qualifyingTier);
-              handleGamePayment();
+            onClick={async () => {
+              try {
+                setSelectedTier(qualifyingTier);
+                await handleGamePayment(); // Process payment
+                await handleScoreSubmit(gameState.score, 'paid'); // Submit to paid leaderboard
+                setQualifiedForPaid(false);
+                setQualifyingTier(null);
+              } catch (error) {
+                console.error('Error submitting to paid leaderboard:', error);
+              }
             }}
             className="submit-paid-button"
             disabled={transactionInProgress}
@@ -1538,7 +1495,7 @@ const handleSuinsChange = (e) => {
           <button 
             onClick={async () => {
               try {
-                await handleScoreSubmit(gameState.score);
+                await handleScoreSubmit(gameState.score, 'free'); // Submit to free leaderboard
                 setQualifiedForPaid(false);
                 setQualifyingTier(null);
               } catch (error) {
@@ -1606,9 +1563,12 @@ const handleSuinsChange = (e) => {
                     free: e.target.value
                   }))}
                 >
-                  <option value="main">All Time Leaderboard</option>
-                  <option value="secondary">Weekly Leaderboard</option>
-                  <option value="web2">Normal Players</option>
+                  <option value="mainFreeTOA">TOA All Time Leaderboard</option>
+                  <option value="secondaryFreeTOA">TOA Weekly Leaderboard</option>
+                  <option value="web2TOA">TOA Normal Players</option>
+                  <option value="mainFreeTOB">TOB All Time Leaderboard</option>
+                  <option value="secondaryFreeTOB">TOB Weekly Leaderboard</option>
+                  <option value="web2TOB">TOB Normal Players</option>
                 </select>
                 <table className="leaderboard-table">
                   <thead>
@@ -1620,26 +1580,16 @@ const handleSuinsChange = (e) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedLeaderboards.free === 'web2' ? (
-                      leaderboardData.web2.slice(0, 10).map((entry, index) => (
-                        <tr key={index} className={`rank-${index + 1}`}>
-                          <td>{index + 1}</td>
-                          <td className="playername-cell">{entry.playerName}</td>
-                          <td className="score-cell">{entry.score}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      leaderboardData[`${selectedLeaderboards.free}Free`].slice(0, 10).map((entry, index) => (
-                        <tr key={index} className={`rank-${index + 1}`}>
-                          <td>{index + 1}</td>
-                          <td className="playername-cell">{entry.playerName}</td>
-                          <td className="wallet-cell">
+                    {leaderboardData[selectedLeaderboards.free]?.slice(0, 10).map((entry, index) => (
+                      <tr key={index} className={`rank-${index + 1}`}>
+                        <td>{index + 1}</td>
+                        <td className="playername-cell">{entry.playerName}</td>
+                        <td className="wallet-cell">
                           {getDisplayName(entry.playerWallet)}
-                          </td>
-                          <td className="score-cell">{entry.score}</td>
-                        </tr>
-                      ))
-                    )}
+                        </td>
+                        <td className="score-cell">{entry.score}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1654,8 +1604,10 @@ const handleSuinsChange = (e) => {
                     paid: e.target.value
                   }))}
                 >
-                  <option value="main">All Time Leaderboard</option>
-                  <option value="secondary">Weekly Leaderboard</option>
+                  <option value="mainPaidTOA">TOA All Time Leaderboard</option>
+                  <option value="secondaryPaidTOA">TOA Weekly Leaderboard</option>
+                  <option value="mainPaidTOB">TOB All Time Leaderboard</option>
+                  <option value="secondaryPaidTOB">TOB Weekly Leaderboard</option>
                 </select>
                 <table className="leaderboard-table">
                   <thead>
@@ -1667,12 +1619,12 @@ const handleSuinsChange = (e) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboardData[`${selectedLeaderboards.paid}Paid`].slice(0, 10).map((entry, index) => (
+                    {leaderboardData[selectedLeaderboards.paid]?.slice(0, 10).map((entry, index) => (
                       <tr key={index} className={`rank-${index + 1}`}>
                         <td>{index + 1}</td>
                         <td className="playername-cell">{entry.playerName}</td>
                         <td className="wallet-cell">
-                        {getDisplayName(entry.playerWallet)}
+                          {getDisplayName(entry.playerWallet)}
                         </td>
                         <td className="score-cell">{entry.score}</td>
                       </tr>
