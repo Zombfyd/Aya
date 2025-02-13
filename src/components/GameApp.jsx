@@ -1561,7 +1561,7 @@ const handleSuinsChange = (e) => {
           <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
             <div className="balance-list">
               {Object.entries(allBalances).map(([symbol, balance]) => {
-                console.log('Rendering balance:', symbol, balance);
+               
                 return (
                   <p key={symbol} className="balance-item">
                     <TokenAmount amount={balance} symbol={symbol} /> {symbol}
