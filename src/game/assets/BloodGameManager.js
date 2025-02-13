@@ -561,7 +561,7 @@ class BloodGameManager {
       if (this.shieldTimer) clearTimeout(this.shieldTimer);
       this.shieldTimer = setTimeout(() => {
         this.shieldActive = false;
-      }, 5000); // 5 seconds of shield
+      }, 10000); // 5 seconds of shield
     }
   
     // Add shield effect drawing method
@@ -573,7 +573,7 @@ class BloodGameManager {
       this.ctx.translate(bucketCenterX, bucketCenterY);
       
       // Increased scale for active shield (3x larger)
-      const scale = 4.5; // 3x larger than original 1.5
+      const scale = 1.5; // 3x larger than original 1.5
       this.ctx.scale(scale, scale);
       
       // Brighter gradient for active shield
@@ -897,14 +897,14 @@ class BloodGameManager {
   class Shield extends Entity {
     constructor(canvasWidth) {
       super(
-        Math.random() * (canvasWidth - 250), // Adjusted for larger size
+        Math.random() * (canvasWidth - 100), // Adjusted for larger size
         20,
-        200, // 5x larger (40 * 5)
-        200, // 5x larger
+        80, // 2x larger (40 * 5)
+        80, // 2x larger
         2
       );
       this.active = false;
-      this.duration = 5000;
+      this.duration = 10000;
       this.particles = [];
       this.heartShape = this.createHeartPath();
     }
@@ -925,7 +925,7 @@ class BloodGameManager {
     draw(ctx) {
       ctx.save();
       ctx.translate(this.x, this.y);
-      ctx.scale(2.5, 2.5); // Increased scale for larger heart
+      ctx.scale(0.5, 0.5); // Increased scale for larger heart
 
       // Brighter gradient for the shield
       const gradient = ctx.createRadialGradient(40, 40, 0, 40, 40, 80);
@@ -946,8 +946,8 @@ class BloodGameManager {
       // More particles
       if (Math.random() < 0.4) {
         this.particles.push({
-          x: Math.random() * 80, // Larger area
-          y: Math.random() * 80,
+          x: Math.random() * 60, // Larger area
+          y: Math.random() * 60,
           size: Math.random() * 5 + 2, // Larger particles
           life: 1,
           vx: (Math.random() - 0.5) * 3, // Faster movement
