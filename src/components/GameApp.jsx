@@ -541,8 +541,8 @@ const TokenAmount = ({ amount, symbol }) => {
             secondaryPaidTOA,
             mainPaidTOB,
             secondaryPaidTOB,
-            web2TOA,        // Separate web2 leaderboard for TOA
-            web2TOB         // Separate web2 leaderboard for TOB
+            web2TOA,        
+            web2TOB         
         ] = await Promise.all([
             fetchLeaderboard('/scores/leaderboard/main/free?game=TOA'),
             fetchLeaderboard('/scores/leaderboard/secondary/free?game=TOA'),
