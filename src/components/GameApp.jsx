@@ -863,37 +863,22 @@ const TokenAmount = ({ amount, symbol }) => {
 
           try {
             if (gameMode === 'free') {
-              // Check qualification first
-              const qualification = await checkScoreQualification(finalScore);
-              
-              if (wallet.connected && qualification) {
-                // Score qualifies - give player the choice
-                setQualifiedForPaid(true);
-                setQualifyingTier(qualification);
-                // Show qualification message and options
-                const wantsToPay = window.confirm(
-                  `Congratulations! Your score of ${finalScore} qualifies for the paid leaderboard! \n\n` +
-                  `Would you like to pay to submit this score to the paid leaderboard? \n\n` +
-                  `Click OK to pay and submit to paid leaderboard, or Cancel to submit to free leaderboard.`
-                );
-
-                if (wantsToPay) {
-                  // Player chose to pay - don't submit score yet
-                  console.log('Player chose to pay for paid submission');
-                  // Payment will be handled through UI
-                } else {
-                  // Player chose free submission
-                  console.log('Player chose free submission');
-                  await handleScoreSubmit(finalScore);
-                  setQualifiedForPaid(false);
-                  setQualifyingTier(null);
-                }
-              } else {
-                // Either not connected to wallet or didn't qualify
+              if (!wallet.connected) {
+                // Non-wallet users - direct submission to free leaderboard
                 await handleScoreSubmit(finalScore);
+              } else {
+                // Check qualification before showing options
+                const qualification = await checkScoreQualification(finalScore);
+                if (qualification) {
+                  setQualifiedForPaid(true);
+                  setQualifyingTier(qualification);
+                  // Don't submit yet - let user choose via UI
+                } else {
+                  // Not qualified - submit to free leaderboard
+                  await handleScoreSubmit(finalScore);
+                }
               }
             } else if (gameMode === 'paid' && wallet.connected) {
-              // Paid mode - always submit and auto-restart
               await handleScoreSubmit(finalScore);
               setTimeout(() => restartGame(), 2000);
             }
@@ -1558,17 +1543,26 @@ const handleSuinsChange = (e) => {
       {gameMode === 'free' && qualifyingTier && wallet.connected && (
         <div className="qualification-notice">
           <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
-          <p>Would you like to submit your score to the paid leaderboard?</p>
+          <p>Choose where to submit your score:</p>
           <button 
             onClick={() => {
-                // Set the tier based on qualification level
-                setSelectedTier(qualifyingTier);
-                handleGamePayment();
+              setSelectedTier(qualifyingTier);
+              handleGamePayment();
             }}
             className="submit-paid-button"
-        >
-          {config.scoreSubmissionTiers[qualifyingTier].label} ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
-        </button>
+          >
+            Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier].label} ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
+          </button>
+          <button 
+            onClick={async () => {
+              await handleScoreSubmit(gameState.score);
+              setQualifiedForPaid(false);
+              setQualifyingTier(null);
+            }}
+            className="submit-free-button"
+          >
+            Submit to Free Leaderboard
+          </button>
         </div>
       )}
 
