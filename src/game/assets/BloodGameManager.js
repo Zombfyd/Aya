@@ -1,6 +1,6 @@
-// GameManager2.js - Second game type game controller class
+// BloodGameManager.js - Second game type game controller class
 
-class GameManager2 {
+class BloodGameManager {
     constructor() {
       this.UI_SIZES = {
         BUCKET_WIDTH: 70,
@@ -782,5 +782,5 @@ class GameManager2 {
   }
   
   // Create and export the game manager instance
-  export class GameManager2 {}
+  export { BloodGameManager };
   

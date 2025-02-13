@@ -1,9 +1,9 @@
 import { gameManager } from '../game/GameManager.js';
-import { GameManager2 } from '../game/assets/GameManager2.js';
+import { BloodGameManager } from '../game/assets/BloodGameManager.js';
 
 // Initialize both game managers
 const gameManager1 = gameManager;
-const gameManager2 = new GameManager2();
+const gameManager2 = new BloodGameManager();
 
 window.gameManager = gameManager1;
 window.GameManager2 = gameManager2;
