@@ -968,7 +968,7 @@ const TokenAmount = ({ amount, symbol }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Modify handleGamePayment to use selected tier
+  // Modify handleGamePayment to include the game type
   const handleGamePayment = async (type = 'aya') => {
     console.log('Payment handler state:', {
       walletConnected: wallet.connected,
@@ -1055,17 +1055,10 @@ const TokenAmount = ({ amount, symbol }) => {
           }, 1000);
         });
 
-        if (gameMode === 'free' && qualifiedForPaid) {
-          // Submit the qualifying score after payment
-          await handleScoreSubmit(gameState.score, 'paid', 'TOA');
-          setQualifiedForPaid(false);
-          setQualifyingTier(null);
-        } else {
-          // Start new paid game
-          setPaidGameAttempts(0);
-          setMaxAttempts(tierConfig.plays);
-          startGame(type);
-        }
+        // Start the game automatically after countdown
+        setPaidGameAttempts(0);
+        setMaxAttempts(tierConfig.plays);
+        startGame(type);
       }
     } catch (error) {
       console.error('Payment error:', error);
@@ -1657,26 +1650,21 @@ const handleSuinsChange = (e) => {
                         disabled={paying || !selectedTier}
                         className="start-button aya"
                       >
-                        {paying ? 'Processing...' : 'Play Tears of Aya'}
+                        {paying ? 'Processing...' : 'Start Tears of Aya'}
                       </button>
                       <button 
                         onClick={() => handleGamePayment('blood')}
                         disabled={paying || !selectedTier}
                         className="start-button blood"
                       >
-                        {paying ? 'Processing...' : 'Play Tears of Blood'}
+                        {paying ? 'Processing...' : 'Start Tears of Blood'}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
-                      Play Tears of Aya
-                    </button>
-                    <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
-                      Play Tears of Blood
-                    </button>
-                  </>
+                  <div className="attempts-info">
+                    <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
+                  </div>
                 )}
               </div>
             )}
