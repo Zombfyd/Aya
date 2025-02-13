@@ -1020,6 +1020,23 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   transform: scale(1.05);
   transition: transform 0.2s ease;
 }
+.tutorial-preferences {
+  margin: 20px 0;
+  padding: 10px;
+  border-top: 1px solid #eee;
+}
+
+.dont-show-again {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dont-show-again input[type="checkbox"] {
+  cursor: pointer;
+}
 .game-info-popup-overlay {
   position: fixed;
   top: 0;
@@ -1045,6 +1062,7 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   color: #fff;
   box-shadow: 0 0 20px rgba(32, 84, 201, 0.3);
   z-index: 9998;
+  
 }
 
 .game-info-popup h2 {
