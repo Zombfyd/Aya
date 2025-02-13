@@ -418,14 +418,15 @@ const TokenAmount = ({ amount, symbol }) => {
     }
   };
 
+  // First, update handleScoreSubmit to submit to both main and secondary
   const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType) => {
-    const currentGameType = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+    const currentGame = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
     
     console.log('handleScoreSubmit received:', { 
         finalScore, 
         playerName, 
         gameMode: submissionGameMode,
-        gameType: currentGameType,
+        game: currentGame,
         walletConnected: wallet.connected
     });
 
@@ -439,53 +440,71 @@ const TokenAmount = ({ amount, symbol }) => {
             requestBody = {
                 playerName,
                 score: finalScore,
-                gameType: currentGameType
+                game: currentGame
             };
-        } else {
-            // Web3 submission (free or paid)
-            endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`; // 'free' or 'paid'
-            
-            requestBody = {
-                playerWallet: wallet.account?.address,
-                score: finalScore,
-                gameType: currentGameType,  // 'TOA' or 'TOB'
-                type: 'main',              // Default to main leaderboard
-                playerName: playerName || null
-            };
-        }
 
-        console.log('Submitting score to:', endpoint, 'with body:', requestBody);
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
 
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Server error response:', errorData);
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log('Score submitted successfully:', result);
-        
-        // Check for qualification after submission
-        if (submissionGameMode === 'free' && wallet.connected) {
-            const qualificationResult = await checkScoreQualification(finalScore, currentGameType);
-            if (qualificationResult) {
-                setQualifiedForPaid(true);
-                setQualifyingTier(qualificationResult);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
+
+            const result = await response.json();
+            console.log('Web2 score submitted successfully:', result);
+            return result;
+
+        } else {
+            // Web3 submission (free or paid) - submit to both main and secondary
+            endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
+            
+            // Submit to both main and secondary leaderboards
+            const submissions = ['main', 'secondary'].map(async (gameType) => {
+                const body = {
+                    playerWallet: wallet.account?.address,
+                    score: finalScore,
+                    gameType: gameType,
+                    playerName: playerName || null,
+                    game: currentGame
+                };
+
+                console.log(`Submitting ${gameType} score:`, body);
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                return response.json();
+            });
+
+            const [mainResult, secondaryResult] = await Promise.all(submissions);
+            console.log('Scores submitted successfully:', { main: mainResult, secondary: secondaryResult });
+
+            // Check for qualification after submission
+            if (submissionGameMode === 'free' && wallet.connected) {
+                const qualificationResult = await checkScoreQualification(finalScore, currentGame);
+                if (qualificationResult) {
+                    setQualifiedForPaid(true);
+                    setQualifyingTier(qualificationResult);
+                }
+            }
+
+            // Refresh leaderboards after submission
+            await fetchLeaderboards();
+
+            return { main: mainResult, secondary: secondaryResult };
         }
-
-        // Refresh leaderboards after submission
-        await fetchLeaderboards();
-
-        return result;
     } catch (error) {
         console.error('Error submitting score:', error);
         alert(`Failed to submit score: ${error.message}`);
@@ -499,7 +518,6 @@ const TokenAmount = ({ amount, symbol }) => {
     setIsLeaderboardLoading(true);
     try {
       const baseUrl = `${config.apiBaseUrl}/api`;
-      console.log('Using base URL:', baseUrl);
 
       const fetchLeaderboard = async (endpoint) => {
         const response = await fetch(`${baseUrl}${endpoint}`);
@@ -509,65 +527,53 @@ const TokenAmount = ({ amount, symbol }) => {
         return response.json();
       };
 
+      // Fetch all leaderboards
       const [
         mainFreeTOA,
         secondaryFreeTOA,
-        mainPaidTOA,
-        secondaryPaidTOA,
         mainFreeTOB,
         secondaryFreeTOB,
+        mainPaidTOA,
+        secondaryPaidTOA,
         mainPaidTOB,
         secondaryPaidTOB,
         web2TOA,
         web2TOB
       ] = await Promise.all([
-        fetchLeaderboard('/scores/leaderboard/main/free?gameType=TOA'),
-        fetchLeaderboard('/scores/leaderboard/secondary/free?gameType=TOA'),
-        fetchLeaderboard('/scores/leaderboard/main/paid?gameType=TOA'),
-        fetchLeaderboard('/scores/leaderboard/secondary/paid?gameType=TOA'),
-        fetchLeaderboard('/scores/leaderboard/main/free?gameType=TOB'),
-        fetchLeaderboard('/scores/leaderboard/secondary/free?gameType=TOB'),
-        fetchLeaderboard('/scores/leaderboard/main/paid?gameType=TOB'),
-        fetchLeaderboard('/scores/leaderboard/secondary/paid?gameType=TOB'),
-        fetchLeaderboard('/web2/leaderboard?gameType=TOA'),
-        fetchLeaderboard('/web2/leaderboard?gameType=TOB')
+        fetchLeaderboard('/scores/leaderboard/main/free?game=TOA'),
+        fetchLeaderboard('/scores/leaderboard/secondary/free?game=TOA'),
+        fetchLeaderboard('/scores/leaderboard/main/free?game=TOB'),
+        fetchLeaderboard('/scores/leaderboard/secondary/free?game=TOB'),
+        fetchLeaderboard('/scores/leaderboard/main/paid?game=TOA'),
+        fetchLeaderboard('/scores/leaderboard/secondary/paid?game=TOA'),
+        fetchLeaderboard('/scores/leaderboard/main/paid?game=TOB'),
+        fetchLeaderboard('/scores/leaderboard/secondary/paid?game=TOB'),
+        fetchLeaderboard('/web2/leaderboard?game=TOA'),
+        fetchLeaderboard('/web2/leaderboard?game=TOB')
       ]);
-
-      console.log('Leaderboard data fetched:', {
-        mainFreeTOA,
-        secondaryFreeTOA,
-        mainPaidTOA,
-        secondaryPaidTOA,
-        mainFreeTOB,
-        secondaryFreeTOB,
-        mainPaidTOB,
-        secondaryPaidTOB,
-        web2TOA,
-        web2TOB
-      });
 
       setLeaderboardData({
         mainFreeTOA,
         secondaryFreeTOA,
-        mainPaidTOA,
-        secondaryPaidTOA,
         mainFreeTOB,
         secondaryFreeTOB,
+        mainPaidTOA,
+        secondaryPaidTOA,
         mainPaidTOB,
         secondaryPaidTOB,
         web2TOA,
         web2TOB
       });
+
     } catch (error) {
       console.error('Error fetching leaderboards:', error);
-      // Initialize with empty arrays on error
       setLeaderboardData({
         mainFreeTOA: [],
         secondaryFreeTOA: [],
-        mainPaidTOA: [],
-        secondaryPaidTOA: [],
         mainFreeTOB: [],
         secondaryFreeTOB: [],
+        mainPaidTOA: [],
+        secondaryPaidTOA: [],
         mainPaidTOB: [],
         secondaryPaidTOB: [],
         web2TOA: [],
@@ -1116,17 +1122,18 @@ useEffect(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
-  // Add this function to check score qualification
-const checkScoreQualification = async (score, gameType) => {
+  // Update checkScoreQualification to check against secondary leaderboard
+  const checkScoreQualification = async (score, game) => {
     try {
-        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid?gameType=${gameType}`);
+        // Changed to check secondary leaderboard instead of main
+        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid?game=${game}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const leaderboardData = await response.json();
         setTopScores(leaderboardData);
 
-        // Compare against paid leaderboard scores
+        // Compare against secondary (weekly) paid leaderboard scores
         if (leaderboardData.length === 0 || score > leaderboardData[0].score) {
             return 'firstPlace';
         } else if (score > leaderboardData[2]?.score) {
