@@ -924,89 +924,83 @@ const TokenAmount = ({ amount, symbol }) => {
   // Modify handleGamePayment to use selected tier
   const handleGamePayment = async (type = 'aya') => {
     console.log('Payment handler state:', {
-        walletConnected: wallet.connected,
-        walletAccount: wallet.account,
-        selectedTier: selectedTier,
-        qualifyingTier: qualifyingTier,
-        gameMode: gameMode,
-        gameType: type
+      walletConnected: wallet.connected,
+      walletAccount: wallet.account,
+      selectedTier: selectedTier,
+      qualifyingTier: qualifyingTier,
+      gameMode: gameMode,
+      gameType: type
     });
 
-    // Use different tier configs based on context
     const tierToUse = selectedTier || qualifyingTier;
     
     if (!wallet.connected || !tierToUse) {
-        console.log('Wallet or tier check failed:', {
-            walletConnected: wallet.connected,
-            tierToUse: tierToUse
-        });
-        alert('Please connect wallet and select a payment tier');
-        return;
+      alert('Please connect wallet and select a payment tier');
+      return;
     }
 
-    // Use different tier configurations based on the game mode
-    const tierConfig = gameMode === 'free' ? 
+    setTransactionInProgress(true);
+    try {
+      const tierConfig = gameMode === 'free' ? 
         config.scoreSubmissionTiers[qualifyingTier] : 
         config.paymentTiers[selectedTier];
 
-    if (!tierConfig) {
+      if (!tierConfig) {
         console.error('Invalid tier configuration:', {
-            tierToUse,
-            gameMode,
-            availableTiers: gameMode === 'free' ? config.scoreSubmissionTiers : config.paymentTiers
+          tierToUse,
+          gameMode,
+          availableTiers: gameMode === 'free' ? config.scoreSubmissionTiers : config.paymentTiers
         });
         alert('Invalid payment tier configuration');
         return;
-    }
+      }
 
-    try {
-        console.log('Starting game payment for tier:', tierToUse);
-        const recipients = config.getCurrentRecipients();
-        const totalAmount = tierConfig.amount;
-        
-        // Calculate amounts based on shares
-        const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-        const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-        const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-        const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
-        
-        const txb = new TransactionBlock();
-        
-        // Split the coins for all recipients
-        const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
-          txb.gas,
-          [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
-        );
+      const recipients = config.getCurrentRecipients();
+      const totalAmount = tierConfig.amount;
+      
+      // Calculate amounts based on shares
+      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+      const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
+      
+      const txb = new TransactionBlock();
+      
+      // Split the coins for all recipients
+      const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
+        txb.gas,
+        [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
+      );
 
-        // Transfer to all recipients
-        txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
-        txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
-        txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
-        txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+      // Transfer to all recipients
+      txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+      txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+      txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+      txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
 
-        const response = await wallet.signAndExecuteTransaction({
-          transaction: txb,
-          options: { showEffects: true }
-        });
+      const response = await wallet.signAndExecuteTransaction({
+        transaction: txb,
+        options: { showEffects: true }
+      });
 
-        console.log('Full Payment Response:', {
-          response,
-          digest: response.digest,
-          effects: response.effects,
-          status: response.effects?.status,
-          statusDetails: response.effects?.status?.status
-        });
+      console.log('Full Payment Response:', {
+        response,
+        digest: response.digest,
+        effects: response.effects,
+        status: response.effects?.status,
+        statusDetails: response.effects?.status?.status
+      });
+      
+      if (response.digest) {
+        console.log('Transaction submitted with digest:', response.digest);
+        setDigest(response.digest);
         
-        if (response.digest) {
-          console.log('Transaction submitted with digest:', response.digest);
-          setDigest(response.digest);
-          
-          setPaymentStatus(prev => ({
-            ...prev,
-            verified: true,
-            transactionId: response.digest,
-            timestamp: Date.now()
-          }));
+        setPaymentStatus(prev => ({
+          ...prev,
+          verified: true,
+          transactionId: response.digest,
+          timestamp: Date.now()
+        }));
     setGameState(prev => ({
         ...prev,
           hasValidPayment: true,
@@ -1037,17 +1031,18 @@ const TokenAmount = ({ amount, symbol }) => {
           setQualifyingTier(null);
         } else {
           // Start new paid game
+          setPaidGameAttempts(0);
           startGame(type);
         }
 
       // Update maxAttempts based on selected tier
       setMaxAttempts(tierConfig.plays);
-      setPaidGameAttempts(0);
       
     } catch (error) {
       console.error('Payment error:', error);
       setCountdown(null);
-      alert(`Payment failed: ${error.message}`);
+    } finally {
+      setTransactionInProgress(false);
     }
   };
 
