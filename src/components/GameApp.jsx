@@ -126,6 +126,8 @@ const GameApp = () => {
     network: 'mainnet' // Explicitly set the network
   });
   
+  // Add this state near the top of your file
+  const [showGameInfoPopup, setShowGameInfoPopup] = useState(true);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -435,11 +437,6 @@ const TokenAmount = ({ amount, symbol }) => {
         gameType,
         type: submissionGameMode === 'paid' ? 'main' : 'secondary'
       };
-
-      // Add session token for paid leaderboard submissions
-      if (submissionGameMode === 'paid' && paymentStatus.verified) {
-        requestBody.sessionToken = paymentStatus.transactionId;
-      }
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -879,34 +876,19 @@ const TokenAmount = ({ amount, symbol }) => {
             gameStarted: false,
           }));
 
-          if (gameMode === 'free' && qualifiedForPaid) {
-            // Use existing UI to notify the user of qualification
-            // Assume there's a button or UI element that triggers the payment and submission
-            // Example: A button that calls this function when clicked
-            const submitToPaidLeaderboard = async () => {
-              try {
-                await handleGamePayment(); // Process payment
-                await handleScoreSubmit(finalScore, 'paid'); // Submit to paid leaderboard
-              } catch (error) {
-                console.error('Error during payment or submission:', error);
-              }
-            };
-
-            if (wantsToSubmitToPaid) {
-              // Handle payment and submit to paid leaderboard
-              await handleGamePayment();
-              await handleScoreSubmit(finalScore, 'paid');
-            } else {
-              // Submit to free leaderboard
-              await handleScoreSubmit(finalScore, 'free');
+          if (!wallet.connected) {
+            // Web2 submission
+            await handleScoreSubmit(finalScore, 'free');
+          } else if (gameMode === 'free') {
+            // Check qualification first
+            const qualificationResult = await checkScoreQualification(finalScore);
+            if (qualificationResult) {
+              setQualifiedForPaid(true);
+              setQualifyingTier(qualificationResult);
             }
-          } else if (gameMode === 'paid' && wallet.connected) {
-            try {
-              await handleScoreSubmit(finalScore);
-              setTimeout(() => restartGame(), 2000);
-            } catch (error) {
-              console.error('Error handling paid mode game over:', error);
-            }
+            await handleScoreSubmit(finalScore, 'free');
+          } else if (gameMode === 'paid') {
+            await handleScoreSubmit(finalScore, 'paid');
           }
         };
       }
@@ -914,7 +896,7 @@ const TokenAmount = ({ amount, symbol }) => {
 
     setupGameOver(window.gameManager1);
     setupGameOver(window.gameManager2);
-  }, [gameMode, wallet.connected]);
+  }, [gameMode, wallet.connected, handleScoreSubmit]);
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
@@ -1329,66 +1311,139 @@ const handleSuinsChange = (e) => {
     }
   };
 
+  // Add this component inside GameApp but before the return statement
+  const GameInfoPopup = ({ onClose }) => {
+    return (
+      <div className="game-info-popup-overlay">
+        <div className="game-info-popup">
+          <h2>Welcome to Tears of Aya!</h2>
+          
+          <div className="game-types">
+            <div className="game-type">
+              <h3>Tears of Aya (Classic)</h3>
+              <p>A balanced game of skill and strategy:</p>
+              <ul>
+                <li>Blue Tears = 1 point</li>
+                <li>Gold Tears = 15 points (rare)</li>
+                <li>Red Tears = -1 life (moderate spawn)</li>
+                <li>Green Tears = +1 life (occasional spawn)</li>
+              </ul>
+            </div>
+            
+            <div className="game-type">
+              <h3>Tears of Blood (Intense)</h3>
+              <p>A challenging variant with:</p>
+              <ul>
+                <li>Faster tear falling speed</li>
+                <li>More frequent red tears</li>
+                <li>Less frequent healing tears</li>
+                <li>Higher scoring potential</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="game-flow">
+            <h3>How to Play</h3>
+            <ol>
+              <li>Enter your username to begin</li>
+              <li>Choose your mode:
+                <ul>
+                  <li><strong>Free Mode:</strong> Play unlimited times, qualify for paid leaderboard</li>
+                  <li><strong>Paid Mode:</strong> Compete for prizes on the main leaderboard</li>
+                </ul>
+              </li>
+              <li>Select your game type (Aya or Blood)</li>
+              <li>Use your mouse/touch to move the bucket</li>
+              <li>Catch tears to score points</li>
+              <li>Survive as long as possible!</li>
+            </ol>
+          </div>
+
+          <button className="start-button" onClick={onClose}>
+            Let's Play!
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Add this near your other useEffect hooks
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem('hasSeenGameTutorial');
+    if (hasSeenTutorial) {
+      setShowGameInfoPopup(false);
+    }
+  }, []);
+
+  // Modify the onClose handler
+  const handlePopupClose = () => {
+    setShowGameInfoPopup(false);
+    localStorage.setItem('hasSeenGameTutorial', 'true');
+  };
+
   // Render method
   return (
-    
-     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {playerName && playerName.length > 0 && (
-        <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
-          Playing as: 
-          <span className="player-name">
-            {suinsData?.imageUrl && (
-              <img 
-                src={suinsData.imageUrl} 
-                alt="SUINS avatar" 
-                className="suins-avatar"
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  marginRight: '5px',
-                  verticalAlign: 'middle'
-                }}
-              />
-            )}
-            <span>{playerName}</span>
-          </span>
-        </div>
+    <div className="game-container">
+      {showGameInfoPopup && (
+        <GameInfoPopup onClose={handlePopupClose} />
       )}
-      {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
-        <header>
-          <div className="title">Tears of Aya</div>
-          <div className="username-input-container">
-            {!isUsernameSubmitted ? (
-              <form onSubmit={handleUsernameSubmit}>
-                <input
-                  type="text"
-                  placeholder="Enter your username"
-                  value={playerName}
-                  onChange={handleUsernameChange}
-                  className="username-input"
-                  maxLength={25}
-                  required
+      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+        {playerName && playerName.length > 0 && (
+          <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
+            Playing as: 
+            <span className="player-name">
+              {suinsData?.imageUrl && (
+                <img 
+                  src={suinsData.imageUrl} 
+                  alt="SUINS avatar" 
+                  className="suins-avatar"
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    marginRight: '5px',
+                    verticalAlign: 'middle'
+                  }}
                 />
-                <button type="submit">Submit</button>
-              </form>
-            ) : (
-              <div>
-                <h2>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h2>
-                <div>
-                  <button onClick={() => setIsUsernameSubmitted(false)}>Change Username</button>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={useSuins}
-                      onChange={handleSuinsChange}
-                    />
-                    use SUINS name
-                  </label>
-                </div>
-              </div>
-            )}
+              )}
+              <span>{playerName}</span>
+            </span>
           </div>
+        )}
+        {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
+          <header>
+            <div className="title">Tears of Aya</div>
+            <div className="username-input-container">
+              {!isUsernameSubmitted ? (
+                <form onSubmit={handleUsernameSubmit}>
+                  <input
+                    type="text"
+                    placeholder="Enter your username"
+                    value={playerName}
+                    onChange={handleUsernameChange}
+                    className="username-input"
+                    maxLength={25}
+                    required
+                  />
+                  <button type="submit">Submit</button>
+                </form>
+              ) : (
+                <div>
+                  <h2>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h2>
+                  <div>
+                    <button onClick={() => setIsUsernameSubmitted(false)}>Change Username</button>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={useSuins}
+                        onChange={handleSuinsChange}
+                      />
+                      use SUINS name
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
 
           <ConnectButton
             label="Connect SUI Wallet"
@@ -1492,47 +1547,7 @@ const handleSuinsChange = (e) => {
                 </div>
               )}
 
-              {gameMode === 'paid' && wallet.connected && (
-                <>
-                  {!gameState.hasValidPayment ? (
-                    <div className="game-mode-selection">
-                      <h2>Select Your Game</h2>
-                      <div className="payment-section">
-                        <h3>Select Payment Tier</h3>
-                        {renderPaymentTiers()}
-                        
-                        <div className="game-type-buttons">
-                          <button 
-                            onClick={() => handleGamePayment('aya')}
-                            disabled={paying || !selectedTier}
-                            className="start-button aya"
-                          >
-                            {paying ? 'Processing...' : `Play Tears of Aya`}
-                          </button>
-                          <button 
-                            onClick={() => handleGamePayment('blood')}
-                            disabled={paying || !selectedTier}
-                            className="start-button blood"
-                          >
-                            {paying ? 'Processing...' : `Play Tears of Blood`}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="game-mode-selection">
-                      <h2>Select Your Game</h2>
-                      <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
-                        Play Tears of Aya
-                      </button>
-                      <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
-                        Play Tears of Blood
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </>
+              </>
           )}
 
           {!gameState.hasValidPayment && wallet.connected && gameMode === 'paid' && (
@@ -1549,7 +1564,7 @@ const handleSuinsChange = (e) => {
                   >
                     <option value="">Select Payment Tier</option>
                     <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
-                    <option value="tier2">Short Brake - 0.8 SUI (2 Plays)</option>
+                    <option value="tier2">Short Break - 0.8 SUI (2 Plays)</option>
                     <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
                   </select>
                 </div>
@@ -1558,13 +1573,23 @@ const handleSuinsChange = (e) => {
                 {renderPaymentTiers()}
               </div>
 
-              <button 
-                onClick={() => handleGamePayment()}
-                disabled={paying || !selectedTier}
-                className="start-button"
-              >
-                {paying ? 'Processing...' : `Pay for ${config.paymentTiers[selectedTier]?.plays || ''} Games`}
-              </button>
+              {/* Replace single button with game type selection */}
+              <div className="game-type-buttons">
+                <button 
+                  onClick={() => handleGamePayment('aya')}
+                  disabled={paying || !selectedTier}
+                  className="start-button aya"
+                >
+                  {paying ? 'Processing...' : 'Play Tears of Aya'}
+                </button>
+                <button 
+                  onClick={() => handleGamePayment('blood')}
+                  disabled={paying || !selectedTier}
+                  className="start-button blood"
+                >
+                  {paying ? 'Processing...' : 'Play Tears of Blood'}
+                </button>
+              </div>
             </>
           )}
         </header>
