@@ -1383,7 +1383,7 @@ const handleSuinsChange = (e) => {
 
   // Render method
   return (
-    <div className="game-container">
+    <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
       {showGameInfoPopup && (
         <GameInfoPopup onClose={handlePopupClose} />
       )}
