@@ -1307,6 +1307,21 @@ const handleSuinsChange = (e) => {
     };
   }, []);
 
+  // Add handleGameTypeStart function
+  const handleGameTypeStart = (type) => {
+    if (!isUsernameSubmitted) {
+      alert('Please submit your username first');
+      return;
+    }
+
+    if (gameMode === 'free') {
+      handleGameStart(type);
+    } else {
+      // For paid mode, we'll pass the type through the payment flow
+      handleGamePayment(type);
+    }
+  };
+
   // Render method
   return (
     
@@ -1456,7 +1471,7 @@ const handleSuinsChange = (e) => {
             </div>
           )}
 
-          {isUsernameSubmitted && gameMode === 'free' && (
+          {isUsernameSubmitted && gameMode === 'free' && !gameState.gameStarted && (
             <div className="game-type-buttons">
               <button 
                 onClick={() => handleGameTypeStart('aya')}
