@@ -1556,6 +1556,8 @@ const handleSuinsChange = (e) => {
         <div className="leaderboards-container">
           {isLeaderboardLoading ? (
             <div className="leaderboard-loading">Loading leaderboards...</div>
+          ) : (leaderboardData[selectedLeaderboards.free] === undefined || leaderboardData[selectedLeaderboards.paid] === undefined) ? (
+            <div className="leaderboard-loading">Loading data...</div>
           ) : (
             <>
               <div className="leaderboard-section">
