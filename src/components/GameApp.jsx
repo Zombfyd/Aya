@@ -1289,6 +1289,24 @@ const handleSuinsChange = (e) => {
   }
 };
 
+  // Move the cleanup useEffect inside the component
+  useEffect(() => {
+    return () => {
+      // Cleanup event listeners for both game managers
+      if (window.gameManager1) {
+        window.gameManager1.cleanup();
+      }
+      if (window.gameManager2) {
+        window.gameManager2.cleanup();
+      }
+      
+      // Remove window references
+      window.gameManager1 = null;
+      window.gameManager2 = null;
+      window.activeGameManager = null;
+    };
+  }, []);
+
   // Render method
   return (
     
@@ -1670,22 +1688,5 @@ const handleSuinsChange = (e) => {
     </div>
   );
 };
-
-useEffect(() => {
-  return () => {
-    // Cleanup event listeners for both game managers
-    if (window.gameManager1) {
-      window.gameManager1.cleanup();
-    }
-    if (window.gameManager2) {
-      window.gameManager2.cleanup();
-    }
-    
-    // Remove window references
-    window.gameManager1 = null;
-    window.gameManager2 = null;
-    window.activeGameManager = null;
-  };
-}, []);
 
 export default GameApp;
