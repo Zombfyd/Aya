@@ -1300,12 +1300,15 @@ const handlePaidGameAttempt = () => {
     const newAttempts = paidGameAttempts + 1;
     setPaidGameAttempts(newAttempts);
     
-    if (newAttempts >= maxAttempts) {
-        setGameState(prev => ({
-            ...prev,
-            hasValidPayment: false
-        }));
-        alert('All paid attempts used. Please make a new payment to continue playing.');
+    // Only show the warning after their last game is finished
+    if (newAttempts === maxAttempts) {
+        setTimeout(() => {
+            alert('You have used all your paid attempts. Please make a new payment to continue playing.');
+            setGameState(prev => ({
+                ...prev,
+                hasValidPayment: false
+            }));
+        }, 1000); // Small delay to ensure game over screen shows first
     }
 };
 
