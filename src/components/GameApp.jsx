@@ -1803,6 +1803,7 @@ const handleSuinsChange = (e) => {
         </div>
       )}
     </div>
+    </div>
   );
 };
 
