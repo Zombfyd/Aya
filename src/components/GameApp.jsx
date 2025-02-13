@@ -441,14 +441,14 @@ const TokenAmount = ({ amount, symbol }) => {
             };
         } else {
             // Web3 submission (free or paid)
-            const type = submissionGameMode === 'paid' ? 'main' : 'secondary';
-            endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
+            endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`; // Just use mode in URL
+            
             requestBody = {
                 playerWallet: wallet.account?.address,
                 score: finalScore,
                 gameType,
-                type,
-                playerName
+                type: submissionGameMode === 'paid' ? 'main' : 'secondary', // Include type in body
+                playerName // optional
             };
         }
 
@@ -488,7 +488,7 @@ const TokenAmount = ({ amount, symbol }) => {
     } catch (error) {
         console.error('Score submission error:', error);
         alert(`Failed to submit score: ${error.message}`);
-        throw error; // Re-throw to handle in calling code if needed
+        throw error;
     }
 };
 
