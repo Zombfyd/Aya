@@ -1371,7 +1371,10 @@ const handleSuinsChange = (e) => {
                   type="text"
                   placeholder="Enter your username"
                   value={usernameInput}
-                  onChange={(e) => setUsernameInput(e.target.value)}
+                  onChange={(e) => {
+                    setUsernameInput(e.target.value);
+                    setPlayerName(e.target.value);
+                  }}
                   className="username-input"
                   maxLength={25} // Restrict to 25 characters
                   required
@@ -1395,17 +1398,6 @@ const handleSuinsChange = (e) => {
               </div>
             )}
           </div>
-
-          {isMobile && !wallet.connected && (
-            <div className="mobile-wallet-guide">
-              <p>To play on mobile:</p>
-              <ol>
-                <li>Open this page in Sui Wallet or OKX Wallet's built-in browser</li>
-                <li>Make sure you're on Sui Mainnet</li>
-                <li>Connect your wallet using the button below</li>
-              </ol>
-            </div>
-          )}
 
           <ConnectButton
             label="Connect SUI Wallet"
