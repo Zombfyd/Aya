@@ -364,6 +364,21 @@ class BloodGameManager {
   
     // Collision Detection
     checkCollision(entity, bucket) {
+      // For Shield entity, use center-point collision
+      if (entity instanceof Shield) {
+        const entityCenterX = entity.x + entity.width / 2;
+        const bucketCenterX = bucket.x + bucket.width / 2;
+        const entityCenterY = entity.y + entity.height / 2;
+        
+        // Calculate distance between centers
+        const xDistance = Math.abs(entityCenterX - bucketCenterX);
+        const yInRange = entityCenterY > bucket.y && entityCenterY < bucket.y + bucket.height;
+        
+        // Collision occurs when centers are close and y is in range
+        return xDistance < bucket.width/2 && yInRange;
+      }
+      
+      // For other entities (tears), keep the original box collision
       return (
         entity.x < bucket.x + bucket.width &&
         entity.x + entity.width > bucket.x &&
@@ -606,7 +621,7 @@ class BloodGameManager {
       // Add more particles for active shield
       if (Math.random() < 0.5) {
         const angle = Math.random() * Math.PI * 2;
-        const radius = this.bucket.width * 1.1;
+        const radius = this.bucket.width * 0.6;
         this.activeShieldParticles.push({
           x: Math.cos(angle) * radius,
           y: Math.sin(angle) * radius,
