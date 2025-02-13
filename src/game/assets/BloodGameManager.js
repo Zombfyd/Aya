@@ -572,7 +572,7 @@ class BloodGameManager {
       this.ctx.save();
       // Adjust translation to position heart up and to the right of bucket
       this.ctx.translate(
-          bucketCenterX + this.bucket.width/2,  // Move right by half bucket width
+          bucketCenterX - this.bucket.width/2,  // Move left by half bucket width
           bucketCenterY - this.bucket.height    // Move up by full bucket height
       );
       
