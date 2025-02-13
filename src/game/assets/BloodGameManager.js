@@ -38,7 +38,8 @@ class BloodGameManager {
         teardrop: null,
         goldtear: null,
         redtear: null,
-        blacktear: null
+        blacktear: null,
+        shield: null
       };
   
       // Load and manage game images - using direct URLs for now
@@ -65,6 +66,10 @@ class BloodGameManager {
       // Fixed sizes for game entities - these won't scale
       this.BUCKET_SIZE = 70;  // Fixed bucket size
       this.TEAR_SIZE = 50;    // Fixed tear size
+  
+      this.shield = null;
+      this.shieldActive = false;
+      this.shieldTimer = null;
     }
   
     // Image Loading Method
@@ -155,6 +160,7 @@ class BloodGameManager {
           this.spawnGoldtear();
           this.spawnRedtear();
           this.spawnBlacktear();
+          this.spawnShield();
         }
       }, 1000);
   
@@ -182,7 +188,8 @@ class BloodGameManager {
         teardrop: null,
         goldtear: null,
         redtear: null,
-        blacktear: null
+        blacktear: null,
+        shield: null
       };
   
       // Clear entities
@@ -284,6 +291,13 @@ class BloodGameManager {
       this.blacktears.push(tear);
       this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
     }
+  
+    spawnShield() {
+      if (!this.gameActive) return;
+      this.shield = new Shield(this.canvas.width);
+      this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 15000 + 10000); // 10-25 seconds
+    }
+  
     // Game Update Methods
     updateGame() {
       this.updateEntities(this.teardrops, false, false, false);
@@ -305,6 +319,17 @@ class BloodGameManager {
         this.gameActive = false;
         if (this.onGameOver) {
           this.onGameOver(this.score);
+        }
+      }
+  
+      // Update shield
+      if (this.shield && !this.shieldActive) {
+        this.shield.update();
+        if (this.checkCollision(this.shield, this.bucket)) {
+          this.activateShield();
+          this.shield = null;
+        } else if (this.shield.y > this.canvas.height) {
+          this.shield = null;
         }
       }
     }
@@ -333,11 +358,6 @@ class BloodGameManager {
         } else {
           this.splashes.push(new BlueSplash(splashX, splashY));
         }
-        
-        // Handle life reduction for non-red tears
-        if (!isRed) {
-          this.lives--;
-        }
       }
     }
   }
@@ -359,7 +379,7 @@ class BloodGameManager {
     if (isGold) {
       this.score += 25;
       this.splashes.push(new GoldSplash(splashX, splashY));
-    } else if (isRed) {
+    } else if (isRed && !this.shieldActive) { // Only reduce lives if shield is not active
       this.lives--;
       this.splashes.push(new RedSplash(splashX, splashY));
     } else if (isBlack) {
@@ -367,7 +387,7 @@ class BloodGameManager {
       this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
       this.score += 1;
-      this.splashes.push(new BlueSplash(splashX, splashY));  // Changed from base Splash to BlueSplash
+      this.splashes.push(new BlueSplash(splashX, splashY));
     }
   }
   
@@ -434,6 +454,16 @@ class BloodGameManager {
         splash.draw(this.ctx);
       });
   
+      // Draw shield if it exists
+      if (this.shield && !this.shieldActive) {
+        this.shield.draw(this.ctx);
+      }
+  
+      // Draw shield effect around bucket when active
+      if (this.shieldActive && this.bucket) {
+        this.drawShieldEffect();
+      }
+  
       // Draw UI with fixed fonts
       this.drawUI();
   }
@@ -497,7 +527,7 @@ class BloodGameManager {
   
       const legends = [
         { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
-        { text: 'Gold Tear = 15 points', color: '#FFD04D', y: 70 },
+        { text: 'Gold Tear = 25 points', color: '#FFD04D', y: 70 },
         { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
         { text: 'Green Tear = +1 life', color: '#39B037', y: 110 }
       ];
@@ -523,6 +553,39 @@ class BloodGameManager {
           this.onGameOver(this.score);
         }
       }
+    }
+  
+    // Add shield activation method
+    activateShield() {
+      this.shieldActive = true;
+      if (this.shieldTimer) clearTimeout(this.shieldTimer);
+      this.shieldTimer = setTimeout(() => {
+        this.shieldActive = false;
+      }, 5000); // 5 seconds of shield
+    }
+  
+    // Add shield effect drawing method
+    drawShieldEffect() {
+      const bucketCenterX = this.bucket.x + this.bucket.width / 2;
+      const bucketCenterY = this.bucket.y + this.bucket.height / 2;
+      
+      this.ctx.save();
+      this.ctx.translate(bucketCenterX, bucketCenterY);
+      
+      // Create heart-shaped barrier
+      const scale = 1.5; // Adjust to fit bucket
+      this.ctx.scale(scale, scale);
+      
+      // Create shield gradient
+      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width);
+      gradient.addColorStop(0, 'rgba(255, 192, 203, 0.2)');
+      gradient.addColorStop(0.7, 'rgba(255, 182, 193, 0.4)');
+      gradient.addColorStop(1, 'rgba(255, 105, 180, 0.1)');
+      
+      this.ctx.fillStyle = gradient;
+      this.ctx.fill(new Shield(0).createHeartPath());
+      
+      this.ctx.restore();
     }
   }
   
@@ -778,6 +841,88 @@ class BloodGameManager {
   class GreenSplash extends BaseSplash {
     constructor(x, y) {
       super(x, y, "rgba(0, 255, 0, ");
+    }
+  }
+  
+  class Shield extends Entity {
+    constructor(canvasWidth) {
+      super(
+        Math.random() * (canvasWidth - 50),
+        20,
+        40, // Shield size
+        40,
+        2 // Speed
+      );
+      this.active = false;
+      this.duration = 5000; // 5 seconds of shield time
+      this.particles = [];
+      this.heartShape = this.createHeartPath();
+    }
+
+    createHeartPath() {
+      const path = new Path2D();
+      // Create heart shape path
+      path.moveTo(20, 10);
+      path.bezierCurveTo(20, 7, 16, 0, 10, 0);
+      path.bezierCurveTo(1, 0, 0, 10, 0, 10);
+      path.bezierCurveTo(0, 20, 10, 25, 20, 35);
+      path.bezierCurveTo(30, 25, 40, 20, 40, 10);
+      path.bezierCurveTo(40, 10, 39, 0, 30, 0);
+      path.bezierCurveTo(24, 0, 20, 7, 20, 10);
+      return path;
+    }
+
+    draw(ctx) {
+      // Draw heart-shaped shield with particles
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(0.5, 0.5); // Scale down the heart
+
+      // Create gradient for the shield
+      const gradient = ctx.createRadialGradient(20, 20, 0, 20, 20, 40);
+      gradient.addColorStop(0, 'rgba(255, 192, 203, 0.8)'); // Pink core
+      gradient.addColorStop(1, 'rgba(255, 182, 193, 0.3)'); // Light pink edge
+
+      // Draw the heart shape
+      ctx.fillStyle = gradient;
+      ctx.fill(this.heartShape);
+
+      // Add particle effects
+      this.updateParticles();
+      this.drawParticles(ctx);
+
+      ctx.restore();
+    }
+
+    updateParticles() {
+      // Add new particles
+      if (Math.random() < 0.3) {
+        this.particles.push({
+          x: Math.random() * 40,
+          y: Math.random() * 40,
+          size: Math.random() * 3 + 1,
+          life: 1,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2
+        });
+      }
+
+      // Update existing particles
+      this.particles = this.particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+        return p.life > 0;
+      });
+    }
+
+    drawParticles(ctx) {
+      this.particles.forEach(p => {
+        ctx.fillStyle = `rgba(255, 192, 203, ${p.life})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
     }
   }
   
