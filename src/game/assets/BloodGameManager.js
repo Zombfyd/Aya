@@ -572,12 +572,12 @@ class BloodGameManager {
       this.ctx.save();
       // Adjust translation to position heart up and to the right of bucket
       this.ctx.translate(
-          bucketCenterX - this.bucket.width/2,  // Move left by half bucket width
+          bucketCenterX,  // Move left by half bucket width
           bucketCenterY - this.bucket.height    // Move up by full bucket height
       );
       
       // Increased scale for active shield (3x larger)
-      const scale = 1.5; // 3x larger than original 1.5
+      const scale = 2.5; // 3x larger than original 1.5
       this.ctx.scale(scale, scale);
       
       // Brighter gradient for active shield
@@ -606,7 +606,7 @@ class BloodGameManager {
       // Add more particles for active shield
       if (Math.random() < 0.5) {
         const angle = Math.random() * Math.PI * 2;
-        const radius = this.bucket.width * 1.5;
+        const radius = this.bucket.width * 1.1;
         this.activeShieldParticles.push({
           x: Math.cos(angle) * radius,
           y: Math.sin(angle) * radius,
@@ -903,12 +903,12 @@ class BloodGameManager {
       super(
         Math.random() * (canvasWidth - 100), // Adjusted for larger size
         20,
-        80, // 2x larger (40 * 5)
-        80, // 2x larger
+        120, // 2x larger (40 * 5)
+        120, // 2x larger
         2
       );
       this.active = false;
-      this.duration = 10000;
+      this.duration = 7500;
       this.particles = [];
       this.heartShape = this.createHeartPath();
     }
@@ -929,7 +929,7 @@ class BloodGameManager {
     draw(ctx) {
       ctx.save();
       ctx.translate(this.x, this.y);
-      ctx.scale(0.5, 0.5); // Increased scale for larger heart
+      ctx.scale(1.5, 1.5); // Increased scale for larger heart
 
       // Brighter gradient for the shield
       const gradient = ctx.createRadialGradient(40, 40, 0, 40, 40, 80);
