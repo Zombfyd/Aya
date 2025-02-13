@@ -420,36 +420,36 @@ useEffect(() => {
 
   const handleScoreSubmit = async (finalScore) => {
     try {
+      // Log the incoming score for debugging
+      console.log('handleScoreSubmit received score:', finalScore);
+
       // Web2 submission for non-wallet users in free mode
       if (!wallet.connected && gameMode === 'free') {
-        // Use the existing playerName that was set during input
         const submissionName = playerName || usernameInput || "Guest";
-
-        console.log('Submitting to web2 leaderboard', {
-            playerName: submissionName,
-            score: finalScore
-        });
         
-        const web2Endpoint = `${config.apiBaseUrl}/api/web2/scores`;
+        // Ensure finalScore is a number and not 0
+        const scoreToSubmit = Number(finalScore);
+        console.log('Preparing web2 submission with score:', scoreToSubmit);
+
         const web2RequestBody = {
-            playerName: submissionName,
-            score: Number(finalScore)
+          playerName: submissionName,
+          score: scoreToSubmit  // Use the converted score
         };
 
         console.log('Sending web2 request:', web2RequestBody);
 
-        const response = await fetch(web2Endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            mode: 'cors',
-            body: JSON.stringify(web2RequestBody)
+        const response = await fetch(`${config.apiBaseUrl}/api/web2/scores`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors',
+          body: JSON.stringify(web2RequestBody)
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Web2 submission failed: ${errorData.error}`);
+          const errorData = await response.json();
+          throw new Error(`Web2 submission failed: ${errorData.error}`);
         }
 
         const result = await response.json();
@@ -465,12 +465,17 @@ useEffect(() => {
         return;
       }
 
+      // Ensure finalScore is a number and not 0
+      const scoreToSubmit = Number(finalScore);
+      console.log('Preparing wallet submission with score:', scoreToSubmit);
+
       let requestBody = {
         playerWallet: wallet.account.address,
-        score: Number(finalScore)
+        score: scoreToSubmit,  // Use the converted score
+        playerName: playerName || usernameInput || "Guest"
       };
 
-      // For paid mode submissions, ensure payment is verified
+      // For paid mode submissions
       if (gameMode === 'paid') {
         if (!paymentStatus.verified || !paymentStatus.transactionId) {
           alert('Payment verification required for paid mode');
@@ -479,18 +484,16 @@ useEffect(() => {
         requestBody = {
           ...requestBody,
           sessionToken: paymentStatus.transactionId,
-          gameMode: 'paid',
-          playerName: playerName
+          gameMode: 'paid'
         };
       } 
-      // Handle qualifying free scores that want to submit to paid leaderboard
+      // Handle qualifying free scores
       else if (qualifyingTier && qualifiedForPaid) {
         const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
         if (!tierConfig) {
           throw new Error('Invalid qualifying tier');
         }
 
-        // Handle payment first
         await handleGamePayment();
         if (!paymentStatus.verified || !paymentStatus.transactionId) {
           throw new Error('Payment failed');
@@ -499,20 +502,19 @@ useEffect(() => {
         requestBody = {
           ...requestBody,
           sessionToken: paymentStatus.transactionId,
-          gameMode: 'paid',
-          playerName: playerName
+          gameMode: 'paid'
         };
       } else {
-        // Regular free mode submission (wallet connected)
+        // Regular free mode submission
         requestBody = {
           ...requestBody,
-          gameMode: 'free',
-          playerName: playerName
+          gameMode: 'free'
         };
       }
 
-      // Use the proper submission endpoint from the config
+      // Use the proper submission endpoint from config
       const endpoint = config.api.scores.submit(requestBody.gameMode);
+      console.log('Submitting to endpoint:', endpoint, 'with body:', requestBody);
 
       // Submit to both main and secondary leaderboards
       const submissions = ['main', 'secondary'].map(async (type) => {
@@ -532,8 +534,8 @@ useEffect(() => {
         return response.json();
       });
 
-      await Promise.all(submissions);
-      console.log('Score submissions successful');
+      const results = await Promise.all(submissions);
+      console.log('Score submissions successful:', results);
 
       if (gameMode === 'paid') {
         const newAttempts = paidGameAttempts + 1;
