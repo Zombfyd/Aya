@@ -1547,49 +1547,60 @@ const handleSuinsChange = (e) => {
                 </div>
               )}
 
-              </>
-          )}
+              {gameMode === 'paid' && wallet.connected && (
+                <div className="game-mode-selection">
+                  <h2>Select Your Game</h2>
+                  {!gameState.hasValidPayment ? (
+                    <div className="payment-section">
+                      <h3>Select Payment Tier</h3>
+                      
+                      {/* Mobile dropdown */}
+                      <div className="payment-tiers-mobile">
+                        <select 
+                          className="tier-select"
+                          value={selectedTier || ''}
+                          onChange={(e) => setSelectedTier(e.target.value)}
+                        >
+                          <option value="">Select Payment Tier</option>
+                          <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
+                          <option value="tier2">Short Break - 0.8 SUI (2 Plays)</option>
+                          <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
+                        </select>
+                      </div>
 
-          {!gameState.hasValidPayment && wallet.connected && gameMode === 'paid' && (
-            <>
-              <div className="payment-section">
-                <h3>Select Payment Tier</h3>
-                
-                {/* Mobile dropdown */}
-                <div className="payment-tiers-mobile">
-                  <select 
-                    className="tier-select"
-                    value={selectedTier || ''}
-                    onChange={(e) => setSelectedTier(e.target.value)}
-                  >
-                    <option value="">Select Payment Tier</option>
-                    <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
-                    <option value="tier2">Short Break - 0.8 SUI (2 Plays)</option>
-                    <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
-                  </select>
+                      {/* Desktop payment tiers */}
+                      {renderPaymentTiers()}
+
+                      {/* Game type buttons */}
+                      <div className="game-type-buttons">
+                        <button 
+                          onClick={() => handleGamePayment('aya')}
+                          disabled={paying || !selectedTier}
+                          className="start-button aya"
+                        >
+                          {paying ? 'Processing...' : 'Play Tears of Aya'}
+                        </button>
+                        <button 
+                          onClick={() => handleGamePayment('blood')}
+                          disabled={paying || !selectedTier}
+                          className="start-button blood"
+                        >
+                          {paying ? 'Processing...' : 'Play Tears of Blood'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
+                        Play Tears of Aya
+                      </button>
+                      <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
+                        Play Tears of Blood
+                      </button>
+                    </>
+                  )}
                 </div>
-
-                {/* Desktop payment tiers */}
-                {renderPaymentTiers()}
-              </div>
-
-              {/* Replace single button with game type selection */}
-              <div className="game-type-buttons">
-                <button 
-                  onClick={() => handleGamePayment('aya')}
-                  disabled={paying || !selectedTier}
-                  className="start-button aya"
-                >
-                  {paying ? 'Processing...' : 'Play Tears of Aya'}
-                </button>
-                <button 
-                  onClick={() => handleGamePayment('blood')}
-                  disabled={paying || !selectedTier}
-                  className="start-button blood"
-                >
-                  {paying ? 'Processing...' : 'Play Tears of Blood'}
-                </button>
-              </div>
+              )}
             </>
           )}
         </header>
