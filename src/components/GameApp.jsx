@@ -1230,7 +1230,7 @@ const handleSuinsChange = (e) => {
   if (checked && suinsData?.name) {
     setPlayerName(suinsData.name);
   } else {
-    setPlayerName('');
+    setPlayerName(playerName);
   }
 };
 
