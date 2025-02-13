@@ -273,6 +273,25 @@ const TokenAmount = ({ amount, symbol }) => {
               }));
               setPaidGameAttempts(0); // Reset attempts when payment is verified
               setTransactionInProgress(false);
+              
+              // Start countdown and game automatically after payment verification
+              setCountdown(3);
+              await new Promise((resolve) => {
+                const countdownInterval = setInterval(() => {
+                  setCountdown(prev => {
+                    if (prev <= 1) {
+                      clearInterval(countdownInterval);
+                      resolve();
+                      return null;
+                    }
+                    return prev - 1;
+                  });
+                }, 1000);
+              });
+              
+              // Get the game type from the active game manager
+              const gameType = window.activeGameManager === window.gameManager1 ? 'aya' : 'blood';
+              startGame(gameType);
             }
           }
         } catch (error) {
