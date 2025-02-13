@@ -418,12 +418,15 @@ const TokenAmount = ({ amount, symbol }) => {
     }
   };
 
-  const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType = 'TOA') => {
+  const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType) => {
+    // If gameType isn't provided, determine it based on which game manager is active
+    const currentGameType = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+    
     console.log('handleScoreSubmit received:', { 
         finalScore, 
         playerName, 
         gameMode: submissionGameMode,
-        gameType,
+        gameType: currentGameType,
         walletConnected: wallet.connected
     });
 
@@ -437,7 +440,7 @@ const TokenAmount = ({ amount, symbol }) => {
             requestBody = {
                 playerName,
                 score: finalScore,
-                gameType
+                gameType: currentGameType // Explicitly set game type
             };
         } else {
             // Web3 submission (free or paid)
@@ -446,9 +449,9 @@ const TokenAmount = ({ amount, symbol }) => {
             requestBody = {
                 playerWallet: wallet.account?.address,
                 score: finalScore,
-                gameType,
-                type: submissionGameMode === 'paid' ? 'main' : 'secondary', // Include type in body
-                playerName // optional
+                gameType: currentGameType, // Explicitly set game type
+                type: submissionGameMode === 'paid' ? 'main' : 'secondary',
+                playerName
             };
         }
 
@@ -474,7 +477,7 @@ const TokenAmount = ({ amount, symbol }) => {
         
         // Check for qualification after submission
         if (submissionGameMode === 'free' && wallet.connected) {
-            const qualificationResult = await checkScoreQualification(finalScore);
+            const qualificationResult = await checkScoreQualification(finalScore, currentGameType);
             if (qualificationResult) {
                 setQualifiedForPaid(true);
                 setQualifyingTier(qualificationResult);
@@ -886,39 +889,40 @@ const TokenAmount = ({ amount, symbol }) => {
 
   // Updated onGameOver callback with a delay before automatic restart.
   useEffect(() => {
-    const setupGameOver = (manager) => {
-      if (manager) {
-        manager.onGameOver = async (finalScore) => {
-          console.log('Game Over triggered with score:', finalScore);
+    const setupGameOver = (manager, gameType) => {
+        if (manager) {
+            manager.onGameOver = async (finalScore) => {
+                console.log('Game Over triggered with score:', finalScore, 'for game type:', gameType);
 
-          setGameState(prev => ({
-            ...prev,
-            score: finalScore,
-            isGameOver: true,
-            gameStarted: false,
-          }));
+                setGameState(prev => ({
+                    ...prev,
+                    score: finalScore,
+                    isGameOver: true,
+                    gameStarted: false,
+                }));
 
-          if (!wallet.connected) {
-            // Web2 submission
-            await handleScoreSubmit(finalScore, 'free');
-          } else if (gameMode === 'free') {
-            // Check qualification first
-            const qualificationResult = await checkScoreQualification(finalScore);
-            if (qualificationResult) {
-              setQualifiedForPaid(true);
-              setQualifyingTier(qualificationResult);
-            }
-            await handleScoreSubmit(finalScore, 'free');
-          } else if (gameMode === 'paid') {
-            await handleScoreSubmit(finalScore, 'paid');
-          }
-        };
-      }
+                if (!wallet.connected) {
+                    // Web2 submission
+                    await handleScoreSubmit(finalScore, 'free', gameType);
+                } else if (gameMode === 'free') {
+                    // Check qualification first
+                    const qualificationResult = await checkScoreQualification(finalScore, gameType);
+                    if (qualificationResult) {
+                        setQualifiedForPaid(true);
+                        setQualifyingTier(qualificationResult);
+                    }
+                    await handleScoreSubmit(finalScore, 'free', gameType);
+                } else if (gameMode === 'paid') {
+                    await handleScoreSubmit(finalScore, 'paid', gameType);
+                }
+            };
+        }
     };
 
-    setupGameOver(window.gameManager1);
-    setupGameOver(window.gameManager2);
-  }, [gameMode, wallet.connected, handleScoreSubmit]);
+    // Set up game over handlers for both game types
+    setupGameOver(window.gameManager1, 'TOA');
+    setupGameOver(window.gameManager2, 'TOB');
+}, [gameMode, wallet.connected, handleScoreSubmit]);
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
@@ -1033,7 +1037,7 @@ const TokenAmount = ({ amount, symbol }) => {
 
         if (gameMode === 'free' && qualifiedForPaid) {
           // Submit the qualifying score after payment
-          await handleScoreSubmit(gameState.score);
+          await handleScoreSubmit(gameState.score, 'paid', 'TOA');
           setQualifiedForPaid(false);
           setQualifyingTier(null);
         } else {
@@ -1112,10 +1116,9 @@ useEffect(() => {
   }, []);
   
   // Add this function to check score qualification
-const checkScoreQualification = async (score) => {
+const checkScoreQualification = async (score, gameType) => {
     try {
-        // Use the correct URL pattern for the main paid leaderboard
-        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid`);
+        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid?gameType=${gameType}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -1679,7 +1682,7 @@ const handleSuinsChange = (e) => {
                   try {
                     setSelectedTier(qualifyingTier);
                     await handleGamePayment(); // Process payment
-                    await handleScoreSubmit(gameState.score, 'paid'); // Submit to paid leaderboard
+                    await handleScoreSubmit(gameState.score, 'paid', 'TOA'); // Submit to paid leaderboard
                     setQualifiedForPaid(false);
                     setQualifyingTier(null);
                   } catch (error) {
@@ -1694,7 +1697,7 @@ const handleSuinsChange = (e) => {
               <button 
                 onClick={async () => {
                   try {
-                    await handleScoreSubmit(gameState.score, 'free'); // Submit to free leaderboard
+                    await handleScoreSubmit(gameState.score, 'free', 'TOA'); // Submit to free leaderboard
                     setQualifiedForPaid(false);
                     setQualifyingTier(null);
                   } catch (error) {
