@@ -420,143 +420,142 @@ useEffect(() => {
 
   const handleScoreSubmit = async (finalScore) => {
     try {
-        // Web2 submission for non-wallet users in free mode
-        if (!wallet.connected && gameMode === 'free') {
-            if (!playerName) {
-                alert('Please enter a name before submitting your score');
-                return;
-            }
+      // Web2 submission for non-wallet users in free mode
+      if (!wallet.connected && gameMode === 'free') {
+        // Use the existing playerName that was set during input
+        const submissionName = playerName || usernameInput || "Guest";
 
         console.log('Submitting to web2 leaderboard', {
-          playerName: playerName,
-          score: finalScore
+            playerName: submissionName,
+            score: finalScore
         });
         
         const web2Endpoint = `${config.apiBaseUrl}/api/web2/scores`;
         const web2RequestBody = {
-          playerName: playerName,
-          score: Number(finalScore) // Use finalScore here
+            playerName: submissionName,
+            score: Number(finalScore)
         };
 
-            console.log('Sending web2 request:', web2RequestBody);
+        console.log('Sending web2 request:', web2RequestBody);
 
-            const response = await fetch(web2Endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                mode: 'cors',
-                body: JSON.stringify(web2RequestBody)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Web2 submission failed: ${errorData.error}`);
-            }
-
-            const result = await response.json();
-            console.log('Web2 score submission result:', result);
-            
-            await fetchLeaderboards();
-            return;
-        }
-
-        // Existing wallet-connected logic
-        if (!wallet.connected || !wallet.account) {
-            alert('Please connect your wallet first');
-            return;
-        }
-
-        let requestBody = {
-            playerWallet: wallet.account.address,
-            score: finalScore
-        };
-
-        // For paid mode submissions, ensure payment is verified
-        if (gameMode === 'paid') {
-          if (!paymentStatus.verified || !paymentStatus.transactionId) {
-            alert('Payment verification required for paid mode');
-            return;
-          }
-          requestBody = {
-            ...requestBody,
-            sessionToken: paymentStatus.transactionId,
-            gameMode: 'paid',
-            playerName: playerName
-          };
-        }
-        // Handle qualifying free scores that want to submit to the paid leaderboard
-        else if (qualifyingTier && qualifiedForPaid) {
-          const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
-          if (!tierConfig) {
-            throw new Error('Invalid qualifying tier');
-          }
-
-          // Handle payment first
-          await handleGamePayment();
-          if (!paymentStatus.verified || !paymentStatus.transactionId) {
-            throw new Error('Payment failed');
-          }
-
-          requestBody = {
-            ...requestBody,
-            sessionToken: paymentStatus.transactionId,
-            gameMode: 'paid',
-            playerName: playerName
-          };
-        } else {
-          // Regular free mode submission (wallet connected) – include player's name
-          requestBody = {
-            ...requestBody,
-            gameMode: 'free',
-            playerName: playerName
-          };
-        }
-
-        // Submit to both main and secondary leaderboards
-        const submissions = ['main', 'secondary'].map(async (type) => {
-            const endpoint = `${config.apiBaseUrl}/api/scores/${requestBody.gameMode}`;
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                mode: 'cors',
-                body: JSON.stringify({ ...requestBody, gameType: type })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`${type} submission failed: ${errorData.error}`);
-            }
-
-            return response.json();
+        const response = await fetch(web2Endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            mode: 'cors',
+            body: JSON.stringify(web2RequestBody)
         });
 
-        const results = await Promise.all(submissions);
-        console.log('Score submissions successful');
-
-        if (gameMode === 'paid') {
-            const newAttempts = paidGameAttempts + 1;
-            setPaidGameAttempts(newAttempts);
-            if (newAttempts >= maxAttempts) {
-                setGameState(prev => ({ ...prev, hasValidPayment: false }));
-            }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Web2 submission failed: ${errorData.error}`);
         }
 
-        // Reset qualification states if this was a qualifying submission
-        if (qualifyingTier && qualifiedForPaid) {
-            setQualifiedForPaid(false);
-            setQualifyingTier(null);
-        }
-
-        await fetchLeaderboards();
+        const result = await response.json();
+        console.log('Web2 score submission result:', result);
         
+        await fetchLeaderboards();
+        return;
+      }
+
+      // Wallet-connected submission logic
+      if (!wallet.connected || !wallet.account) {
+        alert('Please connect your wallet first');
+        return;
+      }
+
+      let requestBody = {
+        playerWallet: wallet.account.address,
+        score: Number(finalScore)
+      };
+
+      // For paid mode submissions, ensure payment is verified
+      if (gameMode === 'paid') {
+        if (!paymentStatus.verified || !paymentStatus.transactionId) {
+          alert('Payment verification required for paid mode');
+          return;
+        }
+        requestBody = {
+          ...requestBody,
+          sessionToken: paymentStatus.transactionId,
+          gameMode: 'paid',
+          playerName: playerName
+        };
+      } 
+      // Handle qualifying free scores that want to submit to paid leaderboard
+      else if (qualifyingTier && qualifiedForPaid) {
+        const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
+        if (!tierConfig) {
+          throw new Error('Invalid qualifying tier');
+        }
+
+        // Handle payment first
+        await handleGamePayment();
+        if (!paymentStatus.verified || !paymentStatus.transactionId) {
+          throw new Error('Payment failed');
+        }
+
+        requestBody = {
+          ...requestBody,
+          sessionToken: paymentStatus.transactionId,
+          gameMode: 'paid',
+          playerName: playerName
+        };
+      } else {
+        // Regular free mode submission (wallet connected)
+        requestBody = {
+          ...requestBody,
+          gameMode: 'free',
+          playerName: playerName
+        };
+      }
+
+      // Use the proper submission endpoint from the config
+      const endpoint = config.api.scores.submit(requestBody.gameMode);
+
+      // Submit to both main and secondary leaderboards
+      const submissions = ['main', 'secondary'].map(async (type) => {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors',
+          body: JSON.stringify({ ...requestBody, gameType: type })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Score submission failed: ${errorData.error}`);
+        }
+        return response.json();
+      });
+
+      await Promise.all(submissions);
+      console.log('Score submissions successful');
+
+      if (gameMode === 'paid') {
+        const newAttempts = paidGameAttempts + 1;
+        setPaidGameAttempts(newAttempts);
+        if (newAttempts >= maxAttempts) {
+          setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        }
+      }
+
+      // Reset qualification states if this was a qualifying submission
+      if (qualifyingTier && qualifiedForPaid) {
+        setQualifiedForPaid(false);
+        setQualifyingTier(null);
+      }
+
+      await fetchLeaderboards();
+      
     } catch (error) {
-        console.error('Score submission error:', error);
-        alert(`Failed to submit score: ${error.message}`);
+      console.error('Score submission error:', error);
+      alert(`Failed to submit score: ${error.message}`);
     }
-};
+  };
 
   // Leaderboard functions
   const fetchLeaderboards = async () => {
@@ -890,7 +889,7 @@ useEffect(() => {
     }
   };
 
-  // Attach the game-over handler once after the game manager has been initialized
+  // Updated onGameOver callback with a delay before automatic restart.
   useEffect(() => {
     if (window.gameManager) {
       window.gameManager.onGameOver = async (finalScore) => {
@@ -904,13 +903,12 @@ useEffect(() => {
         }));
 
         try {
-          // Handle free mode submissions
+          // Handle free mode submissions (with and without wallet)
           if (gameMode === 'free') {
             if (!wallet.connected) {
               console.log('Submitting to web2 leaderboard with score:', finalScore);
               await handleScoreSubmit(finalScore);
             } else {
-              // For wallet connected free mode, submit score and then check for qualification
               await handleScoreSubmit(finalScore);
               const qualification = await checkScoreQualification(finalScore);
               if (qualification) {
@@ -925,6 +923,12 @@ useEffect(() => {
         } catch (error) {
           console.error('Error in game over handler:', error);
         }
+        
+        // Add a delay to ensure the submission and state updates are complete,
+        // then automatically restart the game.
+        setTimeout(() => {
+          restartGame();
+        }, 2000);
       };
     }
   }, [gameMode, wallet.connected]);
