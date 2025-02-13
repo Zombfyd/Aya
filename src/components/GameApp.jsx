@@ -861,8 +861,8 @@ const TokenAmount = ({ amount, symbol }) => {
             gameStarted: false,
           }));
 
-          try {
-            if (gameMode === 'free') {
+          if (gameMode === 'free') {
+            try {
               if (!wallet.connected) {
                 // Non-wallet users - direct submission to free leaderboard
                 await handleScoreSubmit(finalScore);
@@ -878,12 +878,16 @@ const TokenAmount = ({ amount, symbol }) => {
                   await handleScoreSubmit(finalScore);
                 }
               }
-            } else if (gameMode === 'paid' && wallet.connected) {
+            } catch (error) {
+              console.error('Error handling free mode game over:', error);
+            }
+          } else if (gameMode === 'paid' && wallet.connected) {
+            try {
               await handleScoreSubmit(finalScore);
               setTimeout(() => restartGame(), 2000);
+            } catch (error) {
+              console.error('Error handling paid mode game over:', error);
             }
-          } catch (error) {
-            console.error('Error in game over handler:', error);
           }
         };
       }
@@ -1550,16 +1554,22 @@ const handleSuinsChange = (e) => {
               handleGamePayment();
             }}
             className="submit-paid-button"
+            disabled={transactionInProgress}
           >
             Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier].label} ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
           </button>
           <button 
             onClick={async () => {
-              await handleScoreSubmit(gameState.score);
-              setQualifiedForPaid(false);
-              setQualifyingTier(null);
+              try {
+                await handleScoreSubmit(gameState.score);
+                setQualifiedForPaid(false);
+                setQualifyingTier(null);
+              } catch (error) {
+                console.error('Error submitting to free leaderboard:', error);
+              }
             }}
             className="submit-free-button"
+            disabled={transactionInProgress}
           >
             Submit to Free Leaderboard
           </button>
