@@ -998,3 +998,23 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   border-top-color: rgba(0, 0, 0, 0.8);
   margin-bottom: -5px;
 }
+
+.game-type-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.start-button.aya {
+  background: linear-gradient(45deg, #2054c9, #4c7ae6);
+}
+
+.start-button.blood {
+  background: linear-gradient(45deg, #c92020, #e64c4c);
+}
+
+.start-button:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}

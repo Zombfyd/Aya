@@ -1,5 +1,12 @@
 import { gameManager } from '../game/GameManager.js';
-window.gameManager = gameManager;
+import { GameManager2 } from '../game/assets/GameManager2.js';
+
+// Initialize both game managers
+const gameManager1 = gameManager;
+const gameManager2 = new GameManager2();
+
+window.gameManager = gameManager1;
+window.GameManager2 = gameManager2;
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   ConnectButton,
@@ -209,79 +216,64 @@ const TokenAmount = ({ amount, symbol }) => {
   // Utility function for chain name
   
   useEffect(() => {
-  const initializeGameManager = async () => {
-    try {
-      console.log('Initializing game manager...', {
-        environment: process.env.NODE_ENV,
-        network: config.network,
-        packageId: config.packageId
-      });
-
-      if (!window.gameManager) {
-        console.error('GameManager not found on window object');
-        return;
-      }
-
-      const success = await window.gameManager.initialize();
-      
-      if (success) {
-        console.log('Game manager initialized successfully', {
-          environment: process.env.NODE_ENV,
-          gameMode: gameMode,
-          networkConfig: config.network
-        });
-        setGameManagerInitialized(true);
-      } else {
-        console.error('Game manager initialization returned false', {
-          environment: process.env.NODE_ENV,
-          gameMode: gameMode
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing game manager:', error);
-    }
-  };
-
-  initializeGameManager();
-}, []);
-
-// Modify payment status monitoring
-useEffect(() => {
-  if (transactionInProgress) {
-    const checkPaymentStatus = async () => {
+    const initializeGame = async () => {
       try {
-        if (paymentStatus.transactionId) {
-          const status = await wallet.getTransactionBlock({
-            digest: paymentStatus.transactionId,
-            options: {
-              showEvents: true,
-              showEffects: true,
-            },
-          });
+        // Initialize both game managers
+        const manager1Success = await gameManager1.initialize();
+        const manager2Success = await gameManager2.initialize();
 
-          if (status.effects?.status?.status === 'success') {
-            setPaymentStatus(prev => ({
-              ...prev,
-              verified: true,
-              error: null
-            }));
-            setGameState(prev => ({
-              ...prev,
-              hasValidPayment: true
-            }));
-            setPaidGameAttempts(0); // Reset attempts when payment is verified
-            setTransactionInProgress(false);
-          }
+        if (manager1Success && manager2Success) {
+          setGameManagerInitialized(true);
+          window.gameManager1 = gameManager1;
+          window.gameManager2 = gameManager2;
+        } else {
+          console.error('Failed to initialize game managers');
         }
       } catch (error) {
-        console.error('Payment status check failed:', error);
+        console.error('Error initializing game:', error);
       }
     };
 
-    const interval = setInterval(checkPaymentStatus, 2000);
-    return () => clearInterval(interval);
-  }
-}, [transactionInProgress, paymentStatus.transactionId]);
+    initializeGame();
+  }, []);
+
+  // Modify payment status monitoring
+  useEffect(() => {
+    if (transactionInProgress) {
+      const checkPaymentStatus = async () => {
+        try {
+          if (paymentStatus.transactionId) {
+            const status = await wallet.getTransactionBlock({
+              digest: paymentStatus.transactionId,
+              options: {
+                showEvents: true,
+                showEffects: true,
+              },
+            });
+
+            if (status.effects?.status?.status === 'success') {
+              setPaymentStatus(prev => ({
+                ...prev,
+                verified: true,
+                error: null
+              }));
+              setGameState(prev => ({
+                ...prev,
+                hasValidPayment: true
+              }));
+              setPaidGameAttempts(0); // Reset attempts when payment is verified
+              setTransactionInProgress(false);
+            }
+          }
+        } catch (error) {
+          console.error('Payment status check failed:', error);
+        }
+      };
+
+      const interval = setInterval(checkPaymentStatus, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [transactionInProgress, paymentStatus.transactionId]);
 
   // Enhanced wallet connection monitoring
   useEffect(() => {
@@ -340,9 +332,8 @@ useEffect(() => {
     }
   };
   // Modify handleGameStart
-  const handleGameStart = async () => {
+  const handleGameStart = async (type = 'aya') => {
     if (gameMode === 'free') {
-      // Single countdown for free mode
       setCountdown(3);
       await new Promise((resolve) => {
         const countdownInterval = setInterval(() => {
@@ -357,7 +348,7 @@ useEffect(() => {
         }, 1000);
       });
       
-      startGame();
+      startGame(type);
       return;
     }
 
@@ -398,7 +389,7 @@ useEffect(() => {
             verified: true,
             transactionId: response.digest
           }));
-          startGame();
+          startGame(type);
         }
 
       } catch (error) {
@@ -413,7 +404,7 @@ useEffect(() => {
         setGameState(prev => ({ ...prev, hasValidPayment: false }));
         return;
       }
-      startGame();
+      startGame(type);
     }
   };
 
@@ -439,6 +430,7 @@ useEffect(() => {
                 score: scoreToSubmit
             };
 
+            // Updated Web2 submission endpoint
             const response = await fetch('https://ayagame.onrender.com/api/web2/scores', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -475,7 +467,8 @@ useEffect(() => {
             requestBody.sessionToken = paymentStatus.transactionId;
         }
 
-        const endpoint = `https://ayagame.onrender.com/api/scores/submit/${requestBody.gameMode}`;
+        // Updated score submission endpoint
+        const endpoint = `https://ayagame.onrender.com/api/scores/${requestBody.gameMode}`;
         console.log('Submitting scores to endpoint:', endpoint, 'with body:', requestBody);
 
         // Submit to both leaderboards concurrently
@@ -769,9 +762,9 @@ useEffect(() => {
   }, [leaderboardData.mainFree, leaderboardData.mainPaid]);
 
   // Game restart function
-  const restartGame = () => {
+  const restartGame = (type = 'aya') => {
     if (!gameManagerInitialized) {
-      console.error('Cannot restart game - game manager not initialized');
+      console.error('Cannot restart game - game managers not initialized');
       return;
     }
 
@@ -793,8 +786,9 @@ useEffect(() => {
     setTransactionInProgress(false);
     setPaying(false);
 
-    if (window.gameManager) {
-      window.gameManager.cleanup();
+    // Clean up the active game manager
+    if (window.activeGameManager) {
+      window.activeGameManager.cleanup();
     }
 
     setTimeout(() => {
@@ -803,17 +797,17 @@ useEffect(() => {
         gameStarted: true
       }));
       
-      if (window.gameManager) {
-        console.log(`Restarting game in ${gameMode} mode`);
-        window.gameManager.startGame(gameMode);
+      if (window.activeGameManager) {
+        console.log(`Restarting game in ${gameMode} mode, type: ${type}`);
+        window.activeGameManager.startGame(gameMode);
       }
     }, 100);
   };
 
   // Update startGame to track bucket click state
-  const startGame = () => {
-    if (!window.gameManager) {
-      console.error('Game manager not found');
+  const startGame = (type = 'aya') => {
+    if (!window.gameManager1 && !window.gameManager2) {
+      console.error('Game managers not found');
       alert('Game initialization failed. Please refresh the page and try again.');
       return;
     }
@@ -826,7 +820,6 @@ useEffect(() => {
         isGameOver: false,
       }));
 
-      // Add smooth scrolling to center the canvas
       const canvas = document.getElementById('tearCatchGameCanvas');
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
@@ -837,10 +830,12 @@ useEffect(() => {
         });
       }
 
-      if (window.gameManager) {
-        console.log(`Starting game in ${gameMode} mode`);
-        window.gameManager.startGame(gameMode);
-      }
+      // Choose which game manager to use based on type
+      const activeManager = type === 'aya' ? gameManager1 : gameManager2;
+      window.activeGameManager = activeManager;
+
+      console.log(`Starting game in ${gameMode} mode, type: ${type}`);
+      activeManager.startGame(gameMode);
     } catch (error) {
       console.error('Error starting game:', error);
       setGameState(prev => ({
@@ -854,40 +849,46 @@ useEffect(() => {
 
   // Updated onGameOver callback with a delay before automatic restart.
   useEffect(() => {
-    if (window.gameManager) {
-      window.gameManager.onGameOver = async (finalScore) => {
-        console.log('Game Over triggered with score:', finalScore);
+    const setupGameOver = (manager) => {
+      if (manager) {
+        manager.onGameOver = async (finalScore) => {
+          console.log('Game Over triggered with score:', finalScore);
 
-        setGameState(prev => ({
-          ...prev,
-          score: finalScore,
-          isGameOver: true,
-          gameStarted: false,
-        }));
+          setGameState(prev => ({
+            ...prev,
+            score: finalScore,
+            isGameOver: true,
+            gameStarted: false,
+          }));
 
-        try {
-          // Handle free mode submissions (with and without wallet)
-          if (gameMode === 'free') {
-            if (!wallet.connected) {
-              console.log('Submitting to web2 leaderboard with score:', finalScore);
-              await handleScoreSubmit(finalScore);
-            } else {
-              await handleScoreSubmit(finalScore);
-              const qualification = await checkScoreQualification(finalScore);
-              if (qualification) {
-                console.log('Score qualifies for paid leaderboard:', qualification);
-                setQualifiedForPaid(true);
-                setQualifyingTier(qualification);
+          try {
+            // Handle free mode submissions (with and without wallet)
+            if (gameMode === 'free') {
+              if (!wallet.connected) {
+                console.log('Submitting to web2 leaderboard with score:', finalScore);
+                await handleScoreSubmit(finalScore);
+              } else {
+                await handleScoreSubmit(finalScore);
+                const qualification = await checkScoreQualification(finalScore);
+                if (qualification) {
+                  console.log('Score qualifies for paid leaderboard:', qualification);
+                  setQualifiedForPaid(true);
+                  setQualifyingTier(qualification);
+                }
               }
+            } else if (gameMode === 'paid' && wallet.connected) {
+              await handleScoreSubmit(finalScore);
             }
-          } else if (gameMode === 'paid' && wallet.connected) {
-            await handleScoreSubmit(finalScore);
+          } catch (error) {
+            console.error('Error in game over handler:', error);
           }
-        } catch (error) {
-          console.error('Error in game over handler:', error);
-        }
-      };
-    }
+        };
+      }
+    };
+
+    // Set up game over handlers for both managers
+    setupGameOver(window.gameManager1);
+    setupGameOver(window.gameManager2);
   }, [gameMode, wallet.connected]);
 
   // Add this function to check if user can afford a tier
@@ -915,13 +916,14 @@ useEffect(() => {
   }, []);
 
   // Modify handleGamePayment to use selected tier
-  const handleGamePayment = async () => {
+  const handleGamePayment = async (type = 'aya') => {
     console.log('Payment handler state:', {
         walletConnected: wallet.connected,
         walletAccount: wallet.account,
         selectedTier: selectedTier,
         qualifyingTier: qualifyingTier,
-        gameMode: gameMode
+        gameMode: gameMode,
+        gameType: type
     });
 
     // Use different tier configs based on context
@@ -1023,7 +1025,7 @@ useEffect(() => {
         });
         
         // Start the game after countdown is complete
-        startGame();
+        startGame(type);
       }
 
       // Update maxAttempts based on selected tier
@@ -1437,12 +1439,20 @@ const handleSuinsChange = (e) => {
           )}
 
           {isUsernameSubmitted && gameMode === 'free' && (
-            <button 
-              onClick={handleGameStart}
-              className="start-button"
-            >
-              Start Free Game
-            </button>
+            <div className="game-type-buttons">
+              <button 
+                onClick={() => handleGameTypeStart('aya')}
+                className="start-button aya"
+              >
+                Play Tears of Aya
+              </button>
+              <button 
+                onClick={() => handleGameTypeStart('blood')}
+                className="start-button blood"
+              >
+                Play Tears of Blood
+              </button>
+            </div>
           )}
 
           {!gameState.hasValidPayment && wallet.connected && gameMode === 'paid' && (
@@ -1469,7 +1479,7 @@ const handleSuinsChange = (e) => {
               </div>
 
               <button 
-                onClick={handleGamePayment}
+                onClick={() => handleGamePayment()}
                 disabled={paying || !selectedTier}
                 className="start-button"
               >
@@ -1660,5 +1670,22 @@ const handleSuinsChange = (e) => {
     </div>
   );
 };
+
+useEffect(() => {
+  return () => {
+    // Cleanup event listeners for both game managers
+    if (window.gameManager1) {
+      window.gameManager1.cleanup();
+    }
+    if (window.gameManager2) {
+      window.gameManager2.cleanup();
+    }
+    
+    // Remove window references
+    window.gameManager1 = null;
+    window.gameManager2 = null;
+    window.activeGameManager = null;
+  };
+}, []);
 
 export default GameApp;
