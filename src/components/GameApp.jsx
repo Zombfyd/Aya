@@ -946,13 +946,7 @@ const TokenAmount = ({ amount, symbol }) => {
         config.paymentTiers[selectedTier];
 
       if (!tierConfig) {
-        console.error('Invalid tier configuration:', {
-          tierToUse,
-          gameMode,
-          availableTiers: gameMode === 'free' ? config.scoreSubmissionTiers : config.paymentTiers
-        });
-        alert('Invalid payment tier configuration');
-        return;
+        throw new Error('Invalid tier configuration');
       }
 
       const recipients = config.getCurrentRecipients();
@@ -983,26 +977,16 @@ const TokenAmount = ({ amount, symbol }) => {
         options: { showEffects: true }
       });
 
-      console.log('Full Payment Response:', {
-        response,
-        digest: response.digest,
-        effects: response.effects,
-        status: response.effects?.status,
-        statusDetails: response.effects?.status?.status
-      });
-      
-      if (response.digest) {
-        console.log('Transaction submitted with digest:', response.digest);
-        setDigest(response.digest);
-        
+      if (response.effects?.status?.status === 'success') {
+        console.log('Payment successful');
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
-          transactionId: response.digest,
-          timestamp: Date.now()
+          transactionId: response.digest
         }));
-    setGameState(prev => ({
-        ...prev,
+
+        setGameState(prev => ({
+          ...prev,
           hasValidPayment: true,
           currentSessionId: response.digest
         }));
@@ -1023,7 +1007,7 @@ const TokenAmount = ({ amount, symbol }) => {
             });
           }, 1000);
         });
-        
+
         if (gameMode === 'free' && qualifiedForPaid) {
           // Submit the qualifying score after payment
           await handleScoreSubmit(gameState.score);
@@ -1032,12 +1016,10 @@ const TokenAmount = ({ amount, symbol }) => {
         } else {
           // Start new paid game
           setPaidGameAttempts(0);
+          setMaxAttempts(tierConfig.plays);
           startGame(type);
         }
-
-      // Update maxAttempts based on selected tier
-      setMaxAttempts(tierConfig.plays);
-      
+      }
     } catch (error) {
       console.error('Payment error:', error);
       setCountdown(null);
