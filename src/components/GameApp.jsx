@@ -419,7 +419,6 @@ const TokenAmount = ({ amount, symbol }) => {
   };
 
   const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType) => {
-    // If gameType isn't provided, determine it based on which game manager is active
     const currentGameType = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
     
     console.log('handleScoreSubmit received:', { 
@@ -450,8 +449,8 @@ const TokenAmount = ({ amount, symbol }) => {
                 playerWallet: wallet.account?.address,
                 score: finalScore,
                 gameType: currentGameType,  // 'TOA' or 'TOB'
-                type: submissionGameMode === 'paid' ? 'main' : 'secondary',
-                playerName: playerName
+                type: 'main',              // Default to main leaderboard
+                playerName: playerName || null
             };
         }
 
@@ -466,10 +465,9 @@ const TokenAmount = ({ amount, symbol }) => {
         });
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            throw new Error(
-                `HTTP error! status: ${response.status}${errorData ? ` - ${JSON.stringify(errorData)}` : ''}`
-            );
+            const errorData = await response.json();
+            console.error('Server error response:', errorData);
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
 
         const result = await response.json();
@@ -1720,28 +1718,26 @@ const handleSuinsChange = (e) => {
             </div>
           )}
 
-          {/* Only show regular game over buttons if not showing qualification choice */}
-          {(!qualifiedForPaid || !wallet.connected || gameMode === 'paid') && (
-            <div className="game-over-buttons">
-                <button 
-                    onClick={() => {
-                        resetGameState();
-                        restartGame();
-                    }}
-                    className="restart-button"
-                >
-                    Play Again
-                </button>
-                <button 
-                    onClick={() => {
-                        resetGameState();
-                    }}
-                    className="return-menu-button"
-                >
-                    Return to Menu
-                </button>
-            </div>
-          )}
+          {/* Always show game over buttons */}
+          <div className="game-over-buttons">
+            <button 
+              onClick={() => {
+                resetGameState();
+                restartGame();
+              }}
+              className="restart-button"
+            >
+              Play Again
+            </button>
+            <button 
+              onClick={() => {
+                resetGameState();
+              }}
+              className="return-menu-button"
+            >
+              Return to Menu
+            </button>
+          </div>
         </div>
       </div>
     )}
