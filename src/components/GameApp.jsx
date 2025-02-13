@@ -440,17 +440,17 @@ const TokenAmount = ({ amount, symbol }) => {
             requestBody = {
                 playerName,
                 score: finalScore,
-                gameType: currentGameType // Explicitly set game type
+                gameType: currentGameType
             };
         } else {
             // Web3 submission (free or paid)
-            endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`; // Just use mode in URL
+            const type = submissionGameMode === 'paid' ? 'main' : 'secondary';
+            endpoint = `${config.apiBaseUrl}/api/scores/leaderboard/${type}/${submissionGameMode}`;
             
             requestBody = {
                 playerWallet: wallet.account?.address,
                 score: finalScore,
-                gameType: currentGameType, // Explicitly set game type
-                type: submissionGameMode === 'paid' ? 'main' : 'secondary',
+                gameType: currentGameType,
                 playerName
             };
         }
@@ -461,18 +461,21 @@ const TokenAmount = ({ amount, symbol }) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
             body: JSON.stringify(requestBody)
         });
 
+        // Log the full response for debugging
+        console.log('Response status:', response.status);
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+
         if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            throw new Error(
-                `HTTP error! status: ${response.status}${errorData ? ` - ${JSON.stringify(errorData)}` : ''}`
-            );
+            throw new Error(`HTTP error! status: ${response.status} - ${responseText}`);
         }
 
-        const result = await response.json();
+        const result = responseText ? JSON.parse(responseText) : null;
         console.log('Score submitted successfully:', result);
         
         // Check for qualification after submission
@@ -490,7 +493,9 @@ const TokenAmount = ({ amount, symbol }) => {
         return result;
     } catch (error) {
         console.error('Score submission error:', error);
-        alert(`Failed to submit score: ${error.message}`);
+        // More detailed error message
+        const errorMessage = error.message || 'Unknown error occurred';
+        alert(`Failed to submit score: ${errorMessage}`);
         throw error;
     }
 };
