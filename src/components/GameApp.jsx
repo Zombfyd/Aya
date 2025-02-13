@@ -114,8 +114,6 @@ const GameApp = () => {
   // Add this state at the top with other state declarations
   const [isAssetsExpanded, setIsAssetsExpanded] = useState(false);
   
-  const [showGameModeOptions, setShowGameModeOptions] = useState(false);
-  
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -977,9 +975,6 @@ const TokenAmount = ({ amount, symbol }) => {
           setMaxAttempts(tierConfig.plays);
           startGame(type);
         }
-
-        // After successful payment, show game mode options
-        setShowGameModeOptions(true);
       }
     } catch (error) {
       console.error('Payment error:', error);
@@ -1420,7 +1415,7 @@ const handleSuinsChange = (e) => {
             </div>
           )}
 
-          {showGameModeOptions && !gameState.gameStarted && (
+          {(gameMode === 'free' || gameState.hasValidPayment) && (
             <div className="game-mode-selection">
               <h2>Select Your Game Mode</h2>
               <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
