@@ -1044,6 +1044,7 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   overflow-y: auto;
   color: #fff;
   box-shadow: 0 0 20px rgba(32, 84, 201, 0.3);
+  z-index: 9998;
 }
 
 .game-info-popup h2 {

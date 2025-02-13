@@ -1391,11 +1391,12 @@ const handleSuinsChange = (e) => {
 
   // Render method
   return (
-    <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {showGameInfoPopup && (
+    
+      
+      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+        {showGameInfoPopup && (
         <GameInfoPopup onClose={handlePopupClose} />
       )}
-      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
         {playerName && playerName.length > 0 && (
           <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
             Playing as: 
@@ -1613,7 +1614,7 @@ const handleSuinsChange = (e) => {
           )}
         </header>
       )}
-</div>
+
       <canvas id="tearCatchGameCanvas" className={`game-canvas ${gameState.gameStarted ? 'centered-canvas' : ''}`} />
 
       {gameState.isGameOver && (
