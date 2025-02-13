@@ -592,15 +592,15 @@ class BloodGameManager {
       );
       
       // Increased scale for active shield (3x larger)
-      const scale = 2.5; // 3x larger than original 1.5
+      const scale = 1.5; // 3x larger than original 1.5
       this.ctx.scale(scale, scale);
       
       // Brighter gradient for active shield
       const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
-      gradient.addColorStop(0, 'rgba(255, 182, 193, 0.4)');
-      gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.6)');
-      gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.3)');
-      gradient.addColorStop(1, 'rgba(255, 20, 147, 0.2)');
+      gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
+      gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
+      gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
+      gradient.addColorStop(1, 'rgba(255, 20, 145, 0.5)');
       
       this.ctx.fillStyle = gradient;
       this.ctx.fill(new Shield(0).createHeartPath());
