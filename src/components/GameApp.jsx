@@ -114,7 +114,7 @@ const GameApp = () => {
     url: 'https://fullnode.mainnet.sui.io',
     network: 'mainnet' // Explicitly set the network
   });
-  console.log('SUI Client initialized:', !!client);
+  
   
   useEffect(() => {
     const checkMobile = () => {
@@ -427,16 +427,16 @@ useEffect(() => {
                 return;
             }
 
-            console.log('Submitting to web2 leaderboard', {
-                playerName: playerName,
-                score: finalScore
-            });
-            
-            const web2Endpoint = `${config.apiBaseUrl}/api/web2/scores`;
-            const web2RequestBody = {
-                playerName: playerName,
-                score: Number(finalScore) // Use finalScore instead of gameState.score
-            };
+        console.log('Submitting to web2 leaderboard', {
+          playerName: playerName,
+          score: finalScore
+        });
+        
+        const web2Endpoint = `${config.apiBaseUrl}/api/web2/scores`;
+        const web2RequestBody = {
+          playerName: playerName,
+          score: Number(finalScore) // Use finalScore here
+        };
 
             console.log('Sending web2 request:', web2RequestBody);
 
@@ -472,43 +472,45 @@ useEffect(() => {
             score: finalScore
         };
 
-        // Handle paid mode submissions
+        // For paid mode submissions, ensure payment is verified
         if (gameMode === 'paid') {
-            if (!paymentStatus.verified || !paymentStatus.transactionId) {
-                alert('Payment verification required for paid mode');
-                return;
-            }
-            requestBody = {
-                ...requestBody,
-                sessionToken: paymentStatus.transactionId,
-                gameMode: 'paid'
-            };
-        } 
-        // Handle qualifying free scores that want to submit to paid leaderboard
+          if (!paymentStatus.verified || !paymentStatus.transactionId) {
+            alert('Payment verification required for paid mode');
+            return;
+          }
+          requestBody = {
+            ...requestBody,
+            sessionToken: paymentStatus.transactionId,
+            gameMode: 'paid',
+            playerName: playerName
+          };
+        }
+        // Handle qualifying free scores that want to submit to the paid leaderboard
         else if (qualifyingTier && qualifiedForPaid) {
-            const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
-            if (!tierConfig) {
-                throw new Error('Invalid qualifying tier');
-            }
+          const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
+          if (!tierConfig) {
+            throw new Error('Invalid qualifying tier');
+          }
 
-            // Handle payment first
-            await handleGamePayment();
-            if (!paymentStatus.verified || !paymentStatus.transactionId) {
-                throw new Error('Payment failed');
-            }
+          // Handle payment first
+          await handleGamePayment();
+          if (!paymentStatus.verified || !paymentStatus.transactionId) {
+            throw new Error('Payment failed');
+          }
 
-            requestBody = {
-                ...requestBody,
-                sessionToken: paymentStatus.transactionId,
-                gameMode: 'paid'
-            };
+          requestBody = {
+            ...requestBody,
+            sessionToken: paymentStatus.transactionId,
+            gameMode: 'paid',
+            playerName: playerName
+          };
         } else {
-            // Regular free mode submission (wallet connected) – include player's name
-            requestBody = {
-                ...requestBody,
-                gameMode: 'free',
-                playerName: playerName
-            };
+          // Regular free mode submission (wallet connected) – include player's name
+          requestBody = {
+            ...requestBody,
+            gameMode: 'free',
+            playerName: playerName
+          };
         }
 
         // Submit to both main and secondary leaderboards
@@ -531,7 +533,7 @@ useEffect(() => {
             return response.json();
         });
 
-        await Promise.all(submissions);
+        const results = await Promise.all(submissions);
         console.log('Score submissions successful');
 
         if (gameMode === 'paid') {
