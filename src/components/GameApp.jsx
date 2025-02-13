@@ -887,7 +887,7 @@ const TokenAmount = ({ amount, symbol }) => {
     }
   };
 
-  // Updated onGameOver callback with a delay before automatic restart.
+  // Update the onGameOver callback to wait for user choice
   useEffect(() => {
     const setupGameOver = (manager, gameType) => {
         if (manager) {
@@ -902,16 +902,19 @@ const TokenAmount = ({ amount, symbol }) => {
                 }));
 
                 if (!wallet.connected) {
-                    // Web2 submission
+                    // Web2 submission - can proceed automatically
                     await handleScoreSubmit(finalScore, 'free', gameType);
                 } else if (gameMode === 'free') {
-                    // Check qualification first
+                    // Check qualification first, but don't submit automatically
                     const qualificationResult = await checkScoreQualification(finalScore, gameType);
                     if (qualificationResult) {
                         setQualifiedForPaid(true);
                         setQualifyingTier(qualificationResult);
+                        // Don't submit score here - wait for user choice
+                    } else {
+                        // If they don't qualify for paid, submit to free leaderboard
+                        await handleScoreSubmit(finalScore, 'free', gameType);
                     }
-                    await handleScoreSubmit(finalScore, 'free', gameType);
                 } else if (gameMode === 'paid') {
                     await handleScoreSubmit(finalScore, 'paid', gameType);
                 }
@@ -1677,61 +1680,68 @@ const handleSuinsChange = (e) => {
             <div className="qualification-notice">
               <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
               <p>Choose where to submit your score:</p>
-              <button 
-                onClick={async () => {
-                  try {
-                    setSelectedTier(qualifyingTier);
-                    await handleGamePayment(); // Process payment
-                    await handleScoreSubmit(gameState.score, 'paid', 'TOA'); // Submit to paid leaderboard
-                    setQualifiedForPaid(false);
-                    setQualifyingTier(null);
-                  } catch (error) {
-                    console.error('Error submitting to paid leaderboard:', error);
-                  }
-                }}
-                className="submit-paid-button"
-                disabled={transactionInProgress}
-              >
-                Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
-              </button>
-              <button 
-                onClick={async () => {
-                  try {
-                    await handleScoreSubmit(gameState.score, 'free', 'TOA'); // Submit to free leaderboard
-                    setQualifiedForPaid(false);
-                    setQualifyingTier(null);
-                  } catch (error) {
-                    console.error('Error submitting to free leaderboard:', error);
-                  }
-                }}
-                className="submit-free-button"
-                disabled={transactionInProgress}
-              >
-                Submit to Free Leaderboard
-              </button>
+              <div className="score-submission-buttons">
+                <button 
+                  onClick={async () => {
+                    try {
+                      setSelectedTier(qualifyingTier);
+                      await handleGamePayment(); // Process payment
+                      // The paid submission will happen after payment
+                      setQualifiedForPaid(false);
+                      setQualifyingTier(null);
+                    } catch (error) {
+                      console.error('Error submitting to paid leaderboard:', error);
+                    }
+                  }}
+                  className="submit-paid-button"
+                  disabled={transactionInProgress}
+                >
+                  Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
+                  ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
+                </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      // Only submit to free leaderboard if user explicitly chooses to
+                      await handleScoreSubmit(gameState.score, 'free', 
+                        window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                      setQualifiedForPaid(false);
+                      setQualifyingTier(null);
+                    } catch (error) {
+                      console.error('Error submitting to free leaderboard:', error);
+                    }
+                  }}
+                  className="submit-free-button"
+                  disabled={transactionInProgress}
+                >
+                  Submit to Free Leaderboard
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Game over buttons */}
-          <div className="game-over-buttons">
-            <button 
-              onClick={() => {
-                resetGameState();
-                restartGame();
-              }}
-              className="restart-button"
-            >
-              Play Again
-            </button>
-            <button 
-              onClick={() => {
-                resetGameState();
-              }}
-              className="return-menu-button"
-            >
-              Return to Menu
-            </button>
-          </div>
+          {/* Only show regular game over buttons if not showing qualification choice */}
+          {(!qualifiedForPaid || !wallet.connected || gameMode === 'paid') && (
+            <div className="game-over-buttons">
+                <button 
+                    onClick={() => {
+                        resetGameState();
+                        restartGame();
+                    }}
+                    className="restart-button"
+                >
+                    Play Again
+                </button>
+                <button 
+                    onClick={() => {
+                        resetGameState();
+                    }}
+                    className="return-menu-button"
+                >
+                    Return to Menu
+                </button>
+            </div>
+          )}
         </div>
       </div>
     )}
