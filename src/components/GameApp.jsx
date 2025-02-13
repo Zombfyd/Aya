@@ -1291,7 +1291,7 @@ const handleSuinsChange = (e) => {
   return (
     
      <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
-      {usernameInput && usernameInput.length > 0 && (
+      {playerName && playerName.length > 0 && (
         <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
           Playing as: 
           <span className="player-name">
@@ -1334,14 +1334,14 @@ const handleSuinsChange = (e) => {
               <div>
                 <h2>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h2>
                 <div>
-                  <button onClick={handleUsernameChange}>Change Username</button>
+                  <button onClick={() => setIsUsernameSubmitted(false)}>Change Username</button>
                   <label>
                     <input
                       type="checkbox"
                       checked={useSuins}
                       onChange={handleSuinsChange}
                     />
-                    use SUINS name.
+                    use SUINS name
                   </label>
                 </div>
               </div>
