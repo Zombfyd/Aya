@@ -1007,10 +1007,12 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 }
 
 .start-button.aya {
+  margin: 10px;
   background: linear-gradient(45deg, #2054c9, #4c7ae6);
 }
 
 .start-button.blood {
+  margin: 10px;
   background: linear-gradient(45deg, #c92020, #e64c4c);
 }
 
