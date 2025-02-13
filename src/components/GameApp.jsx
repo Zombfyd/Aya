@@ -1704,15 +1704,34 @@ const handleSuinsChange = (e) => {
                     <button 
                       onClick={async () => {
                         try {
-                          setGameMode('paid'); // Set to paid mode
-                          await handleGamePayment(); // Process payment
-                          // Score will be submitted after payment
+                          // First set the game mode to paid
+                          setGameMode('paid');
+                          // Then set the tier from qualification
+                          setSelectedTier(qualifyingTier);
+                          
+                          // Wait a moment for state to update
+                          await new Promise(resolve => setTimeout(resolve, 100));
+                          
+                          // Process the payment with updated game mode
+                          await handleGamePayment();
+                          
+                          // Wait for score submission to complete
+                          await handleScoreSubmit(gameState.score, 'paid', 
+                              window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                          
+                          // Reset all states after successful submission
                           setQualifiedForPaid(false);
                           setQualifyingTier(null);
+                          setSelectedTier(null);
+                          setGameMode('free'); // Reset back to free mode
+                          
                         } catch (error) {
-                          console.error('Error submitting to paid leaderboard:', error);
-                          // Reset back to free mode if payment fails
+                          console.error('Error in paid submission process:', error);
+                          // Reset all states on failure
                           setGameMode('free');
+                          setSelectedTier(null);
+                          setQualifiedForPaid(false);
+                          setQualifyingTier(null);
                         }
                       }}
                       className="submit-paid-button"
@@ -1724,9 +1743,8 @@ const handleSuinsChange = (e) => {
                     <button 
                       onClick={async () => {
                         try {
-                          // Keep in free mode and submit to free leaderboard
                           await handleScoreSubmit(gameState.score, 'free', 
-                            window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                              window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
                           setQualifiedForPaid(false);
                           setQualifyingTier(null);
                         } catch (error) {
@@ -1746,7 +1764,7 @@ const handleSuinsChange = (e) => {
                   onClick={async () => {
                     try {
                       await handleScoreSubmit(gameState.score, 'free', 
-                        window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                          window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
                     } catch (error) {
                       console.error('Error submitting to free leaderboard:', error);
                     }
