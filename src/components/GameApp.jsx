@@ -425,50 +425,58 @@ const TokenAmount = ({ amount, symbol }) => {
     });
 
     try {
-      // Determine if this should be a web2 or web3 submission
-      const endpoint = wallet.connected ? 
-        config.api.scores.submit(submissionGameMode) :
-        `${config.apiBaseUrl}/api/web2/submit`;
+        // Determine if this should be a web2 or web3 submission
+        const endpoint = wallet.connected ? 
+            `${config.apiBaseUrl}/api/scores/${submissionGameMode}` :  // Web3 endpoint
+            `${config.apiBaseUrl}/api/web2/scores`;  // Web2 endpoint - fixed
 
-      const requestBody = {
-        score: finalScore,
-        playerName,
-        playerWallet: wallet.account?.address || null,
-        gameType,
-        type: submissionGameMode === 'paid' ? 'main' : 'secondary'
-      };
+        const requestBody = wallet.connected ? {
+            // Web3 submission body
+            playerWallet: wallet.account?.address,
+            score: finalScore,
+            gameType,
+            type: submissionGameMode === 'paid' ? 'main' : 'secondary',
+            playerName
+        } : {
+            // Web2 submission body
+            playerName,
+            score: finalScore,
+            gameType
+        };
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
+        console.log('Submitting score to:', endpoint, 'with body:', requestBody);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
 
-      const result = await response.json();
-      console.log('Score submitted successfully:', result);
-      
-      // Check for qualification after submission
-      if (submissionGameMode === 'free' && wallet.connected) {
-        const qualificationResult = await checkScoreQualification(finalScore);
-        if (qualificationResult) {
-          setQualifiedForPaid(true);
-          setQualifyingTier(qualificationResult);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-      }
 
-      // Refresh leaderboards after submission
-      await fetchLeaderboards();
+        const result = await response.json();
+        console.log('Score submitted successfully:', result);
+        
+        // Check for qualification after submission
+        if (submissionGameMode === 'free' && wallet.connected) {
+            const qualificationResult = await checkScoreQualification(finalScore);
+            if (qualificationResult) {
+                setQualifiedForPaid(true);
+                setQualifyingTier(qualificationResult);
+            }
+        }
+
+        // Refresh leaderboards after submission
+        await fetchLeaderboards();
     } catch (error) {
-      console.error('Score submission error:', error);
-      alert(`Failed to submit score: ${error.message}`);
+        console.error('Score submission error:', error);
+        alert(`Failed to submit score: ${error.message}`);
     }
-  };
+};
 
   // Update the fetchLeaderboards function
   const fetchLeaderboards = async () => {
@@ -1605,7 +1613,7 @@ const handleSuinsChange = (e) => {
           )}
         </header>
       )}
-
+</div>
       <canvas id="tearCatchGameCanvas" className={`game-canvas ${gameState.gameStarted ? 'centered-canvas' : ''}`} />
 
       {gameState.isGameOver && (
@@ -1803,7 +1811,7 @@ const handleSuinsChange = (e) => {
         </div>
       )}
     </div>
-    </div>
+    
   );
 };
 
