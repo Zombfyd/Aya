@@ -570,7 +570,11 @@ class BloodGameManager {
       const bucketCenterY = this.bucket.y + this.bucket.height / 2;
       
       this.ctx.save();
-      this.ctx.translate(bucketCenterX, bucketCenterY);
+      // Adjust translation to position heart up and to the right of bucket
+      this.ctx.translate(
+          bucketCenterX + this.bucket.width/2,  // Move right by half bucket width
+          bucketCenterY - this.bucket.height    // Move up by full bucket height
+      );
       
       // Increased scale for active shield (3x larger)
       const scale = 1.5; // 3x larger than original 1.5
