@@ -418,14 +418,20 @@ const TokenAmount = ({ amount, symbol }) => {
       finalScore, 
       playerName, 
       gameMode: submissionGameMode,
-      gameType
+      gameType,
+      walletConnected: wallet.connected
     });
 
     try {
+      // Determine if this should be a web2 or web3 submission
+      const endpoint = wallet.connected ? 
+        config.api.scores.submit(submissionGameMode) :
+        `${config.apiBaseUrl}/api/web2/submit`;
+
       const requestBody = {
         score: finalScore,
         playerName,
-        playerWallet: wallet.account?.address,
+        playerWallet: wallet.account?.address || null,
         gameType,
         type: submissionGameMode === 'paid' ? 'main' : 'secondary'
       };
@@ -435,7 +441,7 @@ const TokenAmount = ({ amount, symbol }) => {
         requestBody.sessionToken = paymentStatus.transactionId;
       }
 
-      const response = await fetch(config.api.scores.submit(submissionGameMode), {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -450,6 +456,15 @@ const TokenAmount = ({ amount, symbol }) => {
       const result = await response.json();
       console.log('Score submitted successfully:', result);
       
+      // Check for qualification after submission
+      if (submissionGameMode === 'free' && wallet.connected) {
+        const qualificationResult = await checkScoreQualification(finalScore);
+        if (qualificationResult) {
+          setQualifiedForPaid(true);
+          setQualifyingTier(qualificationResult);
+        }
+      }
+
       // Refresh leaderboards after submission
       await fetchLeaderboards();
     } catch (error) {
@@ -1463,16 +1478,61 @@ const handleSuinsChange = (e) => {
             </div>
           )}
 
-          {(gameMode === 'free' || gameState.hasValidPayment) && (
-            <div className="game-mode-selection">
-              <h2>Select Your Game Mode</h2>
-              <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
-                Play Tears of Aya
-              </button>
-              <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
-                Play Tears of Blood
-              </button>
-            </div>
+          {!gameState.gameStarted && isUsernameSubmitted && (
+            <>
+              {gameMode === 'free' && (
+                <div className="game-mode-selection">
+                  <h2>Select Your Game</h2>
+                  <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
+                    Play Tears of Aya
+                  </button>
+                  <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
+                    Play Tears of Blood
+                  </button>
+                </div>
+              )}
+
+              {gameMode === 'paid' && wallet.connected && (
+                <>
+                  {!gameState.hasValidPayment ? (
+                    <div className="game-mode-selection">
+                      <h2>Select Your Game</h2>
+                      <div className="payment-section">
+                        <h3>Select Payment Tier</h3>
+                        {renderPaymentTiers()}
+                        
+                        <div className="game-type-buttons">
+                          <button 
+                            onClick={() => handleGamePayment('aya')}
+                            disabled={paying || !selectedTier}
+                            className="start-button aya"
+                          >
+                            {paying ? 'Processing...' : `Play Tears of Aya`}
+                          </button>
+                          <button 
+                            onClick={() => handleGamePayment('blood')}
+                            disabled={paying || !selectedTier}
+                            className="start-button blood"
+                          >
+                            {paying ? 'Processing...' : `Play Tears of Blood`}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="game-mode-selection">
+                      <h2>Select Your Game</h2>
+                      <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
+                        Play Tears of Aya
+                      </button>
+                      <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
+                        Play Tears of Blood
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           )}
 
           {!gameState.hasValidPayment && wallet.connected && gameMode === 'paid' && (
@@ -1518,8 +1578,8 @@ const handleSuinsChange = (e) => {
       <h2>Game Over!</h2>
       <p>Final Score: {gameState.score}</p>
       
-      {/* Only show qualification notice if wallet is connected */}
-      {gameMode === 'free' && qualifyingTier && wallet.connected && (
+      {/* Show qualification notice for free mode with connected wallet */}
+      {gameMode === 'free' && qualifiedForPaid && wallet.connected && (
         <div className="qualification-notice">
           <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
           <p>Choose where to submit your score:</p>
@@ -1538,7 +1598,7 @@ const handleSuinsChange = (e) => {
             className="submit-paid-button"
             disabled={transactionInProgress}
           >
-            Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier].label} ({formatSUI(config.scoreSubmissionTiers[qualifyingTier].amount)} SUI)
+            Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
           </button>
           <button 
             onClick={async () => {
