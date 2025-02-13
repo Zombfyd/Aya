@@ -458,39 +458,59 @@ const TokenAmount = ({ amount, symbol }) => {
     }
   };
 
-  // Leaderboard functions
+  // Update the fetchLeaderboards function
   const fetchLeaderboards = async () => {
+    console.log('Fetching leaderboards...');
     setIsLeaderboardLoading(true);
     try {
       const baseUrl = `${config.apiBaseUrl}/api`;
+      console.log('Using base URL:', baseUrl);
 
-      // Fetch all leaderboard types with correct URL structure
-      const [mainFreeTOA, secondaryFreeTOA, mainPaidTOA, secondaryPaidTOA, 
-             mainFreeTOB, secondaryFreeTOB, mainPaidTOB, secondaryPaidTOB, 
-             web2TOA, web2TOB] = await Promise.all([
-        fetch(`${baseUrl}/scores/leaderboard/main/free?gameType=TOA`),
-        fetch(`${baseUrl}/scores/leaderboard/secondary/free?gameType=TOA`),
-        fetch(`${baseUrl}/scores/leaderboard/main/paid?gameType=TOA`),
-        fetch(`${baseUrl}/scores/leaderboard/secondary/paid?gameType=TOA`),
-        fetch(`${baseUrl}/scores/leaderboard/main/free?gameType=TOB`),
-        fetch(`${baseUrl}/scores/leaderboard/secondary/free?gameType=TOB`),
-        fetch(`${baseUrl}/scores/leaderboard/main/paid?gameType=TOB`),
-        fetch(`${baseUrl}/scores/leaderboard/secondary/paid?gameType=TOB`),
-        fetch(`${baseUrl}/web2/leaderboard?gameType=TOA`),
-        fetch(`${baseUrl}/web2/leaderboard?gameType=TOB`)
-      ].map(promise => 
-        promise
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return res.json();
-          })
-          .catch(error => {
-            console.error('Error fetching leaderboard:', error);
-            return [];
-          })
-      ));
+      const fetchLeaderboard = async (endpoint) => {
+        const response = await fetch(`${baseUrl}${endpoint}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status} for endpoint: ${endpoint}`);
+        }
+        return response.json();
+      };
 
-      // Process and set leaderboard data as needed
+      const [
+        mainFreeTOA,
+        secondaryFreeTOA,
+        mainPaidTOA,
+        secondaryPaidTOA,
+        mainFreeTOB,
+        secondaryFreeTOB,
+        mainPaidTOB,
+        secondaryPaidTOB,
+        web2TOA,
+        web2TOB
+      ] = await Promise.all([
+        fetchLeaderboard('/scores/leaderboard/main/free?gameType=TOA'),
+        fetchLeaderboard('/scores/leaderboard/secondary/free?gameType=TOA'),
+        fetchLeaderboard('/scores/leaderboard/main/paid?gameType=TOA'),
+        fetchLeaderboard('/scores/leaderboard/secondary/paid?gameType=TOA'),
+        fetchLeaderboard('/scores/leaderboard/main/free?gameType=TOB'),
+        fetchLeaderboard('/scores/leaderboard/secondary/free?gameType=TOB'),
+        fetchLeaderboard('/scores/leaderboard/main/paid?gameType=TOB'),
+        fetchLeaderboard('/scores/leaderboard/secondary/paid?gameType=TOB'),
+        fetchLeaderboard('/web2/leaderboard?gameType=TOA'),
+        fetchLeaderboard('/web2/leaderboard?gameType=TOB')
+      ]);
+
+      console.log('Leaderboard data fetched:', {
+        mainFreeTOA,
+        secondaryFreeTOA,
+        mainPaidTOA,
+        secondaryPaidTOA,
+        mainFreeTOB,
+        secondaryFreeTOB,
+        mainPaidTOB,
+        secondaryPaidTOB,
+        web2TOA,
+        web2TOB
+      });
+
       setLeaderboardData({
         mainFreeTOA,
         secondaryFreeTOA,
@@ -505,10 +525,38 @@ const TokenAmount = ({ amount, symbol }) => {
       });
     } catch (error) {
       console.error('Error fetching leaderboards:', error);
+      // Initialize with empty arrays on error
+      setLeaderboardData({
+        mainFreeTOA: [],
+        secondaryFreeTOA: [],
+        mainPaidTOA: [],
+        secondaryPaidTOA: [],
+        mainFreeTOB: [],
+        secondaryFreeTOB: [],
+        mainPaidTOB: [],
+        secondaryPaidTOB: [],
+        web2TOA: [],
+        web2TOB: []
+      });
     } finally {
       setIsLeaderboardLoading(false);
     }
   };
+
+  // Update the useEffect for leaderboard fetching
+  useEffect(() => {
+    console.log('Initial leaderboard fetch');
+    fetchLeaderboards();
+    
+    // Set up periodic refresh
+    const intervalId = setInterval(() => {
+      console.log('Refreshing leaderboards');
+      fetchLeaderboards();
+    }, 30000); // Refresh every 30 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array means this runs once on mount
 
   // Updated SuiNS client initialization for mainnet
   useEffect(() => {
