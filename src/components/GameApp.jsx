@@ -862,22 +862,40 @@ const TokenAmount = ({ amount, symbol }) => {
           }));
 
           try {
-            // Handle free mode submissions (with and without wallet)
             if (gameMode === 'free') {
-              if (!wallet.connected) {
-                console.log('Submitting to web2 leaderboard with score:', finalScore);
-                await handleScoreSubmit(finalScore);
-              } else {
-                await handleScoreSubmit(finalScore);
-                const qualification = await checkScoreQualification(finalScore);
-                if (qualification) {
-                  console.log('Score qualifies for paid leaderboard:', qualification);
-                  setQualifiedForPaid(true);
-                  setQualifyingTier(qualification);
+              // Check qualification first
+              const qualification = await checkScoreQualification(finalScore);
+              
+              if (wallet.connected && qualification) {
+                // Score qualifies - give player the choice
+                setQualifiedForPaid(true);
+                setQualifyingTier(qualification);
+                // Show qualification message and options
+                const wantsToPay = window.confirm(
+                  `Congratulations! Your score of ${finalScore} qualifies for the paid leaderboard! \n\n` +
+                  `Would you like to pay to submit this score to the paid leaderboard? \n\n` +
+                  `Click OK to pay and submit to paid leaderboard, or Cancel to submit to free leaderboard.`
+                );
+
+                if (wantsToPay) {
+                  // Player chose to pay - don't submit score yet
+                  console.log('Player chose to pay for paid submission');
+                  // Payment will be handled through UI
+                } else {
+                  // Player chose free submission
+                  console.log('Player chose free submission');
+                  await handleScoreSubmit(finalScore);
+                  setQualifiedForPaid(false);
+                  setQualifyingTier(null);
                 }
+              } else {
+                // Either not connected to wallet or didn't qualify
+                await handleScoreSubmit(finalScore);
               }
             } else if (gameMode === 'paid' && wallet.connected) {
+              // Paid mode - always submit and auto-restart
               await handleScoreSubmit(finalScore);
+              setTimeout(() => restartGame(), 2000);
             }
           } catch (error) {
             console.error('Error in game over handler:', error);
@@ -886,7 +904,6 @@ const TokenAmount = ({ amount, symbol }) => {
       }
     };
 
-    // Set up game over handlers for both managers
     setupGameOver(window.gameManager1);
     setupGameOver(window.gameManager2);
   }, [gameMode, wallet.connected]);
@@ -1024,9 +1041,15 @@ const TokenAmount = ({ amount, symbol }) => {
           }, 1000);
         });
         
-        // Start the game after countdown is complete
-        startGame(type);
-      }
+        if (gameMode === 'free' && qualifiedForPaid) {
+          // Submit the qualifying score after payment
+          await handleScoreSubmit(gameState.score);
+          setQualifiedForPaid(false);
+          setQualifyingTier(null);
+        } else {
+          // Start new paid game
+          startGame(type);
+        }
 
       // Update maxAttempts based on selected tier
       setMaxAttempts(tierConfig.plays);
