@@ -261,11 +261,12 @@ const TokenAmount = ({ amount, symbol }) => {
               },
             });
 
-            if (status.effects?.status?.status === 'success') {
+            if (status.digest) {
+              console.log('Transaction successful');
               setPaymentStatus(prev => ({
                 ...prev,
                 verified: true,
-                error: null
+                transactionId: status.digest
               }));
               setGameState(prev => ({
                 ...prev,
@@ -411,7 +412,7 @@ const TokenAmount = ({ amount, symbol }) => {
 
         console.log('Transaction response:', response);
 
-        if (response.effects?.status?.status === 'success') {
+        if (response.digest) {
           console.log('Transaction successful');
           setPaymentStatus(prev => ({
             ...prev,
@@ -1043,8 +1044,8 @@ const TokenAmount = ({ amount, symbol }) => {
         options: { showEffects: true }
       });
 
-      if (response.effects?.status?.status === 'success') {
-        console.log('Payment successful');
+      if (response.digest) {
+        console.log('Transaction successful');
         setPaymentStatus(prev => ({
           ...prev,
           verified: true,
