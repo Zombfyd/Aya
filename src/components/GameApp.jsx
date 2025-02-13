@@ -53,11 +53,16 @@ const GameApp = () => {
     hasValidPayment: false
   });
   const [leaderboardData, setLeaderboardData] = useState({
-    mainFree: [],
-    secondaryFree: [],
-    mainPaid: [],
-    secondaryPaid: [],
-    web2: [],
+    mainFreeTOA: [],
+    secondaryFreeTOA: [],
+    mainPaidTOA: [],
+    secondaryPaidTOA: [],
+    mainFreeTOB: [],
+    secondaryFreeTOB: [],
+    mainPaidTOB: [],
+    secondaryPaidTOB: [],
+    web2TOA: [],
+    web2TOB: []
   });
   const [gameMode, setGameMode] = useState('free');
   const [paying, setPaying] = useState(false);
@@ -691,8 +696,8 @@ const TokenAmount = ({ amount, symbol }) => {
     const updateLeaderboardNames = async () => {
       // Get top 10 from each leaderboard
       const topWallets = new Set([
-        ...leaderboardData.mainFree.slice(0, 10).map(entry => entry.playerWallet),
-        ...leaderboardData.mainPaid.slice(0, 10).map(entry => entry.playerWallet)
+        ...leaderboardData.mainFreeTOA.slice(0, 10).map(entry => entry.playerWallet),
+        ...leaderboardData.mainPaidTOA.slice(0, 10).map(entry => entry.playerWallet)
       ]);
 
       // Update SUINS for each unique wallet
@@ -703,10 +708,10 @@ const TokenAmount = ({ amount, symbol }) => {
       }
     };
 
-    if (leaderboardData.mainFree.length > 0 || leaderboardData.mainPaid.length > 0) {
+    if (leaderboardData.mainFreeTOA.length > 0 || leaderboardData.mainPaidTOA.length > 0) {
       updateLeaderboardNames();
     }
-  }, [leaderboardData.mainFree, leaderboardData.mainPaid]);
+  }, [leaderboardData.mainFreeTOA, leaderboardData.mainPaidTOA]);
 
   // Game restart function
   const restartGame = (type = 'aya') => {
@@ -1580,7 +1585,7 @@ const handleSuinsChange = (e) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboardData[selectedLeaderboards.free]?.slice(0, 10).map((entry, index) => (
+                    {(leaderboardData[selectedLeaderboards.free] || []).slice(0, 10).map((entry, index) => (
                       <tr key={index} className={`rank-${index + 1}`}>
                         <td>{index + 1}</td>
                         <td className="playername-cell">{entry.playerName}</td>
