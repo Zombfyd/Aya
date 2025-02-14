@@ -545,6 +545,7 @@ class BloodGameManager {
         { text: 'Gold Tear = 25 points', color: '#FFD04D', y: 70 },
         { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
         { text: 'Green Tear = +1 life', color: '#39B037', y: 110 }
+        { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 }
       ];
   
       legends.forEach(({ text, color, y }) => {
