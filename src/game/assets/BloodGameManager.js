@@ -392,19 +392,24 @@ class BloodGameManager {
     const splashY = this.bucket.y;
   
     if (isGold) {
-      this.score += 25;
-      this.splashes.push(new GoldSplash(splashX, splashY));
-    } else if (isRed && !this.shieldActive) { // Only reduce lives if shield is not active
-      this.lives--;
-      this.splashes.push(new RedSplash(splashX, splashY));
+        this.score += 25;
+        this.splashes.push(new GoldSplash(splashX, splashY));
+    } else if (isRed) {
+        if (this.shieldActive) {
+            this.score += 1;  // Award 1 point when shield is active
+            this.splashes.push(new RedSplash(splashX, splashY));
+        } else {
+            this.lives--;  // Only reduce lives if shield is not active
+            this.splashes.push(new RedSplash(splashX, splashY));
+        }
     } else if (isBlack) {
-      this.lives++;
-      this.splashes.push(new GreenSplash(splashX, splashY));
+        this.lives++;
+        this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
-      this.score += 1;
-      this.splashes.push(new BlueSplash(splashX, splashY));
+        this.score += 1;
+        this.splashes.push(new BlueSplash(splashX, splashY));
     }
-  }
+}
   
     // Drawing Methods
     drawGame() {
