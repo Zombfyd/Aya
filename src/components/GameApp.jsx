@@ -1434,7 +1434,7 @@ const handleSuinsChange = (e) => {
                 <li>Faster tear falling speed</li>
                 <li>More frequent red tears</li>
                 <li>Less frequent healing tears</li>
-                <li>Higher scoring potential</li>
+                <li>Super cool upgrades</li>
               </ul>
             </div>
           </div>
