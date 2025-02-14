@@ -30,7 +30,7 @@ class BloodGameManager {
       this.bucket = null;
       
       // Game progression variables
-      this.speedMultiplier = 1;
+      this.speedMultiplier = 50;
       this.lastCheckpoint = 0;
       
       // Spawn timers for different tear types
@@ -118,7 +118,7 @@ class BloodGameManager {
       // Keep all your existing reset code
       this.score = 0;
       this.lives = 10;
-      this.speedMultiplier = 1;
+      this.speedMultiplier = 50;
       this.lastCheckpoint = 0;
       this.gameActive = true;
   
@@ -588,7 +588,7 @@ class BloodGameManager {
       // Adjust translation to position heart up and to the right of bucket
       this.ctx.translate(
           bucketCenterX,  // Move left by half bucket width
-          bucketCenterY - this.bucket.height    // Move up by full bucket height
+          bucketCenterY - (this.bucket.height / 2)    // Move up by full bucket height
       );
       
       // Increased scale for active shield (3x larger)
