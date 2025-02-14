@@ -118,7 +118,7 @@ class BloodGameManager {
       // Keep all your existing reset code
       this.score = 0;
       this.lives = 10;
-      this.speedMultiplier = 50;
+      this.speedMultiplier = 1;
       this.lastCheckpoint = 0;
       this.gameActive = true;
   
