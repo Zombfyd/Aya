@@ -30,7 +30,7 @@ class BloodGameManager {
       this.bucket = null;
       
       // Game progression variables
-      this.speedMultiplier = 50;
+      this.speedMultiplier = 1;
       this.lastCheckpoint = 0;
       
       // Spawn timers for different tear types
@@ -118,7 +118,7 @@ class BloodGameManager {
       // Keep all your existing reset code
       this.score = 0;
       this.lives = 10;
-      this.speedMultiplier = 1;
+      this.speedMultiplier = 50;
       this.lastCheckpoint = 0;
       this.gameActive = true;
   
