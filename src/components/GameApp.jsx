@@ -1675,13 +1675,6 @@ const handleSuinsChange = (e) => {
                       >
                         {paying ? 'Processing...' : 'Start Tears of Aya'}
                       </button>
-                      <button 
-                        onClick={() => handleGamePayment('blood')}
-                        disabled={paying || !selectedTier}
-                        className="start-button blood"
-                      >
-                        {paying ? 'Processing...' : 'Start Tears of Blood'}
-                      </button>
                     </div>
                   </div>
                 ) : (
