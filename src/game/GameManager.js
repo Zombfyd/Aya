@@ -76,50 +76,35 @@ class GameManager {
 
   // Game Initialization Methods
   async initialize() {
+    this.canvas = document.getElementById('tearCatchGameCanvas');
+    if (!this.canvas) {
+      console.error('Canvas element not found');
+      return false;
+    }
+
+    this.ctx = this.canvas.getContext('2d');
+    this.resizeCanvas();
+
+    // Set up event listeners
+    window.addEventListener('pointermove', this.handlePointerMove);
+    window.addEventListener('resize', this.handleResize);
+
+    // Wait for all images to load
     try {
-      // Wait for DOM to be ready
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      this.canvas = document.getElementById('tearCatchGameCanvas');
-      if (!this.canvas) {
-        console.error('Canvas element not found');
-        return false;
-      }
-
-      // Set canvas size
-      this.canvas.width = 800;
-      this.canvas.height = 600;
-      this.ctx = this.canvas.getContext('2d');
-      
-      if (!this.ctx) {
-        console.error('Failed to get canvas context');
-        return false;
-      }
-
-      // Set up event listeners
-      window.addEventListener('pointermove', this.handlePointerMove);
-      window.addEventListener('resize', this.handleResize);
-
-      // Wait for all images to load
-      try {
-        await Promise.all(
-          Object.values(this.images).map(img => 
-            new Promise((resolve, reject) => {
-              if (img.complete) resolve();
-              else {
-                img.onload = resolve;
-                img.onerror = reject;
-              }
-            })
-          )
-        );
-        return true;
-      } catch (error) {
-        console.error('Failed to load game images:', error);
-        return false;
-      }
+      await Promise.all(
+        Object.values(this.images).map(img => 
+          new Promise((resolve, reject) => {
+            if (img.complete) resolve();
+            else {
+              img.onload = resolve;
+              img.onerror = reject;
+            }
+          })
+        )
+      );
+      return true;
     } catch (error) {
-      console.error('GameManager initialization error:', error);
+      console.error('Failed to load game images:', error);
       return false;
     }
   }
@@ -152,7 +137,7 @@ class GameManager {
     Object.values(this.spawnTimers).forEach(timer => {
       if (timer) clearTimeout(timer);
     });
-  }
+}
 
   // Game Control Methods
   startGame(mode = 'free') {
@@ -251,7 +236,8 @@ class GameManager {
             this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
         }
     }
-  }
+}
+
 
   // Spawn Methods
   spawnTeardrop() {
@@ -298,7 +284,6 @@ class GameManager {
     this.blacktears.push(tear);
     this.spawnTimers.blacktear = setTimeout(() => this.spawnBlacktear(), Math.random() * 6000 + 3000);
   }
-
   // Game Update Methods
   updateGame() {
     this.updateEntities(this.teardrops, false, false, false);
@@ -325,37 +310,37 @@ class GameManager {
   }
 
   updateEntities(entities, isGold, isRed, isBlack) {
-    for (let i = entities.length - 1; i >= 0; i--) {
-      const entity = entities[i];
-      entity.update();
+  for (let i = entities.length - 1; i >= 0; i--) {
+    const entity = entities[i];
+    entity.update();
 
-      if (this.checkCollision(entity, this.bucket)) {
-        entities.splice(i, 1);
-        this.handleCollision(entity, isGold, isRed, isBlack);
-      } else if (entity.y > this.canvas.height) {
-        entities.splice(i, 1);
-        
-        // Create ground splash effect
-        const splashX = entity.x + entity.width / 2;
-        const splashY = this.canvas.height;
-        
-        if (isGold) {
-          this.splashes.push(new GoldSplash(splashX, splashY));
-        } else if (isRed) {
-          this.splashes.push(new RedSplash(splashX, splashY));
-        } else if (isBlack) {
-          this.splashes.push(new GreenSplash(splashX, splashY));
-        } else {
-          this.splashes.push(new BlueSplash(splashX, splashY));
-        }
-        
-        // Handle life reduction for non-red tears
-        if (!isRed) {
-          this.lives--;
-        }
+    if (this.checkCollision(entity, this.bucket)) {
+      entities.splice(i, 1);
+      this.handleCollision(entity, isGold, isRed, isBlack);
+    } else if (entity.y > this.canvas.height) {
+      entities.splice(i, 1);
+      
+      // Create ground splash effect
+      const splashX = entity.x + entity.width / 2;
+      const splashY = this.canvas.height;
+      
+      if (isGold) {
+        this.splashes.push(new GoldSplash(splashX, splashY));
+      } else if (isRed) {
+        this.splashes.push(new RedSplash(splashX, splashY));
+      } else if (isBlack) {
+        this.splashes.push(new GreenSplash(splashX, splashY));
+      } else {
+        this.splashes.push(new BlueSplash(splashX, splashY));
+      }
+      
+      // Handle life reduction for non-red tears
+      if (!isRed) {
+        this.lives--;
       }
     }
   }
+}
 
   // Collision Detection
   checkCollision(entity, bucket) {
@@ -368,23 +353,23 @@ class GameManager {
   }
 
   handleCollision(entity, isGold, isRed, isBlack) {
-    const splashX = entity.x + entity.width / 2;
-    const splashY = this.bucket.y;
+  const splashX = entity.x + entity.width / 2;
+  const splashY = this.bucket.y;
 
-    if (isGold) {
-      this.score += 15;
-      this.splashes.push(new GoldSplash(splashX, splashY));
-    } else if (isRed) {
-      this.lives--;
-      this.splashes.push(new RedSplash(splashX, splashY));
-    } else if (isBlack) {
-      this.lives++;
-      this.splashes.push(new GreenSplash(splashX, splashY));
-    } else {
-      this.score += 1;
-      this.splashes.push(new BlueSplash(splashX, splashY));  // Changed from base Splash to BlueSplash
-    }
+  if (isGold) {
+    this.score += 15;
+    this.splashes.push(new GoldSplash(splashX, splashY));
+  } else if (isRed) {
+    this.lives--;
+    this.splashes.push(new RedSplash(splashX, splashY));
+  } else if (isBlack) {
+    this.lives++;
+    this.splashes.push(new GreenSplash(splashX, splashY));
+  } else {
+    this.score += 1;
+    this.splashes.push(new BlueSplash(splashX, splashY));  // Changed from base Splash to BlueSplash
   }
+}
 
   // Drawing Methods
   drawGame() {
@@ -451,55 +436,56 @@ class GameManager {
 
     // Draw UI with fixed fonts
     this.drawUI();
-  }
+}
 
-  drawUI() {
-    if (!this.ctx) return;
 
-    // Reset transform before drawing text
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+drawUI() {
+  if (!this.ctx) return;
 
-    // Draw score
-    this.ctx.font = this.UI_SIZES.SCORE_FONT;
-    this.ctx.fillStyle = "#2054c9";
-    this.ctx.fillText(`Score: ${this.score}`, 20, 30);
+  // Reset transform before drawing text
+  this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Draw lives (centered in bucket)
-    if (this.bucket) {
-      this.ctx.font = this.UI_SIZES.LIVES_FONT;
-      const livesText = `${this.lives}`;
-      const textMetrics = this.ctx.measureText(livesText);
-      const textX = this.bucket.x + (this.bucket.width / 2) - (textMetrics.width / 2);
-      const textY = this.bucket.y + (this.bucket.height / 2) + 6; // +6 for better vertical centering
-      this.ctx.fillText(livesText, textX, textY);
+  // Draw score
+  this.ctx.font = this.UI_SIZES.SCORE_FONT;
+  this.ctx.fillStyle = "#2054c9";
+  this.ctx.fillText(`Score: ${this.score}`, 20, 30);
+
+  // Draw lives (centered in bucket)
+  if (this.bucket) {
+    this.ctx.font = this.UI_SIZES.LIVES_FONT;
+    const livesText = `${this.lives}`;
+    const textMetrics = this.ctx.measureText(livesText);
+    const textX = this.bucket.x + (this.bucket.width / 2) - (textMetrics.width / 2);
+    const textY = this.bucket.y + (this.bucket.height / 2) + 6; // +6 for better vertical centering
+    this.ctx.fillText(livesText, textX, textY);
+    
+    // Draw warning message when lives are low
+    if (this.lives <= 5) {
+      this.ctx.fillStyle = "#FF4D6D"; // Red warning color
       
-      // Draw warning message when lives are low
-      if (this.lives <= 5) {
-        this.ctx.fillStyle = "#FF4D6D"; // Red warning color
-        
-        // Draw warning text
-        this.ctx.font = this.UI_SIZES.SCORE_FONT;
-        const warningText = "Lives remaining!";
-        const warningMetrics = this.ctx.measureText(warningText);
-        const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-        this.ctx.fillText(warningText, warningX, 140);
-        
-        // Draw lives number bigger below
-        this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
-        const livesCountText = `${this.lives}`;
-        const livesMetrics = this.ctx.measureText(livesCountText);
-        const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
-        this.ctx.fillText(livesCountText, livesX, 190);
-      }
+      // Draw warning text
+      this.ctx.font = this.UI_SIZES.SCORE_FONT;
+      const warningText = "Lives remaining!";
+      const warningMetrics = this.ctx.measureText(warningText);
+      const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
+      this.ctx.fillText(warningText, warningX, 140);
+      
+      // Draw lives number bigger below
+      this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
+      const livesCountText = `${this.lives}`;
+      const livesMetrics = this.ctx.measureText(livesCountText);
+      const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
+      this.ctx.fillText(livesCountText, livesX, 190);
     }
-
-    // Draw speed
-    this.ctx.fillStyle = "#2054c9";
-    this.ctx.font = this.UI_SIZES.SCORE_FONT;
-    this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
-
-    this.drawLegend();
   }
+
+  // Draw speed
+  this.ctx.fillStyle = "#2054c9";
+  this.ctx.font = this.UI_SIZES.SCORE_FONT;
+  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+
+  this.drawLegend();
+}
 
   drawLegend() {
     if (!this.ctx) return;
@@ -520,7 +506,7 @@ class GameManager {
       this.ctx.fillStyle = color;
       this.ctx.fillText(text, 20, y);
     });
-  }
+}
 
   // Game Loop
   gameLoop() {
@@ -766,6 +752,7 @@ class BaseSplash {
     });
   }
 }
+
 
 /**
  * Specialized splash effects for different tear types
