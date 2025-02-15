@@ -295,7 +295,7 @@ class BloodGameManager {
     spawnShield() {
       if (!this.gameActive) return;
       this.shield = new Shield(this.canvas.width);
-      this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 15000 + 10000); // 10-25 seconds
+      this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 25000 + 10000); // 10-25 seconds
     }
   
     // Game Update Methods
@@ -589,11 +589,12 @@ class BloodGameManager {
   const bucketCenterX = this.bucket.x + this.bucket.width / 2;
   const bucketCenterY = this.bucket.y + this.bucket.height / 2;
   
+  // Draw heart
   this.ctx.save();
-  // Adjust translation to position heart above bucket
+  const heartY = bucketCenterY - (this.bucket.height / 2);
   this.ctx.translate(
-      bucketCenterX,
-      bucketCenterY  // Removed the height offset to lower everything
+      bucketCenterX,  
+      heartY  // Store heart position for countdown text
   );
   
   const scale = 1.0;
@@ -609,9 +610,30 @@ class BloodGameManager {
   this.ctx.fillStyle = gradient;
   this.ctx.fill(new Shield(0).createHeartPath());
   
+  // Draw countdown if in last 3 seconds
+  const timeRemaining = (this.shieldTimer - Date.now()) / 1000;
+  if (timeRemaining <= 3) {
+    this.ctx.fillStyle = 'white';
+    this.ctx.strokeStyle = 'rgba(255, 20, 145, 0.8)';
+    this.ctx.lineWidth = 2;
+    this.ctx.font = 'bold 20px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    const countdown = Math.ceil(timeRemaining).toString();
+    this.ctx.strokeText(countdown, 0, 0);
+    this.ctx.fillText(countdown, 0, 0);
+  }
+  
+  this.ctx.restore();
+  
+  // Draw particle ring
+  this.ctx.save();
+  this.ctx.translate(
+      bucketCenterX,
+      bucketCenterY + this.bucket.height
+  );
   this.updateActiveShieldParticles();
   this.drawActiveShieldParticles();
-  
   this.ctx.restore();
 }
 
@@ -924,8 +946,8 @@ drawActiveShieldParticles() {
       super(
         Math.random() * (canvasWidth - 100), // Adjusted for larger size
         20,
-        120, // 2x larger (40 * 5)
-        120, // 2x larger
+        40, // 2x larger (40 * 5)
+        40, // 2x larger
         2
       );
       this.active = false;
@@ -950,7 +972,7 @@ drawActiveShieldParticles() {
     draw(ctx) {
       ctx.save();
       ctx.translate(this.x, this.y);
-      ctx.scale(1.5, 1.5); // Increased scale for larger heart
+      ctx.scale(2.0, 2.0); // Increased scale for larger heart
 
       // Brighter gradient for the shield
       const gradient = ctx.createRadialGradient(40, 40, 0, 40, 40, 80);
