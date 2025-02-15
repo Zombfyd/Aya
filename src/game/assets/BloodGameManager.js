@@ -587,82 +587,89 @@ class BloodGameManager {
   
     // Add shield effect drawing method
     drawShieldEffect() {
-      const bucketCenterX = this.bucket.x + this.bucket.width / 2;
-      const bucketCenterY = this.bucket.y + this.bucket.height / 2;
-      
-      this.ctx.save();
-      // Adjust translation to position heart up and to the right of bucket
-      this.ctx.translate(
-          bucketCenterX,  // Move left by half bucket width
-          bucketCenterY - (this.bucket.height / 2)    // Move up by full bucket height
-      );
-      
-      // Increased scale for active shield (3x larger)
-      const scale = 1.5; // 3x larger than original 1.5
-      this.ctx.scale(scale, scale);
-      
-      // Brighter gradient for active shield
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
-      gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
-      gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
-      gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
-      gradient.addColorStop(1, 'rgba(255, 20, 145, 0.5)');
-      
-      this.ctx.fillStyle = gradient;
-      this.ctx.fill(new Shield(0).createHeartPath());
+  const bucketCenterX = this.bucket.x + this.bucket.width / 2;
+  const bucketCenterY = this.bucket.y + this.bucket.height / 2;
+  
+  // Draw heart
+  this.ctx.save();
+  this.ctx.translate(
+      bucketCenterX,  
+      bucketCenterY - (this.bucket.height / 2)  // Keep heart elevated
+  );
+  
+  const scale = 1.0;
+  this.ctx.scale(scale, scale);
+  
+  // Brighter gradient for active shield
+  const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
+  gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
+  gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
+  gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
+  gradient.addColorStop(1, 'rgba(255, 20, 145, 0.5)');
+  
+  this.ctx.fillStyle = gradient;
+  this.ctx.fill(new Shield(0).createHeartPath());
+  this.ctx.restore();
+  
+  // Draw particle ring
+  this.ctx.save();
+  this.ctx.translate(
+      bucketCenterX,
+      bucketCenterY  // Position ring at bucket center
+  );
+  this.updateActiveShieldParticles();
+  this.drawActiveShieldParticles();
+  this.ctx.restore();
+}
 
-      // Add particles for active shield
-      this.updateActiveShieldParticles();
-      this.drawActiveShieldParticles();
-      
-      this.ctx.restore();
-    }
-
-    // New methods for active shield particles
-    updateActiveShieldParticles() {
-      if (!this.activeShieldParticles) {
-        this.activeShieldParticles = [];
-      }
-
-      // Add more particles for active shield
-      if (Math.random() < 0.5) {
-        const angle = Math.random() * Math.PI * 2;
-        const radius = this.bucket.width * 0.6;
-        this.activeShieldParticles.push({
-          x: Math.cos(angle) * radius,
-          y: Math.sin(angle) * radius,
-          size: Math.random() * 8 + 4, // Larger particles
-          life: 1,
-          angle: angle,
-          speed: Math.random() * 2 + 1,
-          radius: radius
-        });
-      }
-
-      // Update existing particles
-      this.activeShieldParticles = this.activeShieldParticles.filter(p => {
-        p.angle += p.speed * 0.02;
-        p.x = Math.cos(p.angle) * p.radius;
-        p.y = Math.sin(p.angle) * p.radius;
-        p.life -= 0.01;
-        return p.life > 0;
-      });
-    }
-
-    drawActiveShieldParticles() {
-      if (!this.activeShieldParticles) return;
-
-      this.activeShieldParticles.forEach(p => {
-        this.ctx.beginPath();
-        const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-        gradient.addColorStop(0, `rgba(255, 192, 203, ${p.life * 0.8})`);
-        gradient.addColorStop(1, `rgba(255, 105, 180, ${p.life * 0.3})`);
-        this.ctx.fillStyle = gradient;
-        this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        this.ctx.fill();
-      });
-    }
+updateActiveShieldParticles() {
+  if (!this.activeShieldParticles) {
+    this.activeShieldParticles = [];
   }
+  
+  // Add more particles for active shield
+  if (Math.random() < 0.5) {
+    // Restrict angle to upper half circle (-PI/4 to -3PI/4)
+    const angle = (-Math.PI / 4) + (Math.random() * -Math.PI / 2);
+    const radius = this.bucket.width * 0.6;
+    this.activeShieldParticles.push({
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius,
+      size: Math.random() * 8 + 4,
+      life: 1,
+      angle: angle,
+      speed: Math.random() * 2 + 1,
+      radius: radius
+    });
+  }
+  
+  // Update existing particles
+  this.activeShieldParticles = this.activeShieldParticles.filter(p => {
+    // Restrict particle movement to upper half
+    const newAngle = p.angle + p.speed * 0.02;
+    // Only update angle if it stays within our desired range
+    if (newAngle >= -3 * Math.PI / 4 && newAngle <= -Math.PI / 4) {
+      p.angle = newAngle;
+    }
+    p.x = Math.cos(p.angle) * p.radius;
+    p.y = Math.sin(p.angle) * p.radius;
+    p.life -= 0.01;
+    return p.life > 0;
+  });
+}
+
+drawActiveShieldParticles() {
+  if (!this.activeShieldParticles) return;
+  this.activeShieldParticles.forEach(p => {
+    this.ctx.beginPath();
+    const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+    gradient.addColorStop(0, `rgba(255, 192, 203, ${p.life * 0.8})`);
+    gradient.addColorStop(1, `rgba(255, 105, 180, ${p.life * 0.3})`);
+    this.ctx.fillStyle = gradient;
+    this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    this.ctx.fill();
+  });
+}
   
   /**
    * Base Entity class for game objects
