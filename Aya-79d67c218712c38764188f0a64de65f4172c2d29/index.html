@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Tears of Aya" />
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Prevent right-click on game canvas -->
+    <script>
+      document.addEventListener('contextmenu', (e) => {
+        if (e.target.tagName === 'CANVAS') {
+          e.preventDefault();
+        }
+      });
+    </script>
+
+    <title>Tears of Aya</title>
+
+    <style>
+      /* Critical CSS to prevent FOUC */
+      body {
+        margin: 0;
+        padding: 0;
+        background: #242424;
+        color: rgba(255, 255, 255, 0.87);
+        font-family: 'Inconsolata', monospace;
+      }
+
+      #root {
+        width: 100%;
+        height: 100vh;
+      }
+
+      /* Loading state */
+      .initial-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #242424;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: 'Inconsolata', monospace;
+        color: #fff;
+        font-size: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="initial-loader">Loading game...</div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
