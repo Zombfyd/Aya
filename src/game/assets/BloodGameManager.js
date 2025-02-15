@@ -585,7 +585,7 @@ class BloodGameManager {
       }, 10000); // 5 seconds of shield
     }
   
-    // Add shield effect drawing methoddrawShieldEffect() {
+    drawShieldEffect() {
   const bucketCenterX = this.bucket.x + this.bucket.width / 2;
   const bucketCenterY = this.bucket.y + this.bucket.height / 2;
   
