@@ -585,16 +585,15 @@ class BloodGameManager {
       }, 10000); // 5 seconds of shield
     }
   
-    // Add shield effect drawing method
-    drawShieldEffect() {
+    // Add shield effect drawing methoddrawShieldEffect() {
   const bucketCenterX = this.bucket.x + this.bucket.width / 2;
   const bucketCenterY = this.bucket.y + this.bucket.height / 2;
   
-  // Draw heart
   this.ctx.save();
+  // Adjust translation to position heart above bucket
   this.ctx.translate(
-      bucketCenterX,  
-      bucketCenterY - (this.bucket.height / 2)  // Keep heart elevated
+      bucketCenterX,
+      bucketCenterY  // Removed the height offset to lower everything
   );
   
   const scale = 1.0;
@@ -609,16 +608,10 @@ class BloodGameManager {
   
   this.ctx.fillStyle = gradient;
   this.ctx.fill(new Shield(0).createHeartPath());
-  this.ctx.restore();
   
-  // Draw particle ring
-  this.ctx.save();
-  this.ctx.translate(
-      bucketCenterX,
-      bucketCenterY  // Position ring at bucket center
-  );
   this.updateActiveShieldParticles();
   this.drawActiveShieldParticles();
+  
   this.ctx.restore();
 }
 
