@@ -67,10 +67,13 @@ const GameApp = () => {
   const [gameMode, setGameMode] = useState('free');
   const [paying, setPaying] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState({
-  verified: true,
-  transactionId: null,
-  error: null
-});
+    verified: false,
+    transactionId: null,
+    error: null,
+    amount: null,
+    timestamp: null,
+    recipient: null
+  });
   // Add new state for paid game attempts
   const [paidGameAttempts, setPaidGameAttempts] = useState(0);
   const [maxAttempts, setMaxAttempts] = useState(0);
@@ -438,7 +441,6 @@ const TokenAmount = ({ amount, symbol }) => {
 
   // First, update handleScoreSubmit to submit to both main and secondary
   const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType) => {
-    // Determine which game was played based on active game manager
     const currentGame = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
     
     console.log('handleScoreSubmit received:', { 
@@ -446,7 +448,8 @@ const TokenAmount = ({ amount, symbol }) => {
         playerName, 
         gameMode: submissionGameMode,
         game: currentGame,
-        walletConnected: wallet.connected
+        walletConnected: wallet.connected,
+        paymentStatus
     });
 
     try {
@@ -478,20 +481,72 @@ const TokenAmount = ({ amount, symbol }) => {
             return result;
 
         } else {
-            // Web3 submission (free or paid) - submit to both main and secondary for the specific game
+            // Enhanced verification for paid submissions
+            if (submissionGameMode === 'paid') {
+                // Verify payment status
+                if (!paymentStatus.verified || !paymentStatus.transactionId) {
+                    throw new Error('Payment verification failed - no valid payment found');
+                }
+
+                // Double-check the transaction
+                const txVerification = await wallet.getTransactionBlock({
+                    digest: paymentStatus.transactionId,
+                    options: {
+                        showEvents: true,
+                        showEffects: true,
+                    }
+                });
+
+                // Verify transaction exists and is valid
+                if (!txVerification || !txVerification.effects) {
+                    throw new Error('Transaction verification failed');
+                }
+
+                // Verify payment amount and recipient
+                const recipients = config.getCurrentRecipients();
+                let verifiedAmount = 0;
+                let correctRecipient = false;
+
+                txVerification.effects.created?.forEach(effect => {
+                    if (effect.owner === recipients.primary) {
+                        verifiedAmount += Number(effect.amount || 0);
+                        correctRecipient = true;
+                    }
+                });
+
+                // Get the expected payment amount based on tier
+                const expectedAmount = selectedTier ? 
+                    config.paymentTiers[selectedTier].amount : 
+                    config.scoreSubmissionTiers[qualifyingTier]?.amount;
+
+                if (!correctRecipient || verifiedAmount < expectedAmount) {
+                    throw new Error('Payment verification failed - invalid amount or recipient');
+                }
+
+                // Verify payment timestamp is recent (within last hour)
+                const txTimestamp = txVerification.timestampMs || Date.now();
+                if (Date.now() - txTimestamp > 3600000) { // 1 hour in milliseconds
+                    throw new Error('Payment verification failed - transaction too old');
+                }
+            }
+
+            // Submit score with verification data
             endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
             
-            // Submit to both main and secondary leaderboards for the specific game
             const submissions = ['main', 'secondary'].map(async (gameType) => {
                 const body = {
                     playerWallet: wallet.account?.address,
                     score: finalScore,
                     gameType: gameType,
                     playerName: playerName || null,
-                    game: currentGame // Ensures score goes to correct game leaderboard
+                    game: currentGame,
+                    paymentVerification: submissionGameMode === 'paid' ? {
+                        transactionId: paymentStatus.transactionId,
+                        amount: paymentStatus.amount,
+                        timestamp: paymentStatus.timestamp,
+                        recipient: paymentStatus.recipient
+                    } : null
                 };
-
-                console.log(`Submitting ${gameType} score for ${currentGame}:`, body);
 
                 const response = await fetch(endpoint, {
                     method: 'POST',
@@ -513,7 +568,7 @@ const TokenAmount = ({ amount, symbol }) => {
                 secondary: secondaryResult 
             });
 
-            // Check for qualification after submission - specific to the game played
+            // Check for qualification after submission
             if (submissionGameMode === 'free' && wallet.connected) {
                 const qualificationResult = await checkScoreQualification(finalScore, currentGame);
                 if (qualificationResult) {
@@ -522,9 +577,7 @@ const TokenAmount = ({ amount, symbol }) => {
                 }
             }
 
-            // Refresh leaderboards after submission
             await fetchLeaderboards();
-
             return { main: mainResult, secondary: secondaryResult };
         }
     } catch (error) {
@@ -1044,11 +1097,14 @@ const TokenAmount = ({ amount, symbol }) => {
 
       if (response.digest) {
         console.log('Transaction successful');
-        setPaymentStatus(prev => ({
-          ...prev,
+        setPaymentStatus({
           verified: true,
-          transactionId: response.digest
-        }));
+          transactionId: response.digest,
+          error: null,
+          amount: totalAmount,
+          timestamp: Date.now(),
+          recipient: recipients.primary
+        });
 
         setGameState(prev => ({
           ...prev,
@@ -1146,26 +1202,45 @@ useEffect(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
-  // Update checkScoreQualification to check against secondary leaderboard
+  // Update checkScoreQualification to be more explicit about leaderboard checking
   const checkScoreQualification = async (score, game) => {
     try {
-        // Changed to check secondary leaderboard instead of main
-        const response = await fetch(`${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid?game=${game}`);
+        console.log(`Checking qualification for game ${game} with score ${score}`);
+        
+        // Explicitly check weekly paid leaderboard for the specific game (TOA or TOB)
+        const endpoint = `${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid?game=${game}`;
+        console.log('Checking against weekly paid leaderboard:', endpoint);
+        
+        const response = await fetch(endpoint);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
         const leaderboardData = await response.json();
-        setTopScores(leaderboardData);
+        console.log(`Current ${game} weekly paid leaderboard:`, {
+            totalEntries: leaderboardData.length,
+            topScore: leaderboardData[0]?.score,
+            thirdPlace: leaderboardData[2]?.score,
+            eighthPlace: leaderboardData[7]?.score
+        });
 
         // Compare against secondary (weekly) paid leaderboard scores
-        if (leaderboardData.length === 0 || score > leaderboardData[0].score) {
-            return 'firstPlace';
+        let qualificationTier = null;
+        if (leaderboardData.length === 0 || score > leaderboardData[0]?.score) {
+            qualificationTier = 'firstPlace';
+            console.log(`Score ${score} qualifies for first place!`);
         } else if (score > leaderboardData[2]?.score) {
-            return 'topThree';
+            qualificationTier = 'topThree';
+            console.log(`Score ${score} qualifies for top three!`);
         } else if (score > leaderboardData[7]?.score) {
-            return 'topEight';
+            qualificationTier = 'topEight';
+            console.log(`Score ${score} qualifies for top eight!`);
+        } else {
+            console.log(`Score ${score} does not qualify for paid leaderboard`);
         }
-        return null;
+
+        setTopScores(leaderboardData);
+        return qualificationTier;
     } catch (error) {
         console.error('Error checking score qualification:', error);
         return null;
@@ -1667,18 +1742,83 @@ const handleSuinsChange = (e) => {
                     {/* Game type buttons */}
                     <div className="game-type-buttons">
                       <button 
-                        onClick={() => handleGamePayment('aya')}
-                        disabled={paying || !selectedTier}
-                        className="start-button aya"
+                        onClick={async () => {
+                          try {
+                            console.log('Starting paid submission for free mode score');
+                            setPaying(true);
+                            setTransactionInProgress(true);
+
+                            // Get tier configuration and recipients
+                            const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
+                            const recipients = config.getCurrentRecipients();
+                            const totalAmount = tierConfig.amount;
+                            
+                            // Calculate amounts based on shares
+                            const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+                            const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+                            const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+                            const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
+
+                            // Create transaction block for split payment
+                            const txb = new TransactionBlock();
+                            
+                            // Split the coins for all recipients
+                            const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
+                                txb.gas,
+                                [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
+                            );
+
+                            // Transfer to all recipients
+                            txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+                            txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+                            txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+                            txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+
+                            // Execute the transaction
+                            const response = await wallet.signAndExecuteTransaction({
+                                transaction: txb,
+                                options: { showEffects: true }
+                            });
+
+                            console.log('Transaction response:', response);
+
+                            if (response.digest) {
+                                // Update payment status for verification
+                                setPaymentStatus({
+                                    verified: true,
+                                    transactionId: response.digest,
+                                    error: null,
+                                    amount: totalAmount,
+                                    timestamp: Date.now(),
+                                    recipient: recipients.primary
+                                });
+
+                                // Submit the existing score directly to paid leaderboard
+                                await handleScoreSubmit(gameState.score, 'paid', 
+                                    window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                                
+                                // Reset states after successful submission
+                                setQualifiedForPaid(false);
+                                setQualifyingTier(null);
+                                setSelectedTier(null);
+                                
+                                // Don't start a new game, just show success message
+                                alert('Score successfully submitted to paid leaderboard!');
+                            }
+
+                        } catch (error) {
+                            console.error('Error in paid submission process:', error);
+                            alert(`Failed to submit score: ${error.message}`);
+                        } finally {
+                            setPaying(false);
+                            setTransactionInProgress(false);
+                        }
+                        }}
+                        className="submit-paid-button"
+                        disabled={transactionInProgress}
                       >
-                        {paying ? 'Processing...' : 'Start Tears of Aya'}
-                      </button>
-                      <button 
-                        onClick={() => handleGamePayment('blood')}
-                        disabled={paying || !selectedTier}
-                        className="start-button blood"
-                      >
-                        {paying ? 'Processing...' : 'Start Tears of Blood'}
+                        Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
+                        ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
                       </button>
                     </div>
                   </div>
