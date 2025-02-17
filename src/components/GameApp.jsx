@@ -1889,8 +1889,8 @@ const handleSuinsChange = (e) => {
                     Submit to Free Leaderboard
                   </button>
                 </div>
+                </div>
               ) : (
-                // Show only free submission for non-qualifying scores
                 <button 
                   onClick={async () => {
                     try {
