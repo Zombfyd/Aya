@@ -1202,12 +1202,11 @@ useEffect(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
-  // Update checkScoreQualification to be more explicit about leaderboard checking
+  // Update checkScoreQualification with corrected comparison logic
   const checkScoreQualification = async (score, game) => {
     try {
         console.log(`Checking qualification for game ${game} with score ${score}`);
         
-        // Explicitly check weekly paid leaderboard for the specific game (TOA or TOB)
         const endpoint = `${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid?game=${game}`;
         console.log('Checking against weekly paid leaderboard:', endpoint);
         
@@ -1224,19 +1223,26 @@ useEffect(() => {
             eighthPlace: leaderboardData[7]?.score
         });
 
-        // Compare against secondary (weekly) paid leaderboard scores
+        // FIXED: Changed comparison logic - lower scores should qualify against higher thresholds
         let qualificationTier = null;
-        if (leaderboardData.length === 0 || score > leaderboardData[0]?.score) {
+        if (leaderboardData.length === 0) {
+            qualificationTier = 'firstPlace';
+            console.log(`Score ${score} qualifies for first place (empty leaderboard)!`);
+        } else if (leaderboardData[0]?.score >= score) {
+            // If top score is higher, check other tiers
+            if (leaderboardData[2]?.score >= score || !leaderboardData[2]) {
+                // If third place is higher or doesn't exist, check top 8
+                if (leaderboardData[7]?.score >= score || !leaderboardData[7]) {
+                    qualificationTier = 'topEight';
+                    console.log(`Score ${score} qualifies for top eight!`);
+                }
+            } else {
+                qualificationTier = 'topThree';
+                console.log(`Score ${score} qualifies for top three!`);
+            }
+        } else {
             qualificationTier = 'firstPlace';
             console.log(`Score ${score} qualifies for first place!`);
-        } else if (score > leaderboardData[2]?.score) {
-            qualificationTier = 'topThree';
-            console.log(`Score ${score} qualifies for top three!`);
-        } else if (score > leaderboardData[7]?.score) {
-            qualificationTier = 'topEight';
-            console.log(`Score ${score} qualifies for top eight!`);
-        } else {
-            console.log(`Score ${score} does not qualify for paid leaderboard`);
         }
 
         setTopScores(leaderboardData);
