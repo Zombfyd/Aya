@@ -1721,7 +1721,7 @@ const handleSuinsChange = (e) => {
               </div>
             )}
 
-            {gameMode === 'paid' && wallet.connected && (
+{gameMode === 'paid' && wallet.connected && (
               <div className="game-mode-selection">
                 <h2>Select Your Game</h2>
                 {!gameState.hasValidPayment ? (
@@ -1748,83 +1748,18 @@ const handleSuinsChange = (e) => {
                     {/* Game type buttons */}
                     <div className="game-type-buttons">
                       <button 
-                        onClick={async () => {
-                          try {
-                            console.log('Starting paid submission for free mode score');
-                            setPaying(true);
-                            setTransactionInProgress(true);
-
-                            // Get tier configuration and recipients
-                            const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
-                            const recipients = config.getCurrentRecipients();
-                            const totalAmount = tierConfig.amount;
-                            
-                            // Calculate amounts based on shares
-                            const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-                            const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-                            const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-                            const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
-
-                            // Create transaction block for split payment
-                            const txb = new TransactionBlock();
-                            
-                            // Split the coins for all recipients
-                            const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
-                                txb.gas,
-                                [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
-                            );
-
-                            // Transfer to all recipients
-                            txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
-                            txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
-                            txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
-                            txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
-
-                            // Execute the transaction
-                            const response = await wallet.signAndExecuteTransaction({
-                                transaction: txb,
-                                options: { showEffects: true }
-                            });
-
-                            console.log('Transaction response:', response);
-
-                            if (response.digest) {
-                                // Update payment status for verification
-                                setPaymentStatus({
-                                    verified: true,
-                                    transactionId: response.digest,
-                                    error: null,
-                                    amount: totalAmount,
-                                    timestamp: Date.now(),
-                                    recipient: recipients.primary
-                                });
-
-                                // Submit the existing score directly to paid leaderboard
-                                await handleScoreSubmit(gameState.score, 'paid', 
-                                    window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                                
-                                // Reset states after successful submission
-                                setQualifiedForPaid(false);
-                                setQualifyingTier(null);
-                                setSelectedTier(null);
-                                
-                                // Don't start a new game, just show success message
-                                alert('Score successfully submitted to paid leaderboard!');
-                            }
-
-                        } catch (error) {
-                            console.error('Error in paid submission process:', error);
-                            alert(`Failed to submit score: ${error.message}`);
-                        } finally {
-                            setPaying(false);
-                            setTransactionInProgress(false);
-                        }
-                        }}
-                        className="submit-paid-button"
-                        disabled={transactionInProgress}
+                        onClick={() => handleGamePayment('aya')}
+                        disabled={paying || !selectedTier}
+                        className="start-button aya"
                       >
-                        Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
-                        ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
+                        {paying ? 'Processing...' : 'Start Tears of Aya'}
+                      </button>
+                      <button 
+                        onClick={() => handleGamePayment('blood')}
+                        disabled={paying || !selectedTier}
+                        className="start-button blood"
+                      >
+                        {paying ? 'Processing...' : 'Start Tears of Blood'}
                       </button>
                     </div>
                   </div>
@@ -1859,59 +1794,100 @@ const handleSuinsChange = (e) => {
                     <button 
                       onClick={async () => {
                         try {
-                          // First set the game mode to paid
-                          setGameMode('paid');
-                          // Then set the tier from qualification
-                          setSelectedTier(qualifyingTier);
+                          console.log('Starting paid submission for free mode score');
+                          setPaying(true);
+                          setTransactionInProgress(true);
+
+                          // Store the current score and game type
+                          const scoreToSubmit = gameState.score;
+                          const currentGameType = window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB';
+
+                          // Get tier configuration and recipients
+                          const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
+                          const recipients = config.getCurrentRecipients();
+                          const totalAmount = tierConfig.amount;
                           
-                          // Wait a moment for state to update
-                          await new Promise(resolve => setTimeout(resolve, 100));
+                          // Calculate amounts based on shares
+                          const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+                          const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+                          const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+                          const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
+
+                          // Create transaction block for split payment
+                          const txb = new TransactionBlock();
                           
-                          // Process the payment with updated game mode
-                          await handleGamePayment();
-                          
-                          // Wait for score submission to complete
-                          await handleScoreSubmit(gameState.score, 'paid', 
-                              window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                          
-                          // Reset all states after successful submission
-                          setQualifiedForPaid(false);
-                          setQualifyingTier(null);
-                          setSelectedTier(null);
-                          setGameMode('free'); // Reset back to free mode
-                          
-                        } catch (error) {
+                          // Split the coins for all recipients
+                          const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
+                              txb.gas,
+                              [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
+                          );
+
+                          // Transfer to all recipients
+                          txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+                          txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+                          txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+                          txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+
+                          // Execute the transaction
+                          const response = await wallet.signAndExecuteTransaction({
+                              transaction: txb,
+                              options: { showEffects: true }
+                          });
+
+                          if (response.digest) {
+                              // Update payment status for verification
+                              setPaymentStatus({
+                                  verified: true,
+                                  transactionId: response.digest,
+                                  error: null,
+                                  amount: totalAmount,
+                                  timestamp: Date.now(),
+                                  recipient: recipients.primary
+                              });
+
+                              // Wait for payment status to be updated
+                              await new Promise(resolve => setTimeout(resolve, 100));
+
+                              // Submit the score
+                              await handleScoreSubmit(scoreToSubmit, 'paid', currentGameType);
+                              
+                              // Reset states after successful submission
+                              setQualifiedForPaid(false);
+                              setQualifyingTier(null);
+                              setSelectedTier(null);
+                              
+                              alert('Score successfully submitted to paid leaderboard!');
+                          }
+                      } catch (error) {
                           console.error('Error in paid submission process:', error);
-                          // Reset all states on failure
-                          setGameMode('free');
-                          setSelectedTier(null);
-                          setQualifiedForPaid(false);
-                          setQualifyingTier(null);
-                        }
-                      }}
-                      className="submit-paid-button"
-                      disabled={transactionInProgress}
-                    >
-                      Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
-                      ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
-                    </button>
-                    <button 
-                      onClick={async () => {
-                        try {
-                          await handleScoreSubmit(gameState.score, 'free', 
-                              window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                          setQualifiedForPaid(false);
-                          setQualifyingTier(null);
-                        } catch (error) {
-                          console.error('Error submitting to free leaderboard:', error);
-                        }
-                      }}
-                      className="submit-free-button"
-                      disabled={transactionInProgress}
-                    >
-                      Submit to Free Leaderboard
-                    </button>
-                  </div>
+                          alert(`Failed to submit score: ${error.message}`);
+                      } finally {
+                          setPaying(false);
+                          setTransactionInProgress(false);
+                      }
+                    }}
+                    className="submit-paid-button"
+                    disabled={transactionInProgress}
+                  >
+                    Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
+                    ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await handleScoreSubmit(gameState.score, 'free', 
+                            window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                        setQualifiedForPaid(false);
+                        setQualifyingTier(null);
+                      } catch (error) {
+                        console.error('Error submitting to free leaderboard:', error);
+                      }
+                    }}
+                    className="submit-free-button"
+                    disabled={transactionInProgress}
+                  >
+                    Submit to Free Leaderboard
+                  </button>
                 </>
               ) : (
                 // Show only free submission for non-qualifying scores
