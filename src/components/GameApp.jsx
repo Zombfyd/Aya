@@ -1787,7 +1787,7 @@ const handleSuinsChange = (e) => {
           {gameMode === 'free' && wallet.connected && (
             <div className="score-submission-options">
               {qualifiedForPaid ? (
-                <>
+                <div>
                   <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
                   <p>Choose where to submit your score:</p>
                   <div className="submission-buttons">
@@ -1888,8 +1888,8 @@ const handleSuinsChange = (e) => {
                   >
                     Submit to Free Leaderboard
                   </button>
-                </>
-              ) : (
+                </div>
+              )} : (
                 // Show only free submission for non-qualifying scores
                 <button 
                   onClick={async () => {
