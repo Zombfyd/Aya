@@ -295,7 +295,7 @@ class BloodGameManager {
     spawnShield() {
       if (!this.gameActive) return;
       this.shield = new Shield(this.canvas.width);
-      this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 25000 + 10000); // 10-25 seconds
+      this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 15000 + 10000); // 10-25 seconds
     }
   
     // Game Update Methods
@@ -585,106 +585,84 @@ class BloodGameManager {
       }, 10000); // 5 seconds of shield
     }
   
+    // Add shield effect drawing method
     drawShieldEffect() {
-  const bucketCenterX = this.bucket.x + this.bucket.width / 2;
-  const bucketCenterY = this.bucket.y + this.bucket.height / 2;
-  
-  // Draw heart
-  this.ctx.save();
-  const heartY = bucketCenterY - (this.bucket.height / 2);
-  this.ctx.translate(
-      bucketCenterX,  
-      heartY  // Store heart position for countdown text
-  );
-  
-  const scale = 1.0;
-  this.ctx.scale(scale, scale);
-  
-  // Brighter gradient for active shield
-  const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
-  gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
-  gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
-  gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
-  gradient.addColorStop(1, 'rgba(255, 20, 145, 0.5)');
-  
-  this.ctx.fillStyle = gradient;
-  this.ctx.fill(new Shield(0).createHeartPath());
-  
-  // Draw countdown if in last 3 seconds
-  const timeRemaining = (this.shieldTimer - Date.now()) / 1000;
-  if (timeRemaining <= 3) {
-    this.ctx.fillStyle = 'white';
-    this.ctx.strokeStyle = 'rgba(255, 20, 145, 0.8)';
-    this.ctx.lineWidth = 2;
-    this.ctx.font = 'bold 20px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-    const countdown = Math.ceil(timeRemaining).toString();
-    this.ctx.strokeText(countdown, 0, 0);
-    this.ctx.fillText(countdown, 0, 0);
-  }
-  
-  this.ctx.restore();
-  
-  // Draw particle ring
-  this.ctx.save();
-  this.ctx.translate(
-      bucketCenterX,
-      bucketCenterY + this.bucket.height
-  );
-  this.updateActiveShieldParticles();
-  this.drawActiveShieldParticles();
-  this.ctx.restore();
-}
+      const bucketCenterX = this.bucket.x + this.bucket.width / 2;
+      const bucketCenterY = this.bucket.y + this.bucket.height / 2;
+      
+      this.ctx.save();
+      // Adjust translation to position heart up and to the right of bucket
+      this.ctx.translate(
+          bucketCenterX,  // Move left by half bucket width
+          bucketCenterY - (this.bucket.height / 2)    // Move up by full bucket height
+      );
+      
+      // Increased scale for active shield (3x larger)
+      const scale = 1.5; // 3x larger than original 1.5
+      this.ctx.scale(scale, scale);
+      
+      // Brighter gradient for active shield
+      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
+      gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
+      gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
+      gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
+      gradient.addColorStop(1, 'rgba(255, 20, 145, 0.5)');
+      
+      this.ctx.fillStyle = gradient;
+      this.ctx.fill(new Shield(0).createHeartPath());
 
-updateActiveShieldParticles() {
-  if (!this.activeShieldParticles) {
-    this.activeShieldParticles = [];
-  }
-  
-  // Add more particles for active shield
-  if (Math.random() < 0.5) {
-    // Restrict angle to upper half circle (-PI/4 to -3PI/4)
-    const angle = (-Math.PI / 4) + (Math.random() * -Math.PI / 2);
-    const radius = this.bucket.width * 0.6;
-    this.activeShieldParticles.push({
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
-      size: Math.random() * 8 + 4,
-      life: 1,
-      angle: angle,
-      speed: Math.random() * 2 + 1,
-      radius: radius
-    });
-  }
-  
-  // Update existing particles
-  this.activeShieldParticles = this.activeShieldParticles.filter(p => {
-    // Restrict particle movement to upper half
-    const newAngle = p.angle + p.speed * 0.02;
-    // Only update angle if it stays within our desired range
-    if (newAngle >= -3 * Math.PI / 4 && newAngle <= -Math.PI / 4) {
-      p.angle = newAngle;
+      // Add particles for active shield
+      this.updateActiveShieldParticles();
+      this.drawActiveShieldParticles();
+      
+      this.ctx.restore();
     }
-    p.x = Math.cos(p.angle) * p.radius;
-    p.y = Math.sin(p.angle) * p.radius;
-    p.life -= 0.01;
-    return p.life > 0;
-  });
-}
 
-drawActiveShieldParticles() {
-  if (!this.activeShieldParticles) return;
-  this.activeShieldParticles.forEach(p => {
-    this.ctx.beginPath();
-    const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-    gradient.addColorStop(0, `rgba(255, 192, 203, ${p.life * 0.8})`);
-    gradient.addColorStop(1, `rgba(255, 105, 180, ${p.life * 0.3})`);
-    this.ctx.fillStyle = gradient;
-    this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    this.ctx.fill();
-  });
-}
+    // New methods for active shield particles
+    updateActiveShieldParticles() {
+      if (!this.activeShieldParticles) {
+        this.activeShieldParticles = [];
+      }
+
+      // Add more particles for active shield
+      if (Math.random() < 0.5) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = this.bucket.width * 0.6;
+        this.activeShieldParticles.push({
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+          size: Math.random() * 8 + 4, // Larger particles
+          life: 1,
+          angle: angle,
+          speed: Math.random() * 2 + 1,
+          radius: radius
+        });
+      }
+
+      // Update existing particles
+      this.activeShieldParticles = this.activeShieldParticles.filter(p => {
+        p.angle += p.speed * 0.02;
+        p.x = Math.cos(p.angle) * p.radius;
+        p.y = Math.sin(p.angle) * p.radius;
+        p.life -= 0.01;
+        return p.life > 0;
+      });
+    }
+
+    drawActiveShieldParticles() {
+      if (!this.activeShieldParticles) return;
+
+      this.activeShieldParticles.forEach(p => {
+        this.ctx.beginPath();
+        const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+        gradient.addColorStop(0, `rgba(255, 192, 203, ${p.life * 0.8})`);
+        gradient.addColorStop(1, `rgba(255, 105, 180, ${p.life * 0.3})`);
+        this.ctx.fillStyle = gradient;
+        this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        this.ctx.fill();
+      });
+    }
+  }
   
   /**
    * Base Entity class for game objects
@@ -946,8 +924,8 @@ drawActiveShieldParticles() {
       super(
         Math.random() * (canvasWidth - 100), // Adjusted for larger size
         20,
-        40, // 2x larger (40 * 5)
-        40, // 2x larger
+        120, // 2x larger (40 * 5)
+        120, // 2x larger
         2
       );
       this.active = false;
@@ -972,7 +950,7 @@ drawActiveShieldParticles() {
     draw(ctx) {
       ctx.save();
       ctx.translate(this.x, this.y);
-      ctx.scale(2.0, 2.0); // Increased scale for larger heart
+      ctx.scale(1.5, 1.5); // Increased scale for larger heart
 
       // Brighter gradient for the shield
       const gradient = ctx.createRadialGradient(40, 40, 0, 40, 40, 80);
