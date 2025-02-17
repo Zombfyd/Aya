@@ -162,10 +162,8 @@ const TokenAmount = ({ amount, symbol }) => {
         let convertedAmount;
         if (tokenSymbol === 'SUI') {
             convertedAmount = Number(num) / 1e9; // SUI uses 9 decimals
-        } else if (tokenSymbol === 'AYA') {
-            convertedAmount = Number(num) / 1e6; // AYA uses 6 decimals (adjusted from 1e3)
-        } else {
-            convertedAmount = Number(num); // Default no conversion
+                } else {
+            convertedAmount = Number(num) / 1e6; // Default no conversion
         }
 
         const absNum = Math.abs(convertedAmount);
