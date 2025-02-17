@@ -162,7 +162,7 @@ const TokenAmount = ({ amount, symbol }) => {
         let convertedAmount;
         if (tokenSymbol === 'SUI') {
             convertedAmount = Number(num) / 1e9; // SUI uses 9 decimals
-                } else {
+        } else {
             convertedAmount = Number(num) / 1e6; // Default no conversion
         }
 
@@ -1713,31 +1713,27 @@ const handleSuinsChange = (e) => {
                     <button 
                       onClick={async () => {
                         try {
-                          // Ensure we have a valid payment before allowing paid submission
-                          if (!paymentStatus.verified || !paymentStatus.transactionId) {
-                              // First process the payment
-                              setGameMode('paid');
-                              setSelectedTier(qualifyingTier);
-                              
-                              await handleGamePayment();
-                              
-                              // Verify payment was successful
-                              if (!paymentStatus.verified) {
-                                  throw new Error('Payment verification failed');
-                              }
-                          }
+                          // First set the game mode to paid
+                          setGameMode('paid');
+                          // Then set the tier from qualification
+                          setSelectedTier(qualifyingTier);
                           
-                          // Only proceed with submission if payment is verified
-                          if (paymentStatus.verified && paymentStatus.transactionId) {
-                              await handleScoreSubmit(gameState.score, 'paid', 
-                                  window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                              
-                              // Reset states after successful submission
-                              setQualifiedForPaid(false);
-                              setQualifyingTier(null);
-                              setSelectedTier(null);
-                              setGameMode('free');
-                          }
+                          // Wait a moment for state to update
+                          await new Promise(resolve => setTimeout(resolve, 100));
+                          
+                          // Process the payment with updated game mode
+                          await handleGamePayment();
+                          
+                          // Wait for score submission to complete
+                          await handleScoreSubmit(gameState.score, 'paid', 
+                              window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                          
+                          // Reset all states after successful submission
+                          setQualifiedForPaid(false);
+                          setQualifyingTier(null);
+                          setSelectedTier(null);
+                          setGameMode('free'); // Reset back to free mode
+                          
                         } catch (error) {
                           console.error('Error in paid submission process:', error);
                           // Reset all states on failure
