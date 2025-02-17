@@ -1830,7 +1830,9 @@ const handleSuinsChange = (e) => {
                             throw new Error('Transaction failed - no digest received');
                           }
 
-                          // Set payment status and wait for verification
+                          console.log('Transaction successful:', response.digest);
+                          
+                          // Set payment status and game state
                           setPaymentStatus({
                             verified: true,
                             transactionId: response.digest,
@@ -1840,26 +1842,22 @@ const handleSuinsChange = (e) => {
                             recipient: recipients.primary
                           });
 
-                          // Wait for payment verification
-                          await new Promise(resolve => setTimeout(resolve, 2000));
+                          setGameState(prev => ({
+                            ...prev,
+                            hasValidPayment: true,
+                            currentSessionId: response.digest
+                          }));
 
-                          // Verify payment on backend
-                          const verifyResponse = await fetch(`${config.apiBaseUrl}/api/verify-payment`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              transactionId: response.digest,
-                              amount: totalAmount,
-                              timestamp: Date.now(),
-                              recipient: recipients.primary
-                            })
+                          // Wait for states to update
+                          await new Promise(resolve => setTimeout(resolve, 1000));
+
+                          // Submit score after payment is confirmed
+                          console.log('Submitting score to paid leaderboard:', {
+                            score: scoreToSubmit,
+                            gameType: currentGameType,
+                            transactionId: response.digest
                           });
 
-                          if (!verifyResponse.ok) {
-                            throw new Error('Payment verification failed');
-                          }
-
-                          // Submit score after payment verification
                           await handleScoreSubmit(scoreToSubmit, 'paid', currentGameType);
                           
                           setQualifiedForPaid(false);
