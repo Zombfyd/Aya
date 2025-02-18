@@ -1789,6 +1789,17 @@ const handleSuinsChange = (e) => {
                           }
 
                           console.log('Transaction successful:', response.digest);
+                          /  // Update payment status state BEFORE submitting score
+                          setPaymentStatus({
+                            verified: true,
+                            transactionId: response.digest,
+                            amount: totalAmount,
+                            timestamp: Date.now(),
+                            recipient: recipients.primary
+                          });
+                    
+                          // Wait for state to update
+                          await new Promise(resolve => setTimeout(resolve, 100));
 
                           // Submit score immediately after successful transaction
                           console.log('Submitting score to paid leaderboard:', {
