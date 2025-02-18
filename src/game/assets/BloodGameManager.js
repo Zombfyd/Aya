@@ -524,8 +524,12 @@ class BloodGameManager {
   
       // Draw UI with fixed fonts
       this.drawUI();
-  }
   
+      // Add magnet drawing
+      if (this.magnet && !this.magnetActive) {
+        this.magnet.draw(this.ctx);
+      }
+    }
   
   drawUI() {
     if (!this.ctx) return;
@@ -715,6 +719,15 @@ class BloodGameManager {
         this.ctx.fill();
         this.ctx.restore();
       });
+    }
+
+    // Add this method after activateShield()
+    activateMagnet() {
+      this.magnetActive = true;
+      if (this.magnetTimer) clearTimeout(this.magnetTimer);
+      this.magnetTimer = setTimeout(() => {
+        this.magnetActive = false;
+      }, 5000); // 5 seconds duration
     }
   }
   
