@@ -347,6 +347,17 @@ class BloodGameManager {
           this.shield = null;
         }
       }
+  
+      // Add magnet update and collision
+      if (this.magnet && !this.magnetActive) {
+        this.magnet.update();
+        if (this.checkCollision(this.magnet, this.bucket)) {
+          this.activateMagnet();
+          this.magnet = null;
+        } else if (this.magnet.y > this.canvas.height) {
+          this.magnet = null;
+        }
+      }
     }
   
     updateEntities(entities, isGold, isRed, isBlack) {
