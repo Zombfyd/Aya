@@ -39,7 +39,8 @@ class BloodGameManager {
       goldtear: null,
       redtear: null,
       blacktear: null,
-      shield: null
+      shield: null,
+      magnet: null
     };
 
     // Load and manage game images - using direct URLs for now
@@ -70,6 +71,10 @@ class BloodGameManager {
     this.shield = null;
     this.shieldActive = false;
     this.shieldTimer = null;
+
+    // Add shield and magnet arrays
+    this.shields = [];
+    this.magnets = [];
   }
 
   // Image Loading Method
@@ -161,6 +166,7 @@ class BloodGameManager {
         this.spawnRedtear();
         this.spawnBlacktear();
         this.spawnShield();
+        this.spawnMagnet();
       }
     }, 1000);
 
@@ -189,7 +195,8 @@ class BloodGameManager {
       goldtear: null,
       redtear: null,
       blacktear: null,
-      shield: null
+      shield: null,
+      magnet: null
     };
 
     // Clear entities
@@ -294,8 +301,16 @@ class BloodGameManager {
 
   spawnShield() {
     if (!this.gameActive) return;
-    this.shield = new Shield(this.canvas.width);
-    this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 15000 + 10000); // 10-25 seconds
+    const shield = new Shield(this.canvas.width, this.UI_SIZES);
+    this.shields.push(shield);
+    this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 10000 + 15000);
+  }
+
+  spawnMagnet() {
+    if (!this.gameActive) return;
+    const magnet = new Magnet(this.canvas.width, this.UI_SIZES);
+    this.magnets.push(magnet);
+    this.spawnTimers.magnet = setTimeout(() => this.spawnMagnet(), Math.random() * 15000 + 20000);
   }
 
   // Game Update Methods
@@ -574,6 +589,20 @@ drawUI() {
         this.onGameOver(this.score);
       }
     }
+
+    // Update and draw shields
+    this.shields = this.shields.filter(shield => {
+      shield.update();
+      shield.draw(this.ctx);
+      return shield.y < this.canvas.height;
+    });
+
+    // Update and draw magnets
+    this.magnets = this.magnets.filter(magnet => {
+      magnet.update();
+      magnet.draw(this.ctx);
+      return magnet.y < this.canvas.height;
+    });
   }
 
   // Add shield activation method
@@ -920,23 +949,23 @@ class GreenSplash extends BaseSplash {
 }
 
 class Shield extends Entity {
-  constructor(canvasWidth) {
+  constructor(canvasWidth, uiSizes) {
     super(
-      Math.random() * (canvasWidth - 100), // Adjusted for larger size
+      Math.random() * (canvasWidth - 100),
       20,
-      40, // 2x larger (40 * 5)
-      40, // 2x larger
+      40,
+      40,
       2
     );
     this.active = false;
     this.duration = 7500;
     this.particles = [];
     this.heartShape = this.createHeartPath();
+    this.UI_SIZES = uiSizes;
   }
 
   createHeartPath() {
     const path = new Path2D();
-    // Create heart shape path
     path.moveTo(20, 10);
     path.bezierCurveTo(20, 7, 16, 0, 10, 0);
     path.bezierCurveTo(1, 0, 0, 10, 0, 10);
@@ -950,13 +979,12 @@ class Shield extends Entity {
   draw(ctx) {
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.scale(1.0, 1.0); // Increased scale for larger heart
+    ctx.scale(1.0, 1.0);
 
-    // Brighter gradient for the shield
     const gradient = ctx.createRadialGradient(40, 40, 0, 40, 40, 80);
-    gradient.addColorStop(0, 'rgba(255, 182, 193, 0.9)'); // Brighter pink core
-    gradient.addColorStop(0.6, 'rgba(255, 192, 203, 0.7)'); // Mid pink
-    gradient.addColorStop(1, 'rgba(255, 105, 180, 0.4)'); // Outer edge
+    gradient.addColorStop(0, 'rgba(255, 182, 193, 0.9)');
+    gradient.addColorStop(0.6, 'rgba(255, 192, 203, 0.7)');
+    gradient.addColorStop(1, 'rgba(255, 105, 180, 0.4)');
 
     ctx.fillStyle = gradient;
     ctx.fill(this.heartShape);
@@ -968,14 +996,13 @@ class Shield extends Entity {
   }
 
   updateParticles() {
-    // More particles
     if (Math.random() < 0.4) {
       this.particles.push({
-        x: Math.random() * 60, // Larger area
+        x: Math.random() * 60,
         y: Math.random() * 60,
-        size: Math.random() * 5 + 2, // Larger particles
+        size: Math.random() * 5 + 2,
         life: 1,
-        vx: (Math.random() - 0.5) * 3, // Faster movement
+        vx: (Math.random() - 0.5) * 3,
         vy: (Math.random() - 0.5) * 3
       });
     }
@@ -983,7 +1010,7 @@ class Shield extends Entity {
     this.particles = this.particles.filter(p => {
       p.x += p.vx;
       p.y += p.vy;
-      p.life -= 0.015; // Slower fade
+      p.life -= 0.015;
       return p.life > 0;
     });
   }
@@ -998,5 +1025,105 @@ class Shield extends Entity {
   }
 }
 
-// Create and export the game manager instance
+class Magnet extends Entity {
+  constructor(canvasWidth, uiSizes) {
+    super(
+      Math.random() * (canvasWidth - 60),
+      20,
+      30,
+      30,
+      2
+    );
+    this.active = false;
+    this.duration = 5000;
+    this.particles = [];
+    this.UI_SIZES = uiSizes;
+    this.pulsePhase = 0;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+
+    // Pulse effect
+    this.pulsePhase += 0.1;
+    const scale = 1 + Math.sin(this.pulsePhase) * 0.1;
+    ctx.scale(scale, scale);
+
+    // Draw magnet body
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(192, 192, 192, 0.9)';
+    ctx.arc(15, 15, 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw magnetic field lines
+    this.drawMagneticField(ctx);
+    
+    // Draw particles
+    this.updateParticles();
+    this.drawParticles(ctx);
+
+    ctx.restore();
+  }
+
+  drawMagneticField(ctx) {
+    const time = Date.now() * 0.001;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + time;
+      const radius = 20;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(65, 105, 225, ${0.5 + Math.sin(time + i) * 0.2})`;
+      ctx.lineWidth = 2;
+      
+      const x1 = 15 + Math.cos(angle) * radius;
+      const y1 = 15 + Math.sin(angle) * radius;
+      const x2 = 15 + Math.cos(angle + 0.5) * (radius * 0.5);
+      const y2 = 15 + Math.sin(angle + 0.5) * (radius * 0.5);
+      
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+  }
+
+  updateParticles() {
+    if (Math.random() < 0.3) {
+      this.particles.push({
+        x: 15 + (Math.random() - 0.5) * 30,
+        y: 15 + (Math.random() - 0.5) * 30,
+        size: Math.random() * 3 + 1,
+        life: 1,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2
+      });
+    }
+
+    this.particles = this.particles.filter(p => {
+      // Particle movement affected by magnetic field
+      const dx = 15 - p.x;
+      const dy = 15 - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      p.vx += dx / dist * 0.1;
+      p.vy += dy / dist * 0.1;
+      
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.02;
+      return p.life > 0;
+    });
+  }
+
+  drawParticles(ctx) {
+    this.particles.forEach(p => {
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(65, 105, 225, ${p.life})`;
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+}
+
+// Export the class
 export { BloodGameManager };
