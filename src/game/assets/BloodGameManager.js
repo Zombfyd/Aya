@@ -379,18 +379,20 @@ class BloodGameManager {
 
   // Collision Detection
   checkCollision(entity, bucket) {
-    // For Shield entity, use center-point collision
-    if (entity instanceof Shield) {
+    // For Shield and Magnet entities, use a more lenient collision check
+    if (entity instanceof Shield || entity instanceof Magnet) {
       const entityCenterX = entity.x + entity.width / 2;
       const bucketCenterX = bucket.x + bucket.width / 2;
       const entityCenterY = entity.y + entity.height / 2;
+      const bucketCenterY = bucket.y + bucket.height / 2;
       
-      // Calculate distance between centers
+      // Calculate distances between centers
       const xDistance = Math.abs(entityCenterX - bucketCenterX);
-      const yInRange = entityCenterY > bucket.y && entityCenterY < bucket.y + bucket.height;
+      const yDistance = Math.abs(entityCenterY - bucketCenterY);
       
-      // Collision occurs when centers are close and y is in range
-      return xDistance < bucket.width/2 && yInRange;
+      // More lenient collision - larger detection area
+      return xDistance < (bucket.width + entity.width) / 2 && 
+             yDistance < (bucket.height + entity.height) / 2;
     }
     
     // For other entities (tears), keep the original box collision
