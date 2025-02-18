@@ -1,0 +1,251 @@
+=== WEB3 ENDPOINTS ===
+
+Submit Score (Web3):
+POST /api/scores/:mode
+{
+    "playerWallet": "0x123...",
+    "score": 1000,
+    "gameType": "main",    // or "secondary"
+    "playerName": "Player1",
+    "game": "TOA"  // or "TOB"
+}
+Response:
+{
+    "message": "Score submitted successfully",
+    "score": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "playerWallet": "0x123...",
+        "score": 1000,
+        ...
+    }
+}
+
+Get Leaderboard (Web3):
+GET /api/scores/leaderboard/:type/:mode?game=TOA
+- type: "main" or "secondary"
+- mode: "free" or "paid"
+- game: "TOA" or "TOB"
+Response:
+[
+    {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "playerWallet": "0x123...",
+        "playerName": "Player1",
+        "score": 1000,
+        "createdAt": "2024-03-21T12:34:56.789Z",
+        "game": "TOA"
+    },
+    ...
+]
+
+=== WEB2 ENDPOINTS ===
+
+Submit Score (Web2):
+POST /api/web2/scores
+{
+    "playerName": "Player1",
+    "score": 1000,
+    "game": "TOA"  // or "TOB"
+}
+Response:
+{
+    "message": "Score submitted successfully",
+    "score": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "playerName": "Player1",
+        "score": 1000,
+        ...
+    }
+}
+
+Get Web2 Leaderboard:
+GET /api/web2/leaderboard?game=TOA
+Response:
+[
+    {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "playerName": "Player1",
+        "score": 1000,
+        "createdAt": "2024-03-21T12:34:56.789Z",
+        "game": "TOA"
+    },
+    ...
+]
+
+=== SUI NFT COLLECTION ENDPOINTS ===
+
+Get Active Collections (Public):
+GET /api/sui/collections/active
+Response:
+[
+    {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "collectionAddress": "0x123...",
+        "objectId": "0x456...",
+        "name": "Collection Name",
+        "description": "Collection Description"
+    },
+    ...
+]
+
+Verify Collection (Public):
+GET /api/sui/collections/verify/:collectionAddress
+Response:
+{
+    "isValid": true,
+    "collection": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "collectionAddress": "0x123...",
+        "objectId": "0x456...",
+        "name": "Collection Name",
+        "description": "Collection Description"
+    }
+}
+
+Get All Collections (Admin):
+GET /api/sui/admin/collections
+Response:
+[
+    {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "collectionAddress": "0x123...",
+        "objectId": "0x456...",
+        "name": "Collection Name",
+        "description": "Collection Description",
+        "active": true,
+        "createdAt": "2024-03-21T12:34:56.789Z",
+        "updatedAt": "2024-03-21T12:34:56.789Z"
+    },
+    ...
+]
+
+Add Collection (Admin):
+POST /api/sui/admin/collections
+{
+    "collectionAddress": "0x123...",
+    "objectId": "0x456...",
+    "name": "Collection Name",
+    "description": "Collection Description"
+}
+Response:
+{
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "collectionAddress": "0x123...",
+    "objectId": "0x456...",
+    "name": "Collection Name",
+    "description": "Collection Description",
+    "active": true,
+    "createdAt": "2024-03-21T12:34:56.789Z",
+    "updatedAt": "2024-03-21T12:34:56.789Z"
+}
+
+Update Collection (Admin):
+PUT /api/sui/admin/collections/:id
+{
+    "name": "Updated Name",
+    "description": "Updated Description",
+    "active": false
+}
+Response:
+{
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name": "Updated Name",
+    "description": "Updated Description",
+    "active": false,
+    "collectionAddress": "0x123...",
+    "objectId": "0x456...",
+    "createdAt": "2024-03-21T12:34:56.789Z",
+    "updatedAt": "2024-03-21T12:34:56.789Z"
+}
+
+Delete Collection (Admin):
+DELETE /api/sui/admin/collections/:id
+Response:
+{
+    "message": "Collection deleted successfully"
+}
+
+=== ADMIN ENDPOINTS ===
+
+Reset Leaderboard:
+DELETE /api/scores/reset/:type/:mode
+{
+    "game": "TOA"  // or "TOB"
+}
+
+Delete Single Score:
+DELETE /api/scores/:id        (Web3)
+DELETE /api/web2/scores/:id   (Web2)
+
+Edit Score:
+PUT /api/scores/:id          (Web3)
+{
+    "score": 1000
+}
+
+PUT /api/web2/scores/:id     (Web2)
+{
+    "score": 1000
+}
+
+Update Player Name:
+PUT /api/web2/scores/:id/name
+{
+    "newName": "NewPlayerName"
+}
+
+Health Check:
+GET /health
+
+=== CURL Examples ===
+
+Submit Score:
+curl -X POST http://your-api-url/api/web2/scores \
+  -H "Content-Type: application/json" \
+  -d '{"playerName": "Player1", "score": 1000, "game": "TOA"}'
+
+Get Leaderboard:
+curl http://your-api-url/api/web2/leaderboard?game=TOA
+
+Reset Leaderboard:
+curl -X DELETE http://your-api-url/api/scores/reset/main/free \
+  -H "Content-Type: application/json" \
+  -d '{"game": "TOB"}'
+
+Delete Score (using ID from leaderboard or submission response):
+curl -X DELETE http://your-api-url/api/scores/123e4567-e89b-12d3-a456-426614174000
+
+Edit Score (using ID from leaderboard or submission response):
+curl -X PUT http://your-api-url/api/scores/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Content-Type: application/json" \
+  -d '{"score": 1000}'
+
+=== SUI NFT CURL Examples ===
+
+Get Active Collections:
+curl http://your-api-url/api/sui/collections/active
+
+Verify Collection:
+curl http://your-api-url/api/sui/collections/verify/0x123...
+
+Add Collection (Admin):
+curl -X POST http://your-api-url/api/sui/admin/collections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "collectionAddress": "0x123...",
+    "objectId": "0x456...",
+    "name": "Collection Name",
+    "description": "Collection Description"
+  }'
+
+Update Collection (Admin):
+curl -X PUT http://your-api-url/api/sui/admin/collections/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Name",
+    "description": "Updated Description",
+    "active": false
+  }'
+
+Delete Collection (Admin):
+curl -X DELETE http://your-api-url/api/sui/admin/collections/123e4567-e89b-12d3-a456-426614174000
