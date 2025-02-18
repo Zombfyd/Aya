@@ -1163,34 +1163,58 @@ useEffect(() => {
         console.log(`Current ${game} weekly paid leaderboard:`, {
             totalEntries: leaderboardData.length,
             topScore: leaderboardData[0]?.score,
+            secondPlace: leaderboardData[1]?.score,
             thirdPlace: leaderboardData[2]?.score,
             eighthPlace: leaderboardData[7]?.score
         });
 
-        // FIXED: Changed comparison logic - lower scores should qualify against higher thresholds
-        let qualificationTier = null;
+        // Empty leaderboard - automatically qualifies for first place
         if (leaderboardData.length === 0) {
-            qualificationTier = 'firstPlace';
             console.log(`Score ${score} qualifies for first place (empty leaderboard)!`);
-        } else if (leaderboardData[0]?.score >= score) {
-            // If top score is higher, check other tiers
-            if (leaderboardData[2]?.score >= score || !leaderboardData[2]) {
-                // If third place is higher or doesn't exist, check top 8
-                if (leaderboardData[7]?.score >= score || !leaderboardData[7]) {
-                    qualificationTier = 'topEight';
-                    console.log(`Score ${score} qualifies for top eight!`);
-                }
-            } else {
-                qualificationTier = 'topThree';
-                console.log(`Score ${score} qualifies for top three!`);
-            }
-        } else {
-            qualificationTier = 'firstPlace';
-            console.log(`Score ${score} qualifies for first place!`);
+            return 'firstPlace';
         }
 
-        setTopScores(leaderboardData);
-        return qualificationTier;
+        // Check first place
+        if (!leaderboardData[0] || score > leaderboardData[0].score) {
+            console.log(`Score ${score} qualifies for first place!`);
+            return 'firstPlace';
+        }
+
+        // Check second/third place
+        if (leaderboardData.length < 3) {
+            // If there's only one score and we're better than it, we already returned firstPlace
+            // If there's only one score and we're worse than it, we qualify for second
+            if (leaderboardData.length === 1) {
+                console.log(`Score ${score} qualifies for second place (only one score on leaderboard)!`);
+                return 'topThree';
+            }
+            // If there are two scores and we're better than the second one
+            if (score > leaderboardData[1].score) {
+                console.log(`Score ${score} qualifies for second place!`);
+                return 'topThree';
+            }
+        } else {
+            // Three or more scores - check if we beat the third place score
+            if (score > leaderboardData[2].score) {
+                console.log(`Score ${score} qualifies for top three!`);
+                return 'topThree';
+            }
+        }
+
+        // Check top 8
+        if (leaderboardData.length < 8) {
+            // If there are fewer than 8 scores, we automatically qualify for top 8
+            console.log(`Score ${score} qualifies for top eight (fewer than 8 scores on leaderboard)!`);
+            return 'topEight';
+        } else if (score > leaderboardData[7].score) {
+            console.log(`Score ${score} qualifies for top eight!`);
+            return 'topEight';
+        }
+
+        // No qualification
+        console.log(`Score ${score} does not qualify for any tier`);
+        return null;
+
     } catch (error) {
         console.error('Error checking score qualification:', error);
         return null;
