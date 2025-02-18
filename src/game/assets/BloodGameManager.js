@@ -603,7 +603,7 @@ class BloodGameManager {
       
       // Clip to top half
       this.ctx.beginPath();
-      this.ctx.arc(0, 0, this.bucket.width, Math.PI, 0, true);
+      this.ctx.arc(180, 0, this.bucket.width, Math.PI, 0, true);
       this.ctx.clip();
       
       // Brighter gradient for active shield
