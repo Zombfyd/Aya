@@ -39,7 +39,8 @@ class BloodGameManager {
         goldtear: null,
         redtear: null,
         blacktear: null,
-        shield: null
+        shield: null,
+        magnet: null
       };
   
       // Load and manage game images - using direct URLs for now
@@ -50,7 +51,8 @@ class BloodGameManager {
         goldtear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b32a8d6f25cb51c70748a_GoldTear.2.png"),
         redtear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256456275e1857d4646_RedTear.2.png"),
         blacktear: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b225c9f972035e5189e4b_GreenTear.2.png"),
-        background: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/674fa00dfaa922f1c9d76f9c_black-and-white-anime-2560-x-1600-background-d8u8u9i7yoalq57c.webp")
+        background: this.loadImage("https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/674fa00dfaa922f1c9d76f9c_black-and-white-anime-2560-x-1600-background-d8u8u9i7yoalq57c.webp"),
+        magnet: this.loadImage("YOUR_MAGNET_IMAGE_URL")
       };
   
       // Bind methods to maintain correct 'this' context
@@ -70,6 +72,11 @@ class BloodGameManager {
       this.shield = null;
       this.shieldActive = false;
       this.shieldTimer = null;
+      
+      // Add magnet-related properties
+      this.magnet = null;
+      this.magnetActive = false;
+      this.magnetTimer = null;
     }
   
     // Image Loading Method
@@ -161,6 +168,7 @@ class BloodGameManager {
           this.spawnRedtear();
           this.spawnBlacktear();
           this.spawnShield();
+          this.spawnMagnet();
         }
       }, 1000);
   
@@ -189,7 +197,8 @@ class BloodGameManager {
         goldtear: null,
         redtear: null,
         blacktear: null,
-        shield: null
+        shield: null,
+        magnet: null
       };
   
       // Clear entities
@@ -298,6 +307,12 @@ class BloodGameManager {
       this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 15000 + 10000); // 10-25 seconds
     }
   
+    spawnMagnet() {
+      if (!this.gameActive) return;
+      this.magnet = new Magnet(this.canvas.width);
+      this.spawnTimers.magnet = setTimeout(() => this.spawnMagnet(), Math.random() * 10000 + 15000); // 15-25 seconds
+    }
+  
     // Game Update Methods
     updateGame() {
       this.updateEntities(this.teardrops, false, false, false);
@@ -338,6 +353,18 @@ class BloodGameManager {
     for (let i = entities.length - 1; i >= 0; i--) {
       const entity = entities[i];
       entity.update();
+  
+      // Add magnet attraction for non-red tears
+      if (this.magnetActive && !isRed) {
+        const dx = this.bucket.x + (this.bucket.width / 2) - (entity.x + entity.width / 2);
+        const dy = this.bucket.y - entity.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const maxDistance = this.canvas.height;
+        const attractionStrength = Math.max(0, 1 - distance / maxDistance) * 15;
+        
+        entity.x += dx * attractionStrength * 0.05;
+        entity.y += dy * attractionStrength * 0.05;
+      }
   
       if (this.checkCollision(entity, this.bucket)) {
         entities.splice(i, 1);
@@ -550,7 +577,8 @@ class BloodGameManager {
         { text: 'Gold Tear = 25 points', color: '#FFD04D', y: 70 },
         { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
         { text: 'Green Tear = +1 life', color: '#39B037', y: 110 },
-        { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 }
+        { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 },
+        { text: 'Magnet = 5 Secs Attract', color: '#C0C0C0', y: 150 }
       ];
   
       legends.forEach(({ text, color, y }) => {
@@ -600,45 +628,31 @@ class BloodGameManager {
       const scale = 1.5; // 3x larger than original 1.5
       this.ctx.scale(scale, scale);
     
-      // Clip to the top half of the circle
-      // Clip to slightly more than the top half to avoid cutting off particles
-this.ctx.beginPath();
-this.ctx.arc(0, 0, this.bucket.width / 2, Math.PI, 0, false); // Top half
-this.ctx.lineTo(this.bucket.width / 2, this.bucket.height * 0.25); // Extend down slightly
-this.ctx.lineTo(-this.bucket.width / 2, this.bucket.height * 0.25); // Extend down slightly
-this.ctx.closePath();
-this.ctx.clip();
-
-    
-      // Brighter gradient for active shield
+      // Draw the heart without clipping
       const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
       gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
       gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
       gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
       gradient.addColorStop(1, 'rgba(255, 20, 145, 0.5)');
-    
+      
       this.ctx.fillStyle = gradient;
-      this.ctx.fill(new Shield(0).createHeartPath());
+      this.ctx.fill(new Shield(0).createHeartPath()); // Full heart rendering
     
-      // Add particles for active shield
+      // Clip only for particles
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, this.bucket.width / 2, Math.PI, 0, false); // Top half
+      this.ctx.lineTo(this.bucket.width / 2, 0); // Line to the right edge
+      this.ctx.lineTo(-this.bucket.width / 2, 0); // Line to the left edge
+      this.ctx.closePath();
+      this.ctx.clip();
+    
+      // Draw the particles
       this.updateActiveShieldParticles();
       this.drawActiveShieldParticles();
     
-      // Calculate remaining shield time
-      const elapsedTime = Date.now() - this.shieldStartTime;
-      const shieldTimeLeft = (this.shieldDuration - elapsedTime) / 1000; // Convert to seconds
-    
-      // Display countdown if in the last 3 seconds
-      if (shieldTimeLeft <= 3 && shieldTimeLeft > 0) {
-        this.ctx.font = "bold 24px Arial";
-        this.ctx.fillStyle = "white";
-        this.ctx.textAlign = "center";
-        this.ctx.textBaseline = "middle";
-        this.ctx.fillText(Math.ceil(shieldTimeLeft), 0, 0); // Display countdown
-      }
-    
       this.ctx.restore();
     }
+    
     
     
 
@@ -677,15 +691,18 @@ this.ctx.clip();
 
     drawActiveShieldParticles() {
       if (!this.activeShieldParticles) return;
-
+    
       this.activeShieldParticles.forEach(p => {
+        this.ctx.save();
         this.ctx.beginPath();
-        const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+        // Ensure particles are drawn as full circles
+        const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size / 2);
         gradient.addColorStop(0, `rgba(255, 192, 203, ${p.life * 0.8})`);
         gradient.addColorStop(1, `rgba(255, 105, 180, ${p.life * 0.3})`);
         this.ctx.fillStyle = gradient;
-        this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        this.ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2); // Full circle
         this.ctx.fill();
+        this.ctx.restore();
       });
     }
   }
@@ -950,9 +967,9 @@ this.ctx.clip();
       super(
         Math.random() * (canvasWidth - 100), // Adjusted for larger size
         20,
-        120, // 2x larger (40 * 5)
-        120, // 2x larger
-        2
+        80, // 2x larger (40 * 5)
+        80, // 2x larger
+        3
       );
       this.active = false;
       this.duration = 7500;
@@ -1021,6 +1038,80 @@ this.ctx.clip();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
       });
+    }
+  }
+  
+  class Magnet extends Entity {
+    constructor(canvasWidth) {
+      super(
+        Math.random() * (canvasWidth - 100),
+        20,
+        80, // Magnet size
+        80,
+        2
+      );
+      this.active = false;
+      this.duration = 5000; // 5 seconds
+      this.particles = [];
+      this.magnetPath = this.createMagnetPath();
+    }
+
+    createMagnetPath() {
+      const path = new Path2D();
+      // Draw horseshoe magnet shape
+      path.moveTo(10, 0);
+      path.lineTo(30, 0);
+      path.arcTo(40, 0, 40, 10, 10);
+      path.arcTo(40, 30, 30, 30, 10);
+      path.lineTo(10, 30);
+      path.arcTo(0, 30, 0, 20, 10);
+      path.arcTo(0, 0, 10, 0, 10);
+      return path;
+    }
+
+    draw(ctx) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(1.5, 1.5);
+
+      // Metallic gradient for magnet
+      const gradient = ctx.createLinearGradient(0, 0, 40, 40);
+      gradient.addColorStop(0, 'rgba(192, 192, 192, 0.9)');
+      gradient.addColorStop(0.5, 'rgba(220, 220, 220, 0.8)');
+      gradient.addColorStop(1, 'rgba(169, 169, 169, 0.7)');
+
+      ctx.fillStyle = gradient;
+      ctx.fill(this.magnetPath);
+      
+      this.drawLightningEffects(ctx);
+      ctx.restore();
+    }
+
+    drawLightningEffects(ctx) {
+      // Draw lightning particles
+      for (let i = 0; i < 3; i++) {
+        const startX = Math.random() * 40;
+        const startY = 30;
+        this.drawLightningBolt(ctx, startX, startY, startX + (Math.random() * 20 - 10), startY + 20);
+      }
+    }
+
+    drawLightningBolt(ctx, x1, y1, x2, y2) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      
+      // Create zigzag effect
+      const segments = 3;
+      for (let i = 0; i < segments; i++) {
+        const midX = x1 + ((x2 - x1) * (i + 1)) / segments;
+        const midY = y1 + ((y2 - y1) * (i + 1)) / segments;
+        const offset = (Math.random() - 0.5) * 10;
+        ctx.lineTo(midX + offset, midY);
+      }
+      
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
   }
   
