@@ -669,40 +669,87 @@ drawUI() {
 
   // Add shield effect drawing method
   drawShieldEffect() {
-    if (!this.bucket) return;
-
-    const centerX = this.bucket.x + this.bucket.width / 2;
-    const centerY = this.bucket.y + this.bucket.height / 2;
-    const radius = Math.max(this.bucket.width, this.bucket.height) * 0.8;
-
-    // Draw shield glow
-    const gradient = this.ctx.createRadialGradient(
-        centerX, centerY, radius * 0.5,
-        centerX, centerY, radius
+    const bucketCenterX = this.bucket.x + this.bucket.width / 2;
+    const bucketCenterY = this.bucket.y + this.bucket.height / 2;
+    
+    this.ctx.save();
+    // Adjust translation to position heart up and to the right of bucket
+    this.ctx.translate(
+        bucketCenterX,  // Move left by half bucket width
+        bucketCenterY - (this.bucket.height / 2)    // Move up by full bucket height
     );
-    gradient.addColorStop(0, 'rgba(135, 206, 235, 0.4)');
-    gradient.addColorStop(1, 'rgba(135, 206, 235, 0)');
-
+    
+    // Increased scale for active shield (3x larger)
+    const scale = 1.5; // 3x larger than original 1.5
+    this.ctx.scale(scale, scale);
+    
+    // Clip to top half
     this.ctx.beginPath();
-    this.ctx.arc(centerX, centerY, radius, Math.PI, 0, false); // Only draw top half
+    this.ctx.arc(0, 0, this.bucket.width, Math.PI, 0, true);
+    this.ctx.clip();
+    
+    // Brighter gradient for active shield
+    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
+    gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
+    gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
+    gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
+    gradient.addColorStop(1, 'rgba(255, 20, 145, 0.5)');
+    
     this.ctx.fillStyle = gradient;
-    this.ctx.fill();
+    this.ctx.fill(new Shield(0).createHeartPath());
 
-    // Draw particles only in top half
-    for (let i = 0; i < 10; i++) {
-        const angle = Math.random() * Math.PI; // Restrict angle to top half (0 to PI)
-        const distance = Math.random() * radius;
-        const particleX = centerX + Math.cos(angle) * distance;
-        const particleY = centerY - Math.abs(Math.sin(angle) * distance); // Force particles upward
+    // Add particles for active shield
+    this.updateActiveShieldParticles();
+    this.drawActiveShieldParticles();
+    
+    this.ctx.restore();
+  }
 
-        const particleSize = Math.random() * 4 + 2;
-        const opacity = Math.random() * 0.5 + 0.5;
-
-        this.ctx.beginPath();
-        this.ctx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
-        this.ctx.fillStyle = `rgba(135, 206, 235, ${opacity})`;
-        this.ctx.fill();
+  // Keep the original particle methods unchanged
+  updateActiveShieldParticles() {
+    if (!this.activeShieldParticles) {
+        this.activeShieldParticles = [];
     }
+
+    // Add more particles for active shield
+    if (Math.random() < 0.5) {
+        const angle = Math.random() * Math.PI; // Only generate particles in top half
+        const radius = this.bucket.width * 0.6;
+        this.activeShieldParticles.push({
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius,
+            size: Math.random() * 8 + 4, // Larger particles
+            life: 1,
+            angle: angle,
+            speed: Math.random() * 2 + 1,
+            radius: radius
+        });
+    }
+
+    // Update existing particles
+    this.activeShieldParticles = this.activeShieldParticles.filter(p => {
+        p.angle += p.speed * 0.02;
+        // Constrain angle to top half
+        p.angle = Math.PI + (p.angle % Math.PI);
+        p.x = Math.cos(p.angle) * p.radius;
+        p.y = Math.sin(p.angle) * p.radius;
+        p.life -= 0.01;
+        return p.life > 0;
+    });
+  }
+
+  drawActiveShieldParticles() {
+    if (!this.activeShieldParticles) return;
+
+    this.activeShieldParticles.forEach(p => {
+        this.ctx.beginPath();
+        const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+        gradient.addColorStop(0, `rgba(255, 192, 203, ${p.life * 0.8})`);
+        gradient.addColorStop(1, `rgba(255, 105, 180, ${p.life * 0.3})`);
+        this.ctx.fillStyle = gradient;
+        this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        this.ctx.fill();
+    });
   }
 
   activateMagnet() {
