@@ -75,6 +75,9 @@ class BloodGameManager {
     // Add shield and magnet arrays
     this.shields = [];
     this.magnets = [];
+
+    this.magnetActive = false;
+    this.magnetTimer = null;
   }
 
   // Image Loading Method
@@ -359,31 +362,45 @@ class BloodGameManager {
   }
 
   updateEntities(entities, isGold, isRed, isBlack) {
-  for (let i = entities.length - 1; i >= 0; i--) {
-    const entity = entities[i];
-    entity.update();
+    for (let i = entities.length - 1; i >= 0; i--) {
+        const entity = entities[i];
+        entity.update();
 
-    if (this.checkCollision(entity, this.bucket)) {
-      entities.splice(i, 1);
-      this.handleCollision(entity, isGold, isRed, isBlack);
-    } else if (entity.y > this.canvas.height) {
-      entities.splice(i, 1);
-      
-      // Create ground splash effect
-      const splashX = entity.x + entity.width / 2;
-      const splashY = this.canvas.height;
-      
-      if (isGold) {
-        this.splashes.push(new GoldSplash(splashX, splashY));
-      } else if (isRed) {
-        this.splashes.push(new RedSplash(splashX, splashY));
-      } else if (isBlack) {
-        this.splashes.push(new GreenSplash(splashX, splashY));
-      } else {
-        this.splashes.push(new BlueSplash(splashX, splashY));
-      }
+        // Apply magnet effect to all tears except red ones
+        if (this.magnetActive && !isRed) {
+            const dx = this.bucket.x + this.bucket.width/2 - (entity.x + entity.width/2);
+            const dy = this.bucket.y + this.bucket.height/2 - (entity.y + entity.height/2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Attract tears towards bucket
+            if (distance > 0) {
+                const attractionStrength = 0.8;
+                entity.x += (dx / distance) * attractionStrength;
+                entity.y += (dy / distance) * attractionStrength;
+            }
+        }
+
+        if (this.checkCollision(entity, this.bucket)) {
+            entities.splice(i, 1);
+            this.handleCollision(entity, isGold, isRed, isBlack);
+        } else if (entity.y > this.canvas.height) {
+            entities.splice(i, 1);
+            
+            // Create ground splash effect
+            const splashX = entity.x + entity.width / 2;
+            const splashY = this.canvas.height;
+            
+            if (isGold) {
+                this.splashes.push(new GoldSplash(splashX, splashY));
+            } else if (isRed) {
+                this.splashes.push(new RedSplash(splashX, splashY));
+            } else if (isBlack) {
+                this.splashes.push(new GreenSplash(splashX, splashY));
+            } else {
+                this.splashes.push(new BlueSplash(splashX, splashY));
+            }
+        }
     }
-  }
 }
 
   // Collision Detection
@@ -508,6 +525,13 @@ class BloodGameManager {
     // Draw shield effect around bucket when active
     if (this.shieldActive && this.bucket) {
       this.drawShieldEffect();
+    }
+
+    // Draw magnet effect when active
+    if (this.magnetActive) {
+        this.magnets.forEach(magnet => {
+            magnet.draw(this.ctx, this.bucket, true);
+        });
     }
 
     // Draw UI with fixed fonts
@@ -702,6 +726,14 @@ drawUI() {
       this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       this.ctx.fill();
     });
+  }
+
+  activateMagnet() {
+    this.magnetActive = true;
+    if (this.magnetTimer) clearTimeout(this.magnetTimer);
+    this.magnetTimer = setTimeout(() => {
+        this.magnetActive = false;
+    }, 5000); // 5 seconds of magnet effect
   }
 }
 
@@ -1042,98 +1074,65 @@ class Magnet extends Entity {
     super(
       Math.random() * (canvasWidth - 50),
       20,
-      50,  // Increased width
-      50,  // Increased height
-      3    // Slightly faster speed
+      50,
+      50,
+      3
     );
     this.active = false;
     this.duration = 5000;
     this.particles = [];
     this.UI_SIZES = uiSizes;
     this.pulsePhase = 0;
+    this.lightningPoints = [];
   }
 
-  draw(ctx) {
-    ctx.save();
-    ctx.translate(this.x, this.y);
-
-    // Pulse effect
-    this.pulsePhase += 0.1;
-    const scale = 1 + Math.sin(this.pulsePhase) * 0.1;
-    ctx.scale(scale, scale);
-
-    // Draw magnet body
+  drawLightningEffect(ctx, startX, startY, endX, endY) {
     ctx.beginPath();
-    ctx.fillStyle = 'rgba(192, 192, 192, 0.9)';
-    ctx.arc(15, 15, 12, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw magnetic field lines
-    this.drawMagneticField(ctx);
+    ctx.strokeStyle = 'rgba(65, 105, 225, 0.8)';
+    ctx.lineWidth = 2;
     
-    // Draw particles
-    this.updateParticles();
-    this.drawParticles(ctx);
-
-    ctx.restore();
-  }
-
-  drawMagneticField(ctx) {
-    const time = Date.now() * 0.001;
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2 + time;
-      const radius = 20;
-      
-      ctx.beginPath();
-      ctx.strokeStyle = `rgba(65, 105, 225, ${0.5 + Math.sin(time + i) * 0.2})`;
-      ctx.lineWidth = 2;
-      
-      const x1 = 15 + Math.cos(angle) * radius;
-      const y1 = 15 + Math.sin(angle) * radius;
-      const x2 = 15 + Math.cos(angle + 0.5) * (radius * 0.5);
-      const y2 = 15 + Math.sin(angle + 0.5) * (radius * 0.5);
-      
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
+    let points = [{x: startX, y: startY}];
+    let currentX = startX;
+    let currentY = startY;
+    
+    while (currentY < endY) {
+      currentY += Math.random() * 20 + 10;
+      currentX += (Math.random() - 0.5) * 20;
+      points.push({x: currentX, y: currentY});
     }
+    points.push({x: endX, y: endY});
+    
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    
+    ctx.stroke();
   }
 
-  updateParticles() {
-    if (Math.random() < 0.3) {
-      this.particles.push({
-        x: 15 + (Math.random() - 0.5) * 30,
-        y: 15 + (Math.random() - 0.5) * 30,
-        size: Math.random() * 3 + 1,
-        life: 1,
-        vx: (Math.random() - 0.5) * 2,
-        vy: (Math.random() - 0.5) * 2
+  draw(ctx, bucket, isActive) {
+    super.draw(ctx);
+    
+    // Draw lightning effects when magnet is active
+    if (isActive) {
+      const tears = [...window.activeGameManager.teardrops, 
+                    ...window.activeGameManager.goldtears,
+                    ...window.activeGameManager.blacktears];
+      
+      tears.forEach(tear => {
+        this.drawLightningEffect(
+          ctx,
+          bucket.x + bucket.width/2,
+          bucket.y + bucket.height/2,
+          tear.x + tear.width/2,
+          tear.y + tear.height/2
+        );
       });
     }
-
-    this.particles = this.particles.filter(p => {
-      // Particle movement affected by magnetic field
-      const dx = 15 - p.x;
-      const dy = 15 - p.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      p.vx += dx / dist * 0.1;
-      p.vy += dy / dist * 0.1;
-      
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life -= 0.02;
-      return p.life > 0;
-    });
   }
 
-  drawParticles(ctx) {
-    this.particles.forEach(p => {
-      ctx.beginPath();
-      ctx.fillStyle = `rgba(65, 105, 225, ${p.life})`;
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-    });
+  update() {
+    // Implement magnet update logic
   }
 }
 
