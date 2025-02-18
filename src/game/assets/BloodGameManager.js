@@ -379,52 +379,71 @@ class BloodGameManager {
 
   // Collision Detection
   checkCollision(entity, bucket) {
-    // For Shield entity, use center-point collision
-    if (entity instanceof Shield) {
-      const entityCenterX = entity.x + entity.width / 2;
-      const bucketCenterX = bucket.x + bucket.width / 2;
-      const entityCenterY = entity.y + entity.height / 2;
-      
-      // Calculate distance between centers
-      const xDistance = Math.abs(entityCenterX - bucketCenterX);
-      const yInRange = entityCenterY > bucket.y && entityCenterY < bucket.y + bucket.height;
-      
-      // Collision occurs when centers are close and y is in range
-      return xDistance < bucket.width/2 && yInRange;
-    }
-    
-    // For other entities (tears), keep the original box collision
+    const entityWidth = entity.hitboxWidth || entity.width;
+    const entityHeight = entity.hitboxHeight || entity.height;
+
     return (
       entity.x < bucket.x + bucket.width &&
-      entity.x + entity.width > bucket.x &&
+      entity.x + entityWidth > bucket.x &&
       entity.y < bucket.y + bucket.height &&
-      entity.y + entity.height > bucket.y
+      entity.y + entityHeight > bucket.y
     );
   }
 
   handleCollision(entity, isGold, isRed, isBlack) {
-  const splashX = entity.x + entity.width / 2;
-  const splashY = this.bucket.y;
+    const splashX = entity.x + entity.width / 2;
+    const splashY = this.bucket.y;
 
-  if (isGold) {
+    // Handle shield collision
+    if (entity instanceof Shield && !entity.active) {
+      entity.active = true;
+      entity.startTime = Date.now();
+      this.shieldActive = true;
+      if (this.shieldTimer) clearTimeout(this.shieldTimer);
+      this.shieldTimer = setTimeout(() => {
+        this.shieldActive = false;
+        entity.active = false;
+        // Remove the shield after it expires
+        this.shields = this.shields.filter(s => s !== entity);
+      }, entity.duration);
+      return;
+    }
+
+    // Handle magnet collision
+    if (entity instanceof Magnet && !entity.active) {
+      entity.active = true;
+      entity.startTime = Date.now();
+      this.magnetActive = true;
+      if (this.magnetTimer) clearTimeout(this.magnetTimer);
+      this.magnetTimer = setTimeout(() => {
+        this.magnetActive = false;
+        entity.active = false;
+        // Remove the magnet after it expires
+        this.magnets = this.magnets.filter(m => m !== entity);
+      }, entity.duration);
+      return;
+    }
+
+    // Handle tear collisions
+    if (isGold) {
       this.score += 25;
       this.splashes.push(new GoldSplash(splashX, splashY));
-  } else if (isRed) {
+    } else if (isRed) {
       if (this.shieldActive) {
-          this.score += 1;  // Award 1 point when shield is active
-          this.splashes.push(new RedSplash(splashX, splashY));
+        this.score += 1;
+        this.splashes.push(new RedSplash(splashX, splashY));
       } else {
-          this.lives--;  // Only reduce lives if shield is not active
-          this.splashes.push(new RedSplash(splashX, splashY));
+        this.lives--;
+        this.splashes.push(new RedSplash(splashX, splashY));
       }
-  } else if (isBlack) {
+    } else if (isBlack) {
       this.lives++;
       this.splashes.push(new GreenSplash(splashX, splashY));
-  } else {
+    } else {
       this.score += 1;
       this.splashes.push(new BlueSplash(splashX, splashY));
+    }
   }
-}
 
   // Drawing Methods
   drawGame() {
@@ -582,6 +601,25 @@ drawUI() {
       this.updateGame();
       this.drawGame();
       this.gameLoopId = requestAnimationFrame(this.gameLoop);
+
+      // Update and remove shields that are off screen or expired
+      this.shields = this.shields.filter(shield => {
+        shield.update();
+        if (shield.active) {
+          return true; // Keep active shields
+        }
+        return shield.y < this.canvas.height; // Remove shields that fall off screen
+      });
+
+      // Update and remove magnets that are off screen or expired
+      this.magnets = this.magnets.filter(magnet => {
+        magnet.update();
+        if (magnet.active) {
+          return true; // Keep active magnets
+        }
+        return magnet.y < this.canvas.height; // Remove magnets that fall off screen
+      });
+
     } catch (error) {
       console.error('Error in game loop:', error);
       this.gameActive = false;
@@ -589,20 +627,6 @@ drawUI() {
         this.onGameOver(this.score);
       }
     }
-
-    // Update and draw shields
-    this.shields = this.shields.filter(shield => {
-      shield.update();
-      shield.draw(this.ctx);
-      return shield.y < this.canvas.height;
-    });
-
-    // Update and draw magnets
-    this.magnets = this.magnets.filter(magnet => {
-      magnet.update();
-      magnet.draw(this.ctx);
-      return magnet.y < this.canvas.height;
-    });
   }
 
   // Add shield activation method
