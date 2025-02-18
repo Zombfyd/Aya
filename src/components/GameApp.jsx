@@ -440,7 +440,7 @@ const TokenAmount = ({ amount, symbol }) => {
   };
 
   // First, update handleScoreSubmit to submit to both main and secondary
-  const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType) => {
+  const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType, paymentDetails = null) => {
     const currentGame = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
     
     console.log('handleScoreSubmit received:', { 
@@ -483,8 +483,9 @@ const TokenAmount = ({ amount, symbol }) => {
         } else {
             // Enhanced verification for paid submissions
             if (submissionGameMode === 'paid') {
-                // Verify payment status
-                if (!paymentStatus.verified || !paymentStatus.transactionId) {
+                // Check both state and passed payment details
+                const verifiedPayment = paymentDetails || paymentStatus;
+                if (!verifiedPayment.verified || !verifiedPayment.transactionId) {
                     throw new Error('Payment verification failed - no valid payment found');
                 }
             }
@@ -500,10 +501,10 @@ const TokenAmount = ({ amount, symbol }) => {
                     playerName: playerName || null,
                     game: currentGame,
                     paymentVerification: submissionGameMode === 'paid' ? {
-                        transactionId: paymentStatus.transactionId,
-                        amount: paymentStatus.amount,
-                        timestamp: paymentStatus.timestamp,
-                        recipient: paymentStatus.recipient
+                        transactionId: paymentDetails?.transactionId,
+                        amount: paymentDetails?.amount,
+                        timestamp: paymentDetails?.timestamp,
+                        recipient: paymentDetails?.recipient
                     } : null
                 };
 
@@ -1061,33 +1062,21 @@ const TokenAmount = ({ amount, symbol }) => {
       console.log('Transaction successful:', response.digest);
 
       // Add payment status update here
-      setPaymentStatus({
+      const paymentDetails = {
         verified: true,
         transactionId: response.digest,
         amount: totalAmount,
         timestamp: Date.now(),
         recipient: recipients.primary
-      });
-
-      // Wait briefly for state to update
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Submit score immediately after successful transaction
-      console.log('Submitting score to paid leaderboard:', {
-        score: finalScore,
-        gameType: type,
-        transactionId: response.digest
-      });
-
-      const paymentDetails = {
-        transactionId: response.digest,
-        amount: totalAmount,
-        timestamp: Date.now(),
-        recipient: recipients.primary,
-        verified: true
       };
 
-      // Submit score with transaction details
+      // Update state
+      setPaymentStatus(paymentDetails);
+
+      // Wait for a moment to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Submit score with the same payment details
       await handleScoreSubmit(finalScore, 'paid', type, paymentDetails);
     } catch (error) {
       console.error('Payment error:', error);
@@ -1787,33 +1776,21 @@ const handleSuinsChange = (e) => {
                           console.log('Transaction successful:', response.digest);
 
                           // Add payment status update here
-                          setPaymentStatus({
+                          const paymentDetails = {
                             verified: true,
                             transactionId: response.digest,
                             amount: totalAmount,
                             timestamp: Date.now(),
                             recipient: recipients.primary
-                          });
-
-                          // Wait briefly for state to update
-                          await new Promise(resolve => setTimeout(resolve, 100));
-
-                          // Submit score immediately after successful transaction
-                          console.log('Submitting score to paid leaderboard:', {
-                            score: scoreToSubmit,
-                            gameType: currentGameType,
-                            transactionId: response.digest
-                          });
-
-                          const paymentDetails = {
-                            transactionId: response.digest,
-                            amount: totalAmount,
-                            timestamp: Date.now(),
-                            recipient: recipients.primary,
-                            verified: true
                           };
 
-                          // Submit score with transaction details
+                          // Update state
+                          setPaymentStatus(paymentDetails);
+
+                          // Wait for a moment to ensure state is updated
+                          await new Promise(resolve => setTimeout(resolve, 100));
+
+                          // Submit score with the same payment details
                           await handleScoreSubmit(scoreToSubmit, 'paid', currentGameType, paymentDetails);
                           
                           setQualifiedForPaid(false);
