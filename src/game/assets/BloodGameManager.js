@@ -71,6 +71,8 @@ class BloodGameManager {
     this.shield = null;
     this.shieldActive = false;
     this.shieldTimer = null;
+    this.magnetActive = false;
+    this.magnetTimer = null;
 
     // Add shield and magnet arrays
     this.shields = [];
@@ -151,26 +153,50 @@ class BloodGameManager {
 
   // Game Control Methods
   startGame(mode = 'free') {
-    // Force a canvas resize before starting the game
-    this.resizeCanvas();
+    this.gameActive = true;
+    this.score = 0;
+    this.lives = 10;
+    this.speedMultiplier = 1;
+    this.lastCheckpoint = 0;
     
-    this.cleanup();
-    this.initGame();
-    this.gameMode = mode;
-
-    // Start spawning tears with a delay
+    // Clear existing entities
+    this.teardrops = [];
+    this.goldtears = [];
+    this.redtears = [];
+    this.blacktears = [];
+    this.splashes = [];
+    this.shields = [];
+    this.magnets = [];
+    
+    // Clear existing timers
+    Object.values(this.spawnTimers).forEach(timer => {
+      if (timer) clearTimeout(timer);
+    });
+    
+    if (this.shieldTimer) clearTimeout(this.shieldTimer);
+    if (this.magnetTimer) clearTimeout(this.magnetTimer);
+    
+    // Start tear spawning
+    this.spawnTeardrop();
+    this.spawnGoldtear();
+    this.spawnRedtear();
+    this.spawnBlacktear();
+    
+    // Start shield spawning with initial delay
     setTimeout(() => {
       if (this.gameActive) {
-        this.spawnTeardrop();
-        this.spawnGoldtear();
-        this.spawnRedtear();
-        this.spawnBlacktear();
         this.spawnShield();
-        this.spawnMagnet();
       }
     }, 1000);
 
-    // Start the game loop
+    // Start magnet spawning with offset delay
+    setTimeout(() => {
+      if (this.gameActive) {
+        this.spawnMagnet();
+      }
+    }, 15000);
+
+    // Start game loop
     if (!this.gameLoopId) {
       this.gameLoop();
     }
@@ -584,7 +610,8 @@ drawUI() {
       { text: 'Gold Tear = 25 points', color: '#FFD04D', y: 70 },
       { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
       { text: 'Green Tear = +1 life', color: '#39B037', y: 110 },
-      { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 }
+      { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 },
+      { text: 'Magnet = 5.0 Secs', color: '#4169E1', y: 150 }
     ];
 
     legends.forEach(({ text, color, y }) => {
