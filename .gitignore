@@ -98,3 +98,5 @@ Desktop.ini
 *.temp
 .temp
 .tmp
+
+endpoints.txt
