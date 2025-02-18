@@ -151,13 +151,16 @@ class BloodGameManager {
 
   // Game Control Methods
   startGame(mode = 'free') {
+    // Initialize game state
     this.gameActive = true;
     this.score = 0;
     this.lives = 10;
     this.speedMultiplier = 1;
     this.lastCheckpoint = 0;
+    this.shieldActive = false;
+    this.magnetActive = false;
     
-    // Clear existing entities
+    // Clear all entities
     this.teardrops = [];
     this.goldtears = [];
     this.redtears = [];
@@ -166,34 +169,40 @@ class BloodGameManager {
     this.shields = [];
     this.magnets = [];
     
-    // Clear existing timers
+    // Clear all timers
+    if (this.gameLoopId) {
+      cancelAnimationFrame(this.gameLoopId);
+      this.gameLoopId = null;
+    }
+    
     Object.values(this.spawnTimers).forEach(timer => {
       if (timer) clearTimeout(timer);
     });
     
-    // Start tear spawning
+    if (this.shieldTimer) clearTimeout(this.shieldTimer);
+    if (this.magnetTimer) clearTimeout(this.magnetTimer);
+    
+    // Start spawning tears
     this.spawnTeardrop();
     this.spawnGoldtear();
     this.spawnRedtear();
     this.spawnBlacktear();
     
-    // Start power-up spawning with delays
+    // Start power-ups with delay
     setTimeout(() => {
       if (this.gameActive) {
         this.spawnShield();
       }
-    }, 10000); // First shield after 10 seconds
+    }, 10000);
 
     setTimeout(() => {
       if (this.gameActive) {
         this.spawnMagnet();
       }
-    }, 20000); // First magnet after 20 seconds
+    }, 20000);
 
-    // Start game loop
+    // Start the game loop
     this.gameLoop();
-    
-    return true;
   }
 
   cleanup() {
@@ -333,22 +342,28 @@ class BloodGameManager {
 
   // Game Update Methods
   updateGame() {
-    this.updateEntities(this.teardrops, false, false, false);
-    this.updateEntities(this.goldtears, true, false, false);
-    this.updateEntities(this.redtears, false, true, false);
-    this.updateEntities(this.blacktears, false, false, true);
+    if (!this.gameActive) return;
 
-    this.splashes = this.splashes.filter(splash => {
-      splash.update();
-      return splash.opacity > 0;
-    });
+    // Update all entities
+    this.teardrops.forEach(tear => tear.update());
+    this.goldtears.forEach(tear => tear.update());
+    this.redtears.forEach(tear => tear.update());
+    this.blacktears.forEach(tear => tear.update());
+    
+    // Update splashes and remove finished ones
+    this.splashes = this.splashes.filter(splash => splash.update());
 
-    if (this.score >= this.lastCheckpoint + 100) {
-      this.speedMultiplier *= 1.1;
-      this.lastCheckpoint = this.score;
-    }
+    // Check collisions
+    this.checkCollisions();
 
-    if (this.lives <= 0 && this.gameActive) {
+    // Remove tears that are off screen
+    this.teardrops = this.teardrops.filter(tear => tear.y < this.canvas.height);
+    this.goldtears = this.goldtears.filter(tear => tear.y < this.canvas.height);
+    this.redtears = this.redtears.filter(tear => tear.y < this.canvas.height);
+    this.blacktears = this.blacktears.filter(tear => tear.y < this.canvas.height);
+
+    // Check if game should end
+    if (this.lives <= 0) {
       this.gameActive = false;
       if (this.onGameOver) {
         this.onGameOver(this.score);
@@ -617,33 +632,41 @@ drawUI() {
     if (!this.gameActive) return;
 
     try {
+      // Update game state
       this.updateGame();
       this.drawGame();
-      this.gameLoopId = requestAnimationFrame(this.gameLoop);
 
-      // Update and remove shields that are off screen or expired
-      this.shields = this.shields.filter(shield => {
-        shield.update();
-        if (shield.active) {
-          return true; // Keep active shields
-        }
-        return shield.y < this.canvas.height; // Remove shields that fall off screen
-      });
+      // Request next frame
+      this.gameLoopId = requestAnimationFrame(() => this.gameLoop());
 
-      // Update and remove magnets that are off screen or expired
-      this.magnets = this.magnets.filter(magnet => {
-        magnet.update();
-        if (magnet.active) {
-          return true; // Keep active magnets
-        }
-        return magnet.y < this.canvas.height; // Remove magnets that fall off screen
-      });
+      // Update and filter entities
+      if (this.shields) {
+        this.shields = this.shields.filter(shield => {
+          if (!shield) return false;
+          shield.update();
+          if (shield.active) return true;
+          return shield.y < this.canvas.height;
+        });
+      }
+
+      if (this.magnets) {
+        this.magnets = this.magnets.filter(magnet => {
+          if (!magnet) return false;
+          magnet.update();
+          if (magnet.active) return true;
+          return magnet.y < this.canvas.height;
+        });
+      }
 
     } catch (error) {
       console.error('Error in game loop:', error);
-      this.gameActive = false;
-      if (this.onGameOver) {
-        this.onGameOver(this.score);
+      console.error(error.stack); // Add stack trace for debugging
+      // Don't stop the game on error unless necessary
+      if (error.critical) {
+        this.gameActive = false;
+        if (this.onGameOver) {
+          this.onGameOver(this.score);
+        }
       }
     }
   }
