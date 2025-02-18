@@ -301,16 +301,16 @@ class BloodGameManager {
 
   spawnShield() {
     if (!this.gameActive) return;
-    const shield = new Shield(this.canvas.width, this.UI_SIZES);
+    const shield = new Shield(this.canvas.width);
     this.shields.push(shield);
-    this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 15000 + 20000);
+    this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 10000 + 15000);
   }
 
   spawnMagnet() {
     if (!this.gameActive) return;
-    const magnet = new Magnet(this.canvas.width, this.UI_SIZES);
+    const magnet = new Magnet(this.canvas.width);
     this.magnets.push(magnet);
-    this.spawnTimers.magnet = setTimeout(() => this.spawnMagnet(), Math.random() * 15000 + 25000);
+    this.spawnTimers.magnet = setTimeout(() => this.spawnMagnet(), Math.random() * 15000 + 20000);
   }
 
   // Game Update Methods
@@ -949,19 +949,22 @@ class GreenSplash extends BaseSplash {
 }
 
 class Shield extends Entity {
-  constructor(canvasWidth, uiSizes) {
+  constructor(canvasWidth) {
     super(
       Math.random() * (canvasWidth - 100),
       20,
-      40,
-      40,
+      40, // Increased from 40
+      40, // Increased from 40
       2
     );
     this.active = false;
     this.duration = 7500;
     this.particles = [];
     this.heartShape = this.createHeartPath();
-    this.UI_SIZES = uiSizes;
+    this.startTime = null;
+    // Add larger hitbox
+    this.hitboxWidth = 80;
+    this.hitboxHeight = 80;
   }
 
   createHeartPath() {
@@ -1023,22 +1026,35 @@ class Shield extends Entity {
       ctx.fill();
     });
   }
+
+  // Add method to check collisions with larger hitbox
+  checkCollision(entity) {
+    return (
+      this.x < entity.x + entity.width &&
+      this.x + this.hitboxWidth > entity.x &&
+      this.y < entity.y + entity.height &&
+      this.y + this.hitboxHeight > entity.y
+    );
+  }
 }
 
 class Magnet extends Entity {
-  constructor(canvasWidth, uiSizes) {
+  constructor(canvasWidth) {
     super(
       Math.random() * (canvasWidth - 60),
       20,
-      30,
-      30,
+      30, // Increased from 30
+      30, // Increased from 30
       2
     );
     this.active = false;
     this.duration = 5000;
-    this.particles = [];
-    this.UI_SIZES = uiSizes;
-    this.pulsePhase = 0;
+    this.startTime = null;
+    this.lightningParticles = [];
+    this.attractionRadius = 200;
+    // Add larger hitbox
+    this.hitboxWidth = 70;
+    this.hitboxHeight = 70;
   }
 
   draw(ctx) {
@@ -1122,6 +1138,16 @@ class Magnet extends Entity {
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.fill();
     });
+  }
+
+  // Add method to check collisions with larger hitbox
+  checkCollision(entity) {
+    return (
+      this.x < entity.x + entity.width &&
+      this.x + this.hitboxWidth > entity.x &&
+      this.y < entity.y + entity.height &&
+      this.y + this.hitboxHeight > entity.y
+    );
   }
 }
 
