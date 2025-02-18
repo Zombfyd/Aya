@@ -320,32 +320,41 @@ class BloodGameManager {
     this.updateEntities(this.redtears, false, true, false);
     this.updateEntities(this.blacktears, false, false, true);
 
+    // Update shields
+    this.shields = this.shields.filter(shield => {
+        shield.update();
+        if (this.checkCollision(shield, this.bucket)) {
+            this.activateShield();
+            return false; // Remove the shield
+        }
+        return shield.y < this.canvas.height;
+    });
+
+    // Update magnets
+    this.magnets = this.magnets.filter(magnet => {
+        magnet.update();
+        if (this.checkCollision(magnet, this.bucket)) {
+            // Add magnet activation logic here
+            return false; // Remove the magnet
+        }
+        return magnet.y < this.canvas.height;
+    });
+
     this.splashes = this.splashes.filter(splash => {
-      splash.update();
-      return splash.opacity > 0;
+        splash.update();
+        return splash.opacity > 0;
     });
 
     if (this.score >= this.lastCheckpoint + 100) {
-      this.speedMultiplier *= 1.1;
-      this.lastCheckpoint = this.score;
+        this.speedMultiplier *= 1.1;
+        this.lastCheckpoint = this.score;
     }
 
     if (this.lives <= 0 && this.gameActive) {
-      this.gameActive = false;
-      if (this.onGameOver) {
-        this.onGameOver(this.score);
-      }
-    }
-
-    // Update shield
-    if (this.shield && !this.shieldActive) {
-      this.shield.update();
-      if (this.checkCollision(this.shield, this.bucket)) {
-        this.activateShield();
-        this.shield = null;
-      } else if (this.shield.y > this.canvas.height) {
-        this.shield = null;
-      }
+        this.gameActive = false;
+        if (this.onGameOver) {
+            this.onGameOver(this.score);
+        }
     }
   }
 
@@ -381,26 +390,26 @@ class BloodGameManager {
   checkCollision(entity, bucket) {
     // For Shield and Magnet entities, use a more lenient collision check
     if (entity instanceof Shield || entity instanceof Magnet) {
-      const entityCenterX = entity.x + entity.width / 2;
-      const bucketCenterX = bucket.x + bucket.width / 2;
-      const entityCenterY = entity.y + entity.height / 2;
-      const bucketCenterY = bucket.y + bucket.height / 2;
-      
-      // Calculate distances between centers
-      const xDistance = Math.abs(entityCenterX - bucketCenterX);
-      const yDistance = Math.abs(entityCenterY - bucketCenterY);
-      
-      // More lenient collision - larger detection area
-      return xDistance < (bucket.width + entity.width) / 2 && 
-             yDistance < (bucket.height + entity.height) / 2;
+        const entityCenterX = entity.x + entity.width / 2;
+        const entityCenterY = entity.y + entity.height / 2;
+        const bucketCenterX = bucket.x + bucket.width / 2;
+        const bucketCenterY = bucket.y + bucket.height / 2;
+        
+        // Calculate distance between centers
+        const dx = entityCenterX - bucketCenterX;
+        const dy = entityCenterY - bucketCenterY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // More lenient collision - larger detection area
+        return distance < (bucket.width + entity.width) / 1.5;
     }
     
     // For other entities (tears), keep the original box collision
     return (
-      entity.x < bucket.x + bucket.width &&
-      entity.x + entity.width > bucket.x &&
-      entity.y < bucket.y + bucket.height &&
-      entity.y + entity.height > bucket.y
+        entity.x < bucket.x + bucket.width &&
+        entity.x + entity.width > bucket.x &&
+        entity.y < bucket.y + bucket.height &&
+        entity.y + entity.height > bucket.y
     );
   }
 
@@ -567,7 +576,8 @@ drawUI() {
       { text: 'Gold Tear = 25 points', color: '#FFD04D', y: 70 },
       { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
       { text: 'Green Tear = +1 life', color: '#39B037', y: 110 },
-      { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 }
+      { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 },
+      { text: 'Magnet = 5 Secs', color: '#C0C0C0', y: 150 }
     ];
 
     legends.forEach(({ text, color, y }) => {
@@ -953,11 +963,11 @@ class GreenSplash extends BaseSplash {
 class Shield extends Entity {
   constructor(canvasWidth, uiSizes) {
     super(
-      Math.random() * (canvasWidth - 100),
+      Math.random() * (canvasWidth - 60),
       20,
-      40,
-      40,
-      2
+      60,  // Increased width
+      60,  // Increased height
+      3    // Slightly faster speed
     );
     this.active = false;
     this.duration = 7500;
@@ -1030,11 +1040,11 @@ class Shield extends Entity {
 class Magnet extends Entity {
   constructor(canvasWidth, uiSizes) {
     super(
-      Math.random() * (canvasWidth - 60),
+      Math.random() * (canvasWidth - 50),
       20,
-      30,
-      30,
-      2
+      50,  // Increased width
+      50,  // Increased height
+      3    // Slightly faster speed
     );
     this.active = false;
     this.duration = 5000;
