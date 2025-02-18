@@ -1054,45 +1054,41 @@ const TokenAmount = ({ amount, symbol }) => {
         options: { showEffects: true }
       });
 
-      if (response.digest) {
-        console.log('Transaction successful');
-        setPaymentStatus({
-          verified: true,
-          transactionId: response.digest,
-          error: null,
-          amount: totalAmount,
-          timestamp: Date.now(),
-          recipient: recipients.primary
-        });
-
-        setGameState(prev => ({
-          ...prev,
-          hasValidPayment: true,
-          currentSessionId: response.digest
-        }));
-        
-        // Set initial countdown and start the timer
-        setCountdown(3);
-        
-        // Create a Promise that resolves after the countdown
-        await new Promise((resolve) => {
-          const countdownInterval = setInterval(() => {
-            setCountdown(prev => {
-              if (prev <= 1) {
-                clearInterval(countdownInterval);
-                resolve();
-                return null;
-              }
-              return prev - 1;
-            });
-          }, 1000);
-        });
-
-        // Start the game automatically after countdown
-        setPaidGameAttempts(0);
-        setMaxAttempts(tierConfig.plays);
-        startGame(type);
+      if (!response.digest) {
+        throw new Error('Transaction failed - no digest received');
       }
+
+      console.log('Transaction successful:', response.digest);
+
+      // Add payment status update here
+      setPaymentStatus({
+        verified: true,
+        transactionId: response.digest,
+        amount: totalAmount,
+        timestamp: Date.now(),
+        recipient: recipients.primary
+      });
+
+      // Wait briefly for state to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Submit score immediately after successful transaction
+      console.log('Submitting score to paid leaderboard:', {
+        score: finalScore,
+        gameType: type,
+        transactionId: response.digest
+      });
+
+      const paymentDetails = {
+        transactionId: response.digest,
+        amount: totalAmount,
+        timestamp: Date.now(),
+        recipient: recipients.primary,
+        verified: true
+      };
+
+      // Submit score with transaction details
+      await handleScoreSubmit(finalScore, 'paid', type, paymentDetails);
     } catch (error) {
       console.error('Payment error:', error);
       setCountdown(null);
@@ -1789,7 +1785,8 @@ const handleSuinsChange = (e) => {
                           }
 
                           console.log('Transaction successful:', response.digest);
-                          /  // Update payment status state BEFORE submitting score
+
+                          // Add payment status update here
                           setPaymentStatus({
                             verified: true,
                             transactionId: response.digest,
@@ -1797,8 +1794,8 @@ const handleSuinsChange = (e) => {
                             timestamp: Date.now(),
                             recipient: recipients.primary
                           });
-                    
-                          // Wait for state to update
+
+                          // Wait briefly for state to update
                           await new Promise(resolve => setTimeout(resolve, 100));
 
                           // Submit score immediately after successful transaction
@@ -1813,7 +1810,7 @@ const handleSuinsChange = (e) => {
                             amount: totalAmount,
                             timestamp: Date.now(),
                             recipient: recipients.primary,
-                            verified: true  // Transaction was successful, so we consider it verified
+                            verified: true
                           };
 
                           // Submit score with transaction details
