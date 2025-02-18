@@ -591,21 +591,21 @@ class BloodGameManager {
       const bucketCenterY = this.bucket.y + this.bucket.height / 2;
       
       this.ctx.save();
-      // Adjust translation to position heart up and to the right of bucket
-      this.ctx.translate(
-          bucketCenterX,  // Move left by half bucket width
-          bucketCenterY - (this.bucket.height / 2)    // Move up by full bucket height
-      );
-      
-      // Increased scale for active shield (3x larger)
+      // Move to the bucket's center
+      this.ctx.translate(bucketCenterX, bucketCenterY - this.bucket.height / 2);
+    
+      // Scale for shield effect
       const scale = 1.5; // 3x larger than original 1.5
       this.ctx.scale(scale, scale);
-      
-      // Clip to top half
+    
+      // Clip to the top half of the circle
       this.ctx.beginPath();
-      this.ctx.arc(180, 0, this.bucket.width, Math.PI, 0, true);
+      this.ctx.arc(0, 0, this.bucket.width / 2, Math.PI, 0, false); // Top half
+      this.ctx.lineTo(this.bucket.width / 2, 0); // Line to the right edge
+      this.ctx.lineTo(-this.bucket.width / 2, 0); // Line to the left edge
+      this.ctx.closePath(); // Close the path to ensure proper clipping
       this.ctx.clip();
-      
+    
       // Brighter gradient for active shield
       const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
       gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
@@ -615,13 +615,14 @@ class BloodGameManager {
       
       this.ctx.fillStyle = gradient;
       this.ctx.fill(new Shield(0).createHeartPath());
-
+    
       // Add particles for active shield
       this.updateActiveShieldParticles();
       this.drawActiveShieldParticles();
       
       this.ctx.restore();
     }
+    
 
     // New methods for active shield particles
     updateActiveShieldParticles() {
