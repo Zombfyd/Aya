@@ -27,6 +27,8 @@ class BloodGameManager {
     this.redtears = [];
     this.blacktears = [];
     this.splashes = [];
+    this.shields = [];
+    this.magnets = [];
     this.bucket = null;
     
     // Game progression variables
@@ -73,10 +75,6 @@ class BloodGameManager {
     this.shieldTimer = null;
     this.magnetActive = false;
     this.magnetTimer = null;
-
-    // Add shield and magnet arrays
-    this.shields = [];
-    this.magnets = [];
   }
 
   // Image Loading Method
@@ -173,33 +171,27 @@ class BloodGameManager {
       if (timer) clearTimeout(timer);
     });
     
-    if (this.shieldTimer) clearTimeout(this.shieldTimer);
-    if (this.magnetTimer) clearTimeout(this.magnetTimer);
-    
     // Start tear spawning
     this.spawnTeardrop();
     this.spawnGoldtear();
     this.spawnRedtear();
     this.spawnBlacktear();
     
-    // Start shield spawning with initial delay
+    // Start power-up spawning with delays
     setTimeout(() => {
       if (this.gameActive) {
         this.spawnShield();
       }
-    }, 1000);
+    }, 10000); // First shield after 10 seconds
 
-    // Start magnet spawning with offset delay
     setTimeout(() => {
       if (this.gameActive) {
         this.spawnMagnet();
       }
-    }, 15000);
+    }, 20000); // First magnet after 20 seconds
 
     // Start game loop
-    if (!this.gameLoopId) {
-      this.gameLoop();
-    }
+    this.gameLoop();
     
     return true;
   }
