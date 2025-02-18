@@ -27,8 +27,6 @@ class BloodGameManager {
     this.redtears = [];
     this.blacktears = [];
     this.splashes = [];
-    this.shields = [];
-    this.magnets = [];
     this.bucket = null;
     
     // Game progression variables
@@ -41,8 +39,7 @@ class BloodGameManager {
       goldtear: null,
       redtear: null,
       blacktear: null,
-      shield: null,
-      magnet: null
+      shield: null
     };
 
     // Load and manage game images - using direct URLs for now
@@ -73,8 +70,6 @@ class BloodGameManager {
     this.shield = null;
     this.shieldActive = false;
     this.shieldTimer = null;
-    this.magnetActive = false;
-    this.magnetTimer = null;
   }
 
   // Image Loading Method
@@ -151,58 +146,30 @@ class BloodGameManager {
 
   // Game Control Methods
   startGame(mode = 'free') {
-    // Initialize game state
-    this.gameActive = true;
-    this.score = 0;
-    this.lives = 10;
-    this.speedMultiplier = 1;
-    this.lastCheckpoint = 0;
-    this.shieldActive = false;
-    this.magnetActive = false;
+    // Force a canvas resize before starting the game
+    this.resizeCanvas();
     
-    // Clear all entities
-    this.teardrops = [];
-    this.goldtears = [];
-    this.redtears = [];
-    this.blacktears = [];
-    this.splashes = [];
-    this.shields = [];
-    this.magnets = [];
-    
-    // Clear all timers
-    if (this.gameLoopId) {
-      cancelAnimationFrame(this.gameLoopId);
-      this.gameLoopId = null;
-    }
-    
-    Object.values(this.spawnTimers).forEach(timer => {
-      if (timer) clearTimeout(timer);
-    });
-    
-    if (this.shieldTimer) clearTimeout(this.shieldTimer);
-    if (this.magnetTimer) clearTimeout(this.magnetTimer);
-    
-    // Start spawning tears
-    this.spawnTeardrop();
-    this.spawnGoldtear();
-    this.spawnRedtear();
-    this.spawnBlacktear();
-    
-    // Start power-ups with delay
+    this.cleanup();
+    this.initGame();
+    this.gameMode = mode;
+
+    // Start spawning tears with a delay
     setTimeout(() => {
       if (this.gameActive) {
+        this.spawnTeardrop();
+        this.spawnGoldtear();
+        this.spawnRedtear();
+        this.spawnBlacktear();
         this.spawnShield();
       }
-    }, 10000);
-
-    setTimeout(() => {
-      if (this.gameActive) {
-        this.spawnMagnet();
-      }
-    }, 20000);
+    }, 1000);
 
     // Start the game loop
-    this.gameLoop();
+    if (!this.gameLoopId) {
+      this.gameLoop();
+    }
+    
+    return true;
   }
 
   cleanup() {
@@ -222,8 +189,7 @@ class BloodGameManager {
       goldtear: null,
       redtear: null,
       blacktear: null,
-      shield: null,
-      magnet: null
+      shield: null
     };
 
     // Clear entities
@@ -328,42 +294,28 @@ class BloodGameManager {
 
   spawnShield() {
     if (!this.gameActive) return;
-    const shield = new Shield(this.canvas.width);
-    this.shields.push(shield);
-    this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 10000 + 15000);
-  }
-
-  spawnMagnet() {
-    if (!this.gameActive) return;
-    const magnet = new Magnet(this.canvas.width);
-    this.magnets.push(magnet);
-    this.spawnTimers.magnet = setTimeout(() => this.spawnMagnet(), Math.random() * 15000 + 20000);
+    this.shield = new Shield(this.canvas.width);
+    this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 15000 + 10000); // 10-25 seconds
   }
 
   // Game Update Methods
   updateGame() {
-    if (!this.gameActive) return;
+    this.updateEntities(this.teardrops, false, false, false);
+    this.updateEntities(this.goldtears, true, false, false);
+    this.updateEntities(this.redtears, false, true, false);
+    this.updateEntities(this.blacktears, false, false, true);
 
-    // Update all entities
-    this.teardrops.forEach(tear => tear.update());
-    this.goldtears.forEach(tear => tear.update());
-    this.redtears.forEach(tear => tear.update());
-    this.blacktears.forEach(tear => tear.update());
-    
-    // Update splashes and remove finished ones
-    this.splashes = this.splashes.filter(splash => splash.update());
+    this.splashes = this.splashes.filter(splash => {
+      splash.update();
+      return splash.opacity > 0;
+    });
 
-    // Check collisions
-    this.checkCollisions();
+    if (this.score >= this.lastCheckpoint + 100) {
+      this.speedMultiplier *= 1.1;
+      this.lastCheckpoint = this.score;
+    }
 
-    // Remove tears that are off screen
-    this.teardrops = this.teardrops.filter(tear => tear.y < this.canvas.height);
-    this.goldtears = this.goldtears.filter(tear => tear.y < this.canvas.height);
-    this.redtears = this.redtears.filter(tear => tear.y < this.canvas.height);
-    this.blacktears = this.blacktears.filter(tear => tear.y < this.canvas.height);
-
-    // Check if game should end
-    if (this.lives <= 0) {
+    if (this.lives <= 0 && this.gameActive) {
       this.gameActive = false;
       if (this.onGameOver) {
         this.onGameOver(this.score);
@@ -412,71 +364,52 @@ class BloodGameManager {
 
   // Collision Detection
   checkCollision(entity, bucket) {
-    const entityWidth = entity.hitboxWidth || entity.width;
-    const entityHeight = entity.hitboxHeight || entity.height;
-
+    // For Shield entity, use center-point collision
+    if (entity instanceof Shield) {
+      const entityCenterX = entity.x + entity.width / 2;
+      const bucketCenterX = bucket.x + bucket.width / 2;
+      const entityCenterY = entity.y + entity.height / 2;
+      
+      // Calculate distance between centers
+      const xDistance = Math.abs(entityCenterX - bucketCenterX);
+      const yInRange = entityCenterY > bucket.y && entityCenterY < bucket.y + bucket.height;
+      
+      // Collision occurs when centers are close and y is in range
+      return xDistance < bucket.width/2 && yInRange;
+    }
+    
+    // For other entities (tears), keep the original box collision
     return (
       entity.x < bucket.x + bucket.width &&
-      entity.x + entityWidth > bucket.x &&
+      entity.x + entity.width > bucket.x &&
       entity.y < bucket.y + bucket.height &&
-      entity.y + entityHeight > bucket.y
+      entity.y + entity.height > bucket.y
     );
   }
 
   handleCollision(entity, isGold, isRed, isBlack) {
-    const splashX = entity.x + entity.width / 2;
-    const splashY = this.bucket.y;
+  const splashX = entity.x + entity.width / 2;
+  const splashY = this.bucket.y;
 
-    // Handle shield collision
-    if (entity instanceof Shield && !entity.active) {
-      entity.active = true;
-      entity.startTime = Date.now();
-      this.shieldActive = true;
-      if (this.shieldTimer) clearTimeout(this.shieldTimer);
-      this.shieldTimer = setTimeout(() => {
-        this.shieldActive = false;
-        entity.active = false;
-        // Remove the shield after it expires
-        this.shields = this.shields.filter(s => s !== entity);
-      }, entity.duration);
-      return;
-    }
-
-    // Handle magnet collision
-    if (entity instanceof Magnet && !entity.active) {
-      entity.active = true;
-      entity.startTime = Date.now();
-      this.magnetActive = true;
-      if (this.magnetTimer) clearTimeout(this.magnetTimer);
-      this.magnetTimer = setTimeout(() => {
-        this.magnetActive = false;
-        entity.active = false;
-        // Remove the magnet after it expires
-        this.magnets = this.magnets.filter(m => m !== entity);
-      }, entity.duration);
-      return;
-    }
-
-    // Handle tear collisions
-    if (isGold) {
+  if (isGold) {
       this.score += 25;
       this.splashes.push(new GoldSplash(splashX, splashY));
-    } else if (isRed) {
+  } else if (isRed) {
       if (this.shieldActive) {
-        this.score += 1;
-        this.splashes.push(new RedSplash(splashX, splashY));
+          this.score += 1;  // Award 1 point when shield is active
+          this.splashes.push(new RedSplash(splashX, splashY));
       } else {
-        this.lives--;
-        this.splashes.push(new RedSplash(splashX, splashY));
+          this.lives--;  // Only reduce lives if shield is not active
+          this.splashes.push(new RedSplash(splashX, splashY));
       }
-    } else if (isBlack) {
+  } else if (isBlack) {
       this.lives++;
       this.splashes.push(new GreenSplash(splashX, splashY));
-    } else {
+  } else {
       this.score += 1;
       this.splashes.push(new BlueSplash(splashX, splashY));
-    }
   }
+}
 
   // Drawing Methods
   drawGame() {
@@ -617,8 +550,7 @@ drawUI() {
       { text: 'Gold Tear = 25 points', color: '#FFD04D', y: 70 },
       { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
       { text: 'Green Tear = +1 life', color: '#39B037', y: 110 },
-      { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 },
-      { text: 'Magnet = 5.0 Secs', color: '#4169E1', y: 150 }
+      { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 }
     ];
 
     legends.forEach(({ text, color, y }) => {
@@ -632,41 +564,14 @@ drawUI() {
     if (!this.gameActive) return;
 
     try {
-      // Update game state
       this.updateGame();
       this.drawGame();
-
-      // Request next frame
-      this.gameLoopId = requestAnimationFrame(() => this.gameLoop());
-
-      // Update and filter entities
-      if (this.shields) {
-        this.shields = this.shields.filter(shield => {
-          if (!shield) return false;
-          shield.update();
-          if (shield.active) return true;
-          return shield.y < this.canvas.height;
-        });
-      }
-
-      if (this.magnets) {
-        this.magnets = this.magnets.filter(magnet => {
-          if (!magnet) return false;
-          magnet.update();
-          if (magnet.active) return true;
-          return magnet.y < this.canvas.height;
-        });
-      }
-
+      this.gameLoopId = requestAnimationFrame(this.gameLoop);
     } catch (error) {
       console.error('Error in game loop:', error);
-      console.error(error.stack); // Add stack trace for debugging
-      // Don't stop the game on error unless necessary
-      if (error.critical) {
-        this.gameActive = false;
-        if (this.onGameOver) {
-          this.onGameOver(this.score);
-        }
+      this.gameActive = false;
+      if (this.onGameOver) {
+        this.onGameOver(this.score);
       }
     }
   }
@@ -1017,24 +922,21 @@ class GreenSplash extends BaseSplash {
 class Shield extends Entity {
   constructor(canvasWidth) {
     super(
-      Math.random() * (canvasWidth - 100),
+      Math.random() * (canvasWidth - 100), // Adjusted for larger size
       20,
-      40, // Increased from 40
-      40, // Increased from 40
+      40, // 2x larger (40 * 5)
+      40, // 2x larger
       2
     );
     this.active = false;
     this.duration = 7500;
     this.particles = [];
     this.heartShape = this.createHeartPath();
-    this.startTime = null;
-    // Add larger hitbox
-    this.hitboxWidth = 80;
-    this.hitboxHeight = 80;
   }
 
   createHeartPath() {
     const path = new Path2D();
+    // Create heart shape path
     path.moveTo(20, 10);
     path.bezierCurveTo(20, 7, 16, 0, 10, 0);
     path.bezierCurveTo(1, 0, 0, 10, 0, 10);
@@ -1048,12 +950,13 @@ class Shield extends Entity {
   draw(ctx) {
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.scale(1.0, 1.0);
+    ctx.scale(1.0, 1.0); // Increased scale for larger heart
 
+    // Brighter gradient for the shield
     const gradient = ctx.createRadialGradient(40, 40, 0, 40, 40, 80);
-    gradient.addColorStop(0, 'rgba(255, 182, 193, 0.9)');
-    gradient.addColorStop(0.6, 'rgba(255, 192, 203, 0.7)');
-    gradient.addColorStop(1, 'rgba(255, 105, 180, 0.4)');
+    gradient.addColorStop(0, 'rgba(255, 182, 193, 0.9)'); // Brighter pink core
+    gradient.addColorStop(0.6, 'rgba(255, 192, 203, 0.7)'); // Mid pink
+    gradient.addColorStop(1, 'rgba(255, 105, 180, 0.4)'); // Outer edge
 
     ctx.fillStyle = gradient;
     ctx.fill(this.heartShape);
@@ -1065,13 +968,14 @@ class Shield extends Entity {
   }
 
   updateParticles() {
+    // More particles
     if (Math.random() < 0.4) {
       this.particles.push({
-        x: Math.random() * 60,
+        x: Math.random() * 60, // Larger area
         y: Math.random() * 60,
-        size: Math.random() * 5 + 2,
+        size: Math.random() * 5 + 2, // Larger particles
         life: 1,
-        vx: (Math.random() - 0.5) * 3,
+        vx: (Math.random() - 0.5) * 3, // Faster movement
         vy: (Math.random() - 0.5) * 3
       });
     }
@@ -1079,7 +983,7 @@ class Shield extends Entity {
     this.particles = this.particles.filter(p => {
       p.x += p.vx;
       p.y += p.vy;
-      p.life -= 0.015;
+      p.life -= 0.015; // Slower fade
       return p.life > 0;
     });
   }
@@ -1092,130 +996,7 @@ class Shield extends Entity {
       ctx.fill();
     });
   }
-
-  // Add method to check collisions with larger hitbox
-  checkCollision(entity) {
-    return (
-      this.x < entity.x + entity.width &&
-      this.x + this.hitboxWidth > entity.x &&
-      this.y < entity.y + entity.height &&
-      this.y + this.hitboxHeight > entity.y
-    );
-  }
 }
 
-class Magnet extends Entity {
-  constructor(canvasWidth) {
-    super(
-      Math.random() * (canvasWidth - 60),
-      20,
-      30, // Increased from 30
-      30, // Increased from 30
-      2
-    );
-    this.active = false;
-    this.duration = 5000;
-    this.startTime = null;
-    this.lightningParticles = [];
-    this.attractionRadius = 200;
-    // Add larger hitbox
-    this.hitboxWidth = 70;
-    this.hitboxHeight = 70;
-  }
-
-  draw(ctx) {
-    ctx.save();
-    ctx.translate(this.x, this.y);
-
-    // Pulse effect
-    this.pulsePhase += 0.1;
-    const scale = 1 + Math.sin(this.pulsePhase) * 0.1;
-    ctx.scale(scale, scale);
-
-    // Draw magnet body
-    ctx.beginPath();
-    ctx.fillStyle = 'rgba(192, 192, 192, 0.9)';
-    ctx.arc(15, 15, 12, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw magnetic field lines
-    this.drawMagneticField(ctx);
-    
-    // Draw particles
-    this.updateParticles();
-    this.drawParticles(ctx);
-
-    ctx.restore();
-  }
-
-  drawMagneticField(ctx) {
-    const time = Date.now() * 0.001;
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2 + time;
-      const radius = 20;
-      
-      ctx.beginPath();
-      ctx.strokeStyle = `rgba(65, 105, 225, ${0.5 + Math.sin(time + i) * 0.2})`;
-      ctx.lineWidth = 2;
-      
-      const x1 = 15 + Math.cos(angle) * radius;
-      const y1 = 15 + Math.sin(angle) * radius;
-      const x2 = 15 + Math.cos(angle + 0.5) * (radius * 0.5);
-      const y2 = 15 + Math.sin(angle + 0.5) * (radius * 0.5);
-      
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-    }
-  }
-
-  updateParticles() {
-    if (Math.random() < 0.3) {
-      this.particles.push({
-        x: 15 + (Math.random() - 0.5) * 30,
-        y: 15 + (Math.random() - 0.5) * 30,
-        size: Math.random() * 3 + 1,
-        life: 1,
-        vx: (Math.random() - 0.5) * 2,
-        vy: (Math.random() - 0.5) * 2
-      });
-    }
-
-    this.particles = this.particles.filter(p => {
-      // Particle movement affected by magnetic field
-      const dx = 15 - p.x;
-      const dy = 15 - p.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      p.vx += dx / dist * 0.1;
-      p.vy += dy / dist * 0.1;
-      
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life -= 0.02;
-      return p.life > 0;
-    });
-  }
-
-  drawParticles(ctx) {
-    this.particles.forEach(p => {
-      ctx.beginPath();
-      ctx.fillStyle = `rgba(65, 105, 225, ${p.life})`;
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }
-
-  // Add method to check collisions with larger hitbox
-  checkCollision(entity) {
-    return (
-      this.x < entity.x + entity.width &&
-      this.x + this.hitboxWidth > entity.x &&
-      this.y < entity.y + entity.height &&
-      this.y + this.hitboxHeight > entity.y
-    );
-  }
-}
-
-// Export the class
+// Create and export the game manager instance
 export { BloodGameManager };
