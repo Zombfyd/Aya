@@ -1839,6 +1839,9 @@ const handleSuinsChange = (e) => {
                         try {
                           await handleScoreSubmit(gameState.score, 'free', 
                             window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                          // After submitting the score, restart the game
+                          resetGameState();
+                          restartGame(window.activeGameManager === window.gameManager1 ? 'aya' : 'blood');
                         } catch (error) {
                           console.error('Error submitting to free leaderboard:', error);
                         }
@@ -1856,6 +1859,9 @@ const handleSuinsChange = (e) => {
                     try {
                       await handleScoreSubmit(gameState.score, 'free', 
                         window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                      // After submitting the score, restart the game
+                      resetGameState();
+                      restartGame(window.activeGameManager === window.gameManager1 ? 'aya' : 'blood');
                     } catch (error) {
                       console.error('Error submitting to free leaderboard:', error);
                     }
@@ -1863,7 +1869,7 @@ const handleSuinsChange = (e) => {
                   className="submit-free-button"
                   disabled={transactionInProgress}
                 >
-                  Submit to Free Leaderboard
+                  Submit and Play Again
                 </button>
               )}
             </div>
