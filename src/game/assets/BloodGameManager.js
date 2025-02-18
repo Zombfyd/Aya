@@ -39,8 +39,7 @@ class BloodGameManager {
       goldtear: null,
       redtear: null,
       blacktear: null,
-      shield: null,
-      magnet: null
+      shield: null
     };
 
     // Load and manage game images - using direct URLs for now
@@ -71,11 +70,6 @@ class BloodGameManager {
     this.shield = null;
     this.shieldActive = false;
     this.shieldTimer = null;
-
-    this.magnetActive = false;
-    this.magnetTimer = null;
-    this.magnetParticles = [];
-    this.magnetRange = 200; // Range of magnetic effect
   }
 
   // Image Loading Method
@@ -167,7 +161,6 @@ class BloodGameManager {
         this.spawnRedtear();
         this.spawnBlacktear();
         this.spawnShield();
-        this.spawnMagnet();
       }
     }, 1000);
 
@@ -196,8 +189,7 @@ class BloodGameManager {
       goldtear: null,
       redtear: null,
       blacktear: null,
-      shield: null,
-      magnet: null
+      shield: null
     };
 
     // Clear entities
@@ -303,14 +295,7 @@ class BloodGameManager {
   spawnShield() {
     if (!this.gameActive) return;
     this.shield = new Shield(this.canvas.width);
-    this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 25000 + 10000); // 10-25 seconds
-  }
-
-  spawnMagnet() {
-    if (!this.gameActive) return;
-    const magnet = new Magnet(this.canvas.width);
-    this.magnet = magnet;
-    this.spawnTimers.magnet = setTimeout(() => this.spawnMagnet(), Math.random() * 20000 + 15000); // 15-35 seconds
+    this.spawnTimers.shield = setTimeout(() => this.spawnShield(), Math.random() * 15000 + 10000); // 10-25 seconds
   }
 
   // Game Update Methods
@@ -346,22 +331,6 @@ class BloodGameManager {
       } else if (this.shield.y > this.canvas.height) {
         this.shield = null;
       }
-    }
-
-    // Update magnet
-    if (this.magnet && !this.magnetActive) {
-      this.magnet.update();
-      if (this.checkCollision(this.magnet, this.bucket)) {
-        this.activateMagnet();
-        this.magnet = null;
-      } else if (this.magnet.y > this.canvas.height) {
-        this.magnet = null;
-      }
-    }
-
-    // Update magnetic effect on tears
-    if (this.magnetActive) {
-      this.updateMagneticEffect();
     }
   }
 
@@ -515,16 +484,6 @@ class BloodGameManager {
       this.drawShieldEffect();
     }
 
-    // Draw magnet if it exists
-    if (this.magnet && !this.magnetActive) {
-      this.magnet.draw(this.ctx);
-    }
-
-    // Draw magnetic effect
-    if (this.magnetActive) {
-      this.drawMagneticEffect();
-    }
-
     // Draw UI with fixed fonts
     this.drawUI();
 }
@@ -591,8 +550,7 @@ drawUI() {
       { text: 'Gold Tear = 25 points', color: '#FFD04D', y: 70 },
       { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
       { text: 'Green Tear = +1 life', color: '#39B037', y: 110 },
-      { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 },
-      { text: 'Magnet = 10 Secs', color: '#00BFFF', y: 150 }
+      { text: 'Heart Shield = 7.5 Secs', color: '#FFC0CB', y: 130 }
     ];
 
     legends.forEach(({ text, color, y }) => {
@@ -627,19 +585,20 @@ drawUI() {
     }, 10000); // 5 seconds of shield
   }
 
+  // Add shield effect drawing method
   drawShieldEffect() {
     const bucketCenterX = this.bucket.x + this.bucket.width / 2;
     const bucketCenterY = this.bucket.y + this.bucket.height / 2;
     
-    // Draw heart
     this.ctx.save();
-    const heartY = bucketCenterY - (this.bucket.height / 2);
+    // Adjust translation to position heart up and to the right of bucket
     this.ctx.translate(
-        bucketCenterX,  
-        heartY  // Store heart position for countdown text
+        bucketCenterX,  // Move left by half bucket width
+        bucketCenterY - (this.bucket.height / 2)    // Move up by full bucket height
     );
     
-    const scale = 1.0;
+    // Increased scale for active shield (3x larger)
+    const scale = 1.5; // 3x larger than original 1.5
     this.ctx.scale(scale, scale);
     
     // Brighter gradient for active shield
@@ -651,63 +610,38 @@ drawUI() {
     
     this.ctx.fillStyle = gradient;
     this.ctx.fill(new Shield(0).createHeartPath());
-    
-    // Draw countdown if in last 3 seconds
-    const timeRemaining = (this.shieldTimer - Date.now()) / 1000;
-    if (timeRemaining <= 3) {
-      this.ctx.fillStyle = 'white';
-      this.ctx.strokeStyle = 'rgba(255, 20, 145, 0.8)';
-      this.ctx.lineWidth = 2;
-      this.ctx.font = 'bold 20px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      const countdown = Math.ceil(timeRemaining).toString();
-      this.ctx.strokeText(countdown, 0, 0);
-      this.ctx.fillText(countdown, 0, 0);
-    }
-    
-    this.ctx.restore();
-    
-    // Draw particle ring
-    this.ctx.save();
-    this.ctx.translate(
-        bucketCenterX,
-        bucketCenterY + this.bucket.height
-    );
+
+    // Add particles for active shield
     this.updateActiveShieldParticles();
     this.drawActiveShieldParticles();
+    
     this.ctx.restore();
   }
 
+  // New methods for active shield particles
   updateActiveShieldParticles() {
     if (!this.activeShieldParticles) {
       this.activeShieldParticles = [];
     }
-    
+
     // Add more particles for active shield
     if (Math.random() < 0.5) {
-      // Restrict angle to upper half circle (-PI/4 to -3PI/4)
-      const angle = (-Math.PI / 4) + (Math.random() * -Math.PI / 2);
+      const angle = Math.random() * Math.PI * 2;
       const radius = this.bucket.width * 0.6;
       this.activeShieldParticles.push({
         x: Math.cos(angle) * radius,
         y: Math.sin(angle) * radius,
-        size: Math.random() * 8 + 4,
+        size: Math.random() * 8 + 4, // Larger particles
         life: 1,
         angle: angle,
         speed: Math.random() * 2 + 1,
         radius: radius
       });
     }
-    
+
     // Update existing particles
     this.activeShieldParticles = this.activeShieldParticles.filter(p => {
-      // Restrict particle movement to upper half
-      const newAngle = p.angle + p.speed * 0.02;
-      // Only update angle if it stays within our desired range
-      if (newAngle >= -3 * Math.PI / 4 && newAngle <= -Math.PI / 4) {
-        p.angle = newAngle;
-      }
+      p.angle += p.speed * 0.02;
       p.x = Math.cos(p.angle) * p.radius;
       p.y = Math.sin(p.angle) * p.radius;
       p.life -= 0.01;
@@ -717,6 +651,7 @@ drawUI() {
 
   drawActiveShieldParticles() {
     if (!this.activeShieldParticles) return;
+
     this.activeShieldParticles.forEach(p => {
       this.ctx.beginPath();
       const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
@@ -727,107 +662,6 @@ drawUI() {
       this.ctx.fill();
     });
   }
-
-activateMagnet() {
-  this.magnetActive = true;
-  if (this.magnetTimer) clearTimeout(this.magnetTimer);
-  this.magnetTimer = setTimeout(() => {
-    this.magnetActive = false;
-    this.magnetParticles = [];
-  }, 5000); // 5 seconds of magnet effect
-}
-
-updateMagneticEffect() {
-  const bucketCenterX = this.bucket.x + this.bucket.width / 2;
-  const bucketCenterY = this.bucket.y + this.bucket.height / 2;
-
-  // Arrays to process
-  const attractableTears = [
-    ...this.teardrops,  // blue tears
-    ...this.goldtears,  // gold tears
-    ...this.blacktears  // green tears
-  ];
-
-  attractableTears.forEach(tear => {
-    const tearCenterX = tear.x + tear.width / 2;
-    const tearCenterY = tear.y + tear.height / 2;
-    
-    const dx = bucketCenterX - tearCenterX;
-    const dy = bucketCenterY - tearCenterY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    if (distance < this.magnetRange) {
-      // Calculate magnetic pull strength (stronger when closer)
-      const pullStrength = (1 - distance / this.magnetRange) * 2;
-      
-      // Move tear towards bucket
-      tear.x += dx * pullStrength * 0.05;
-      tear.y += dy * pullStrength * 0.05;
-      
-      // Create lightning particle effect
-      if (Math.random() < 0.2) {
-        this.createLightningParticle(tearCenterX, tearCenterY, bucketCenterX, bucketCenterY);
-      }
-    }
-  });
-
-  // Update existing lightning particles
-  this.magnetParticles = this.magnetParticles.filter(particle => {
-    particle.life -= 0.1;
-    return particle.life > 0;
-  });
-}
-
-createLightningParticle(startX, startY, endX, endY) {
-  const points = this.generateLightningPoints(startX, startY, endX, endY);
-  this.magnetParticles.push({
-    points: points,
-    life: 1,
-    color: 'rgba(0, 191, 255, ' // Cyan color for lightning
-  });
-}
-
-generateLightningPoints(startX, startY, endX, endY) {
-  const points = [{x: startX, y: startY}];
-  const segments = 5;
-  const displacement = 20;
-  
-  for (let i = 1; i < segments; i++) {
-    const t = i / segments;
-    const x = startX + (endX - startX) * t + (Math.random() - 0.5) * displacement;
-    const y = startY + (endY - startY) * t + (Math.random() - 0.5) * displacement;
-    points.push({x, y});
-  }
-  
-  points.push({x: endX, y: endY});
-  return points;
-}
-
-drawMagneticEffect() {
-  // Draw lightning particles
-  this.magnetParticles.forEach(particle => {
-    this.ctx.beginPath();
-    this.ctx.strokeStyle = particle.color + particle.life + ')';
-    this.ctx.lineWidth = 2;
-    
-    const points = particle.points;
-    this.ctx.moveTo(points[0].x, points[0].y);
-    
-    for (let i = 1; i < points.length; i++) {
-      this.ctx.lineTo(points[i].x, points[i].y);
-    }
-    
-    this.ctx.stroke();
-  });
-  
-  // Draw magnetic field indicator
-  const bucketCenterX = this.bucket.x + this.bucket.width / 2;
-  const bucketCenterY = this.bucket.y + this.bucket.height / 2;
-  
-  this.ctx.beginPath();
-  this.ctx.strokeStyle = 'rgba(0, 191, 255, 0.2)';
-  this.ctx.arc(bucketCenterX, bucketCenterY, this.magnetRange, 0, Math.PI * 2);
-  this.ctx.stroke();
 }
 
 /**
@@ -1090,8 +924,8 @@ class Shield extends Entity {
     super(
       Math.random() * (canvasWidth - 100), // Adjusted for larger size
       20,
-      40, // 2x larger (40 * 5)
-      40, // 2x larger
+      120, // 2x larger (40 * 5)
+      120, // 2x larger
       2
     );
     this.active = false;
@@ -1116,7 +950,7 @@ class Shield extends Entity {
   draw(ctx) {
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.scale(2.0, 2.0); // Increased scale for larger heart
+    ctx.scale(1.5, 1.5); // Increased scale for larger heart
 
     // Brighter gradient for the shield
     const gradient = ctx.createRadialGradient(40, 40, 0, 40, 40, 80);
@@ -1164,44 +998,5 @@ class Shield extends Entity {
   }
 }
 
-class Magnet extends Entity {
-  constructor(canvasWidth) {
-    super(
-      Math.random() * (canvasWidth - 40),
-      20,
-      40,
-      40,
-      2
-    );
-  }
-
-  draw(ctx) {
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    
-    // Draw horseshoe magnet shape
-    ctx.beginPath();
-    ctx.strokeStyle = '#FF0000';
-    ctx.lineWidth = 4;
-    
-    // Draw the horseshoe
-    ctx.arc(20, 10, 15, 0, Math.PI, true);
-    ctx.moveTo(5, 10);
-    ctx.lineTo(5, 30);
-    ctx.moveTo(35, 10);
-    ctx.lineTo(35, 30);
-    
-    ctx.stroke();
-    
-    // Draw the poles
-    ctx.fillStyle = '#FF0000';
-    ctx.fillText('N', 2, 40);
-    ctx.fillText('S', 32, 40);
-    
-    ctx.restore();
-  }
-}
-
 // Create and export the game manager instance
 export { BloodGameManager };
-
