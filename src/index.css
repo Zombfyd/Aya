@@ -1141,3 +1141,35 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 .game-info-popup .start-button:hover {
   background: #1643a0;
 }
+.game-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.header-controls {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.view-tutorial-button {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+  margin: 0 10px;
+}
+
+.view-tutorial-button:hover {
+  background: #357abd;
+}
+
+.view-tutorial-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}

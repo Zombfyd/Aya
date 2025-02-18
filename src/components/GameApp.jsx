@@ -1422,36 +1422,26 @@ const handleSuinsChange = (e) => {
 
   // Update this useEffect to properly handle the popup state
   useEffect(() => {
-    // Check both localStorage (permanent) and sessionStorage (temporary)
-    const permanentlyClosed = localStorage.getItem('hasSeenGameTutorial');
-    const temporarilyClosed = sessionStorage.getItem('hasSeenGameTutorial');
-    
-    if (!permanentlyClosed && !temporarilyClosed) {
+    const hasSeenTutorial = localStorage.getItem('neverShowTutorial') === 'true';
+    if (!hasSeenTutorial) {
       setShowGameInfoPopup(true);
     }
   }, []);
 
   // Update the handlePopupClose function
-  const handlePopupClose = () => {
-    // Add a small delay before hiding the popup to ensure animations complete
-    setTimeout(() => {
-      setShowGameInfoPopup(false);
-      localStorage.setItem('hasSeenGameTutorial', 'true');
-    }, 100);
+  const handlePopupClose = (dontShowAgain) => {
+    if (dontShowAgain) {
+      localStorage.setItem('neverShowTutorial', 'true');
+    }
+    setShowGameInfoPopup(false);
   };
 
-  // Update the GameInfoPopup component to include transition styles
+  // Update the GameInfoPopup component
   const GameInfoPopup = ({ onClose }) => {
     const [dontShowAgain, setDontShowAgain] = useState(false);
 
     const handleClose = () => {
-      if (dontShowAgain) {
-        localStorage.setItem('hasSeenGameTutorial', 'true');
-      } else {
-        // If they don't check "don't show again", we'll show it next time
-        sessionStorage.setItem('hasSeenGameTutorial', 'true');
-      }
-      onClose();
+      onClose(dontShowAgain);
     };
 
     return (
@@ -1555,6 +1545,14 @@ const handleSuinsChange = (e) => {
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
           <div className="title">Tears of Aya</div>
+          <div className="header-controls">
+            <button 
+              onClick={() => setShowGameInfoPopup(true)} 
+              className="view-tutorial-button"
+            >
+              View Tutorial
+            </button>
+          </div>
           <div className="username-input-container">
             {!isUsernameSubmitted ? (
               <form onSubmit={handleUsernameSubmit}>
