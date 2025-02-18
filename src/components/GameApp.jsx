@@ -487,47 +487,6 @@ const TokenAmount = ({ amount, symbol }) => {
                 if (!paymentStatus.verified || !paymentStatus.transactionId) {
                     throw new Error('Payment verification failed - no valid payment found');
                 }
-
-                // Double-check the transaction
-                const txVerification = await wallet.getTransactionBlock({
-                    digest: paymentStatus.transactionId,
-                    options: {
-                        showEvents: true,
-                        showEffects: true,
-                    }
-                });
-
-                // Verify transaction exists and is valid
-                if (!txVerification || !txVerification.effects) {
-                    throw new Error('Transaction verification failed');
-                }
-
-                // Verify payment amount and recipient
-                const recipients = config.getCurrentRecipients();
-                let verifiedAmount = 0;
-                let correctRecipient = false;
-
-                txVerification.effects.created?.forEach(effect => {
-                    if (effect.owner === recipients.primary) {
-                        verifiedAmount += Number(effect.amount || 0);
-                        correctRecipient = true;
-                    }
-                });
-
-                // Get the expected payment amount based on tier
-                const expectedAmount = selectedTier ? 
-                    config.paymentTiers[selectedTier].amount : 
-                    config.scoreSubmissionTiers[qualifyingTier]?.amount;
-
-                if (!correctRecipient || verifiedAmount < expectedAmount) {
-                    throw new Error('Payment verification failed - invalid amount or recipient');
-                }
-
-                // Verify payment timestamp is recent (within last hour)
-                const txTimestamp = txVerification.timestampMs || Date.now();
-                if (Date.now() - txTimestamp > 3600000) { // 1 hour in milliseconds
-                    throw new Error('Payment verification failed - transaction too old');
-                }
             }
 
             // Submit score with verification data
