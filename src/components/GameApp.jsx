@@ -1830,38 +1830,24 @@ const handleSuinsChange = (e) => {
                           }
 
                           console.log('Transaction successful:', response.digest);
-                          
-                          // Set payment verification states
-                          setPaymentStatus({
-                            verified: true,
-                            transactionId: response.digest,
-                            error: null,
-                            amount: totalAmount,
-                            timestamp: Date.now(),
-                            recipient: recipients.primary
-                          });
 
-                          setGameState(prev => ({
-                            ...prev,
-                            hasValidPayment: true,
-                            currentSessionId: response.digest
-                          }));
-
-                          // Wait for states to update
-                          await new Promise(resolve => setTimeout(resolve, 5000));
-
-                          // Submit score with payment details
+                          // Submit score immediately after successful transaction
                           console.log('Submitting score to paid leaderboard:', {
                             score: scoreToSubmit,
                             gameType: currentGameType,
                             transactionId: response.digest
                           });
 
-                          await handleScoreSubmit(scoreToSubmit, 'paid', currentGameType, {
+                          const paymentDetails = {
                             transactionId: response.digest,
                             amount: totalAmount,
-                            timestamp: Date.now()
-                          });
+                            timestamp: Date.now(),
+                            recipient: recipients.primary,
+                            verified: true  // Transaction was successful, so we consider it verified
+                          };
+
+                          // Submit score with transaction details
+                          await handleScoreSubmit(scoreToSubmit, 'paid', currentGameType, paymentDetails);
                           
                           setQualifiedForPaid(false);
                           setQualifyingTier(null);
