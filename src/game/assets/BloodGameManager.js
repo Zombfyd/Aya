@@ -579,17 +579,19 @@ class BloodGameManager {
     // Add shield activation method
     activateShield() {
       this.shieldActive = true;
+      this.shieldStartTime = Date.now(); // Record the shield start time
+      this.shieldDuration = 10000; // Duration of shield (10 seconds)
+    
       if (this.shieldTimer) clearTimeout(this.shieldTimer);
       this.shieldTimer = setTimeout(() => {
         this.shieldActive = false;
-      }, 10000); // 5 seconds of shield
+      }, this.shieldDuration);
     }
-  
-    // Add shield effect drawing method
+    
     drawShieldEffect() {
       const bucketCenterX = this.bucket.x + this.bucket.width / 2;
       const bucketCenterY = this.bucket.y + this.bucket.height / 2;
-      
+    
       this.ctx.save();
       // Move to the bucket's center
       this.ctx.translate(bucketCenterX, bucketCenterY - this.bucket.height / 2);
@@ -599,12 +601,14 @@ class BloodGameManager {
       this.ctx.scale(scale, scale);
     
       // Clip to the top half of the circle
-      this.ctx.beginPath();
-      this.ctx.arc(0, 0, this.bucket.width / 2, Math.PI, 0, false); // Top half
-      this.ctx.lineTo(this.bucket.width / 2, 0); // Line to the right edge
-      this.ctx.lineTo(-this.bucket.width / 2, 0); // Line to the left edge
-      this.ctx.closePath(); // Close the path to ensure proper clipping
-      this.ctx.clip();
+      // Clip to slightly more than the top half to avoid cutting off particles
+this.ctx.beginPath();
+this.ctx.arc(0, 0, this.bucket.width / 2, Math.PI, 0, false); // Top half
+this.ctx.lineTo(this.bucket.width / 2, this.bucket.height * 0.25); // Extend down slightly
+this.ctx.lineTo(-this.bucket.width / 2, this.bucket.height * 0.25); // Extend down slightly
+this.ctx.closePath();
+this.ctx.clip();
+
     
       // Brighter gradient for active shield
       const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
@@ -612,16 +616,30 @@ class BloodGameManager {
       gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
       gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
       gradient.addColorStop(1, 'rgba(255, 20, 145, 0.5)');
-      
+    
       this.ctx.fillStyle = gradient;
       this.ctx.fill(new Shield(0).createHeartPath());
     
       // Add particles for active shield
       this.updateActiveShieldParticles();
       this.drawActiveShieldParticles();
-      
+    
+      // Calculate remaining shield time
+      const elapsedTime = Date.now() - this.shieldStartTime;
+      const shieldTimeLeft = (this.shieldDuration - elapsedTime) / 1000; // Convert to seconds
+    
+      // Display countdown if in the last 3 seconds
+      if (shieldTimeLeft <= 3 && shieldTimeLeft > 0) {
+        this.ctx.font = "bold 24px Arial";
+        this.ctx.fillStyle = "white";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.fillText(Math.ceil(shieldTimeLeft), 0, 0); // Display countdown
+      }
+    
       this.ctx.restore();
     }
+    
     
 
     // New methods for active shield particles
