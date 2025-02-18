@@ -354,7 +354,7 @@ class BloodGameManager {
     this.magnets = this.magnets.filter(magnet => {
         magnet.update();
         if (this.checkCollision(magnet, this.bucket)) {
-            // Add magnet activation logic here
+            this.activateMagnet();
             return false; // Remove the magnet
         }
         return magnet.y < this.canvas.height;
@@ -1088,24 +1088,37 @@ class Magnet extends Entity {
   }
 
   draw(ctx, bucket, isActive) {
-    super.draw(ctx);
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    
+    // Draw magnet body
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, this.width, this.height);
+    
+    // Draw magnet poles
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(0, 0, this.width * 0.3, this.height * 0.2);
+    ctx.fillStyle = '#0000FF';
+    ctx.fillRect(this.width * 0.7, 0, this.width * 0.3, this.height * 0.2);
     
     // Draw lightning effects when magnet is active
     if (isActive) {
-      const tears = [...window.activeGameManager.teardrops, 
-                    ...window.activeGameManager.goldtears,
-                    ...window.activeGameManager.blacktears];
-      
-      tears.forEach(tear => {
-        this.drawLightningEffect(
-          ctx,
-          bucket.x + bucket.width/2,
-          bucket.y + bucket.height/2,
-          tear.x + tear.width/2,
-          tear.y + tear.height/2
-        );
-      });
+        const tears = [...window.activeGameManager.teardrops, 
+                      ...window.activeGameManager.goldtears,
+                      ...window.activeGameManager.blacktears];
+        
+        tears.forEach(tear => {
+            this.drawLightningEffect(
+                ctx,
+                bucket.x + bucket.width/2,
+                bucket.y + bucket.height/2,
+                tear.x + tear.width/2,
+                tear.y + tear.height/2
+            );
+        });
     }
+    
+    ctx.restore();
   }
 
   update() {
