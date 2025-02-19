@@ -249,7 +249,7 @@ class GameManager {
         // Get parent width to set canvas width dynamically
         const parentWidth = this.canvas.parentNode.offsetWidth;
         // Set canvas width to parent width, but cap it at a maximum width if needed
-        this.canvas.width = Math.min(parentWidth, 800); // Cap at 800px or your desired max width
+        this.canvas.width = Math.min(parentWidth, 1111); // Cap at 800px or your desired max width
         this.canvas.height = 700; // Keep height fixed
 
         // Ensure bucket stays within bounds
@@ -479,69 +479,67 @@ class GameManager {
 drawUI() {
   if (!this.ctx) return;
 
-  // Reset transform and save context state
   this.ctx.save();
   this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Calculate canvas center and edges
-  const canvasCenter = this.canvas.width / 2;
-  const leftEdge = 20; // Minimum padding from left
-  const rightEdge = this.canvas.width - 20; // Minimum padding from right
-
-  // Draw health bars first (keep on left)
-  this.drawHealthBars();
-
-  // Draw score (left aligned after health bar)
-  this.ctx.font = this.UI_SIZES.SCORE_FONT;
+  // Draw score (left side)
+  this.ctx.font = "25px Inconsolata";
   this.ctx.fillStyle = "#f9f9f9";
   this.ctx.textAlign = 'left';
-  this.ctx.fillText(`Score: ${this.score}`, leftEdge + 80, 30);
+  this.ctx.fillText(`Score: ${this.score}`, this.canvas.width * 0.1, 30);
 
-  // Draw speed (right aligned)
+  // Draw speed (right side)
   this.ctx.fillStyle = "#2054c9";
   this.ctx.textAlign = 'right';
-  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, rightEdge, 30);
+  this.ctx.fillText(
+    `Speed ${Math.round(this.speedMultiplier * 10) - 10}`, 
+    this.canvas.width * 0.98, 
+    30
+  );
 
-  // Draw legend (left aligned after health bar)
+  // Draw legend
   this.drawLegend();
+
+  // Draw health bars
+  this.drawHealthBars();
 
   // Warning message (centered)
   if (this.lives <= 5) {
     this.ctx.fillStyle = "#FF4D6D";
-    this.ctx.font = this.UI_SIZES.SCORE_FONT;
+    this.ctx.font = "25px Inconsolata";
     this.ctx.textAlign = 'center';
-    const warningText = "Lives remaining!";
-    this.ctx.fillText(warningText, canvasCenter, 140);
+    this.ctx.fillText(
+      "Lives remaining!", 
+      this.canvas.width * 0.5, 
+      this.canvas.height * 0.2
+    );
     
     this.ctx.font = "bold 48px Inconsolata";
-    const livesCountText = `${this.lives}`;
-    this.ctx.fillText(livesCountText, canvasCenter, 190);
+    this.ctx.fillText(
+      `${this.lives}`, 
+      this.canvas.width * 0.5, 
+      this.canvas.height * 0.27
+    );
   }
 
-  // Restore context state
   this.ctx.restore();
 }
 
   drawLegend() {
     if (!this.ctx) return;
-
-    // Reset transform before drawing legend
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     
-    this.ctx.font = this.UI_SIZES.LEGEND_FONT;
-
-    // Move legend to the right of the health bar
-    const legendX = 100;
+    this.ctx.font = "18px Inconsolata";
+    
     const legends = [
-      { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
-      { text: 'Gold Tear = 15 points', color: '#FFD04D', y: 70 },
-      { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
-      { text: 'Green Tear = +1 life', color: '#39B037', y: 110 }
+      { text: 'Blue Tear = 1 point', color: '#2054c9', y: this.canvas.height * 0.07 },
+      { text: 'Gold Tear = 15 points', color: '#FFD04D', y: this.canvas.height * 0.1 },
+      { text: 'Red Tear = -1 life', color: '#FF4D6D', y: this.canvas.height * 0.13 },
+      { text: 'Green Tear = +1 life', color: '#39B037', y: this.canvas.height * 0.16 }
     ];
 
     legends.forEach(({ text, color, y }) => {
       this.ctx.fillStyle = color;
-      this.ctx.fillText(text, legendX, y);
+      this.ctx.fillText(text, this.canvas.width * 0.1, y);
     });
 }
 
@@ -549,52 +547,42 @@ drawUI() {
   drawHealthBars() {
     if (!this.ctx) return;
 
-    // Position health bar on left side with padding
-    const barX = 20; // Padding from left edge
-    const barY = this.UI_SIZES.HEALTH_BAR_Y;
-    const barWidth = this.UI_SIZES.HEALTH_BAR_WIDTH;
-    const barHeight = this.UI_SIZES.HEALTH_BAR_HEIGHT;
+    // Position health bar relative to canvas dimensions
+    const barWidth = 20;
+    const barHeight = this.canvas.height * 0.3; // 30% of canvas height
+    const barX = this.canvas.width * 0.02; // 2% from left edge
+    const barY = this.canvas.height * 0.4; // 40% from top
 
-    // Draw background for all possible health bars
+    // Draw background
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     this.ctx.fillRect(barX, barY, barWidth, barHeight);
 
-    // Calculate how many full bars and partial bar
+    // Calculate bars
     const currentLives = Math.min(this.lives, this.MAX_LIVES);
     const numFullBars = Math.floor(currentLives / this.LIVES_PER_BAR);
     const partialBarHeight = (currentLives % this.LIVES_PER_BAR) / this.LIVES_PER_BAR;
+    const sectionHeight = barHeight / 5;
 
-    // Draw each full bar
+    // Draw full bars
     for (let i = 0; i < numFullBars; i++) {
       this.ctx.fillStyle = this.HEALTH_COLORS[i];
       this.ctx.fillRect(
         barX,
-        barY + barHeight - ((i + 1) * (barHeight / 5)),
+        barY + barHeight - ((i + 1) * sectionHeight),
         barWidth,
-        barHeight / 5
+        sectionHeight
       );
     }
 
-    // Draw partial bar if any
+    // Draw partial bar
     if (partialBarHeight > 0) {
       this.ctx.fillStyle = this.HEALTH_COLORS[numFullBars];
       this.ctx.fillRect(
         barX,
-        barY + barHeight - (numFullBars * (barHeight / 5)) - (partialBarHeight * (barHeight / 5)),
+        barY + barHeight - (numFullBars * sectionHeight) - (partialBarHeight * sectionHeight),
         barWidth,
-        partialBarHeight * (barHeight / 5)
+        partialBarHeight * sectionHeight
       );
-    }
-
-    // Draw segment lines
-    this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-    this.ctx.lineWidth = 1;
-    for (let i = 1; i < 5; i++) {
-      const y = barY + (i * (barHeight / 5));
-      this.ctx.beginPath();
-      this.ctx.moveTo(barX, y);
-      this.ctx.lineTo(barX + barWidth, y);
-      this.ctx.stroke();
     }
 
     // Draw lives count
