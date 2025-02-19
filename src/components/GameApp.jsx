@@ -1637,71 +1637,107 @@ const handleSuinsChange = (e) => {
 
   // Add NFTDisplay component before the main render
   const NFTDisplay = () => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
     if (!wallet.connected) return null;
 
     const getImageUrl = (nft) => {
-      // Try to get URL from display.data first
-      const displayUrl = nft.data?.display?.data?.image_url;
-      // Fallback to content.fields
-      const fieldsUrl = nft.data?.content?.fields?.image_url;
-      const imageUrl = displayUrl || fieldsUrl;
+      try {
+        console.log('Getting image URL for NFT:', nft);
+        
+        // First try to get URL from display.data
+        const displayUrl = nft?.data?.display?.data?.image_url;
+        if (displayUrl) {
+          console.log('Found display URL:', displayUrl);
+          return handleImageUrl(displayUrl);
+        }
+        
+        // Then try content.fields
+        const fieldsUrl = nft?.data?.content?.fields?.image_url;
+        if (fieldsUrl) {
+          console.log('Found fields URL:', fieldsUrl);
+          return handleImageUrl(fieldsUrl);
+        }
+        
+        // Finally try url field directly
+        const directUrl = nft?.data?.content?.fields?.url;
+        if (directUrl) {
+          console.log('Found direct URL:', directUrl);
+          return handleImageUrl(directUrl);
+        }
 
-      if (!imageUrl) return null;
-
-      // Handle IPFS URLs
-      if (imageUrl.startsWith('ipfs://')) {
-        const ipfsHash = imageUrl.replace('ipfs://', '');
-        return `https://ipfs.io/ipfs/${ipfsHash}`;
+        console.warn('No image URL found for NFT:', nft);
+        return '/placeholder-nft.png';
+      } catch (error) {
+        console.error('Error getting NFT image URL:', error);
+        return '/placeholder-nft.png';
       }
+    };
 
-      return imageUrl;
+    const handleImageUrl = (url) => {
+      if (!url) return '/placeholder-nft.png';
+      
+      // Handle IPFS URLs
+      if (url.startsWith('ipfs://')) {
+        return `https://ipfs.io/ipfs/${url.replace('ipfs://', '')}`;
+      }
+      
+      return url;
     };
 
     return (
       <div className="nft-verification-section">
-        {isLoadingNFTs ? (
-          <div>Verifying NFTs...</div>
-        ) : (
-          <>
-            <h3>NFT Status</h3>
-            {hasValidNFT ? (
-              <div className="nft-status success">
-                <span>✅ You have access to paid games with your NFT!</span>
-                <div className="verified-nfts">
-                  {verifiedNFTs.map((nft, index) => (
-                    <div key={index} className="nft-item">
-                      {getImageUrl(nft) && (
+        <div className="assets-header" onClick={() => setIsExpanded(!isExpanded)}>
+          <h3>NFT Status</h3>
+          <span className={`dropdown-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>
+        </div>
+        <div className={`assets-content ${isExpanded ? 'expanded' : ''}`}>
+          {isLoadingNFTs ? (
+            <div>Verifying NFTs...</div>
+          ) : (
+            <>
+              {hasValidNFT ? (
+                <div className="nft-status success">
+                  <span>✅ You have access to paid games with your NFT!</span>
+                  <div className="verified-nfts">
+                    {verifiedNFTs.map((nft, index) => (
+                      <div key={index} className="nft-item">
                         <img 
                           src={getImageUrl(nft)} 
-                          alt={nft.collectionInfo?.name || 'NFT'} 
+                          alt={nft.data?.content?.fields?.name || nft.collectionInfo?.name || 'NFT'} 
                           className="nft-image"
                           onError={(e) => {
+                            e.target.src = '/placeholder-nft.png';
                             e.target.onerror = null;
-                            e.target.src = 'https://placehold.co/150x150?text=NFT';
                           }}
                         />
-                      )}
-                      <div className="collection-name" title={nft.collectionInfo?.description || ''}>
-                        {nft.collectionInfo?.name || 'Unknown Collection'}
+                        <h4 
+                          className="collection-name" 
+                          title={nft.collectionInfo?.description || 'No description available'}
+                        >
+                          {nft.data?.content?.fields?.name || nft.collectionInfo?.name || 'Unknown NFT'}
+                        </h4>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="nft-status">
-                <span>Get an NFT from these collections for free access:</span>
-                <div className="active-collections">
-                  {activeCollections.map((collection, index) => (
-                    <div key={index} className="collection-item">
-                      <h4 title={collection.description}>{collection.name}</h4>
-                    </div>
-                  ))}
+              ) : (
+                <div className="nft-status">
+                  <span>Get an NFT from these collections for free access:</span>
+                  <div className="active-collections">
+                    {activeCollections.map((collection, index) => (
+                      <div key={index} className="collection-item">
+                        <h4 title={collection.description || 'No description available'}>
+                          {collection.name}
+                        </h4>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
     );
   };
