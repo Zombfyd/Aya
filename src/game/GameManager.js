@@ -377,7 +377,7 @@ class GameManager {
       this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
       this.score += 1;
-      this.floatingTexts.push(new FloatingText(splashX, splashY, '1', '#2054c9'));
+      this.floatingTexts.push(new FloatingText(splashX, splashY, '1', '#f9f9f9'));
       this.splashes.push(new BlueSplash(splashX, splashY));
     }
   }
@@ -461,7 +461,7 @@ drawUI() {
 
   // Draw score
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
-  this.ctx.fillStyle = "#2054c9";
+  this.ctx.fillStyle = "#f9f9f9";
   this.ctx.fillText(`Score: ${this.score}`, 20, 30);
 
   // Draw lives (centered in bucket)
@@ -823,7 +823,7 @@ class FloatingText {
     ctx.save();
     ctx.globalAlpha = this.opacity;
     ctx.fillStyle = this.color;
-    ctx.font = `${Math.floor(20 * this.scale)}px Inconsolata`;
+    ctx.font = `${Math.floor(25 * this.scale)}px Inconsolata`;
     ctx.textAlign = 'center';
     ctx.fillText(this.text, this.x, this.y);
     ctx.restore();
