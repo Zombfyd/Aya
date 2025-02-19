@@ -254,43 +254,63 @@ const TokenAmount = ({ amount, symbol }) => {
         const checkPaymentStatus = async () => {
             try {
                 if (paymentStatus.transactionId) {
-                    // Use SuiClient to check transaction status
+                    console.log('Checking transaction status:', paymentStatus.transactionId);
+                    
+                    // Use SuiClient to check transaction status with full details
                     const status = await client.getTransactionBlock({
                         digest: paymentStatus.transactionId,
                         options: {
                             showEffects: true,
                             showEvents: true,
+                            showInput: true,
+                            showRawInput: true
                         }
                     });
 
                     if (status && status.digest) {
-                        console.log('Transaction confirmed:', status);
+                        console.log('Transaction details:', status);
                         
-                        // Update states only after confirmation
-                        setPaymentStatus(prev => ({
-                            ...prev,
-                            verified: true
-                        }));
-                        
-                        setGameState(prev => ({
-                            ...prev,
-                            hasValidPayment: true
-                        }));
-                        
-                        
-                        
-                        setTransactionInProgress(false);
-                        setPaying(false);
+                        // Check for successful execution
+                        const effects = status.effects;
+                        if (effects && effects.status && effects.status.status === 'success') {
+                            console.log('Transaction confirmed successfully');
+                            
+                            // Update states only after confirmation
+                            setPaymentStatus(prev => ({
+                                ...prev,
+                                verified: true
+                            }));
+                            
+                            setGameState(prev => ({
+                                ...prev,
+                                hasValidPayment: true
+                            }));
+                            
+                            setTransactionInProgress(false);
+                            setPaying(false);
 
-                        // Start game with type that was selected during payment
-                        startGame(window.selectedGameType || 'aya');
+                            // Start game with type that was selected during payment
+                            const selectedType = window.selectedGameType || 'aya';
+                            console.log('Starting game with type:', selectedType);
+                            startGame(selectedType);
+                        } else if (effects && effects.status && effects.status.status === 'failure') {
+                            console.error('Transaction failed:', effects.status);
+                            throw new Error('Transaction execution failed: ' + (effects.status.error || 'Unknown error'));
+                        }
                     }
                 }
             } catch (error) {
                 console.error('Payment status check failed:', error);
                 setTransactionInProgress(false);
                 setPaying(false);
-                alert('Failed to verify payment. Please try again.');
+                alert('Failed to verify payment. Please try again. Error: ' + error.message);
+                
+                // Reset payment status on error
+                setPaymentStatus(prev => ({
+                    ...prev,
+                    verified: false,
+                    error: error.message
+                }));
             }
         };
 
@@ -1014,7 +1034,8 @@ const TokenAmount = ({ amount, symbol }) => {
         selectedTier: selectedTier,
         qualifyingTier: qualifyingTier,
         gameMode: gameMode,
-        gameType: type
+        gameType: type,
+        isMobile: isMobile
     });
 
     const tierToUse = selectedTier || qualifyingTier;
@@ -1062,13 +1083,16 @@ const TokenAmount = ({ amount, symbol }) => {
         txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
         txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
 
-        // Execute transaction
+        // Execute transaction with explicit options
         const response = await wallet.signAndExecuteTransactionBlock({
             transactionBlock: txb,
             options: { 
                 showEffects: true,
-                showEvents: true
-            }
+                showEvents: true,
+                showInput: true,
+                showRawInput: true
+            },
+            requestType: 'WaitForLocalExecution'
         });
 
         if (!response.digest) {
@@ -1092,7 +1116,11 @@ const TokenAmount = ({ amount, symbol }) => {
 
     } catch (error) {
         console.error('Payment error:', error);
-        alert(`Payment failed: ${error.message}`);
+        // More descriptive error message
+        const errorMessage = error.message.includes('insufficient balance') 
+            ? 'Insufficient balance to complete the transaction. Please ensure you have enough SUI to cover the payment and gas fees.'
+            : error.message;
+        alert(`Payment failed: ${errorMessage}`);
         setTransactionInProgress(false);
         setPaying(false);
         window.selectedGameType = null; // Clear selected game type on error
