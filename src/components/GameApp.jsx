@@ -1051,8 +1051,7 @@ const TokenAmount = ({ amount, symbol }) => {
       txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
 
       const response = await wallet.signAndExecuteTransaction({
-        transaction: txb,
-        options: { showEffects: true }
+        transaction: txb
       });
 
       if (!response.digest) {
@@ -1061,7 +1060,7 @@ const TokenAmount = ({ amount, symbol }) => {
 
       console.log('Transaction successful:', response.digest);
 
-      // Add payment status update here
+      // Update payment status and game state
       const paymentDetails = {
         verified: true,
         transactionId: response.digest,
@@ -1070,19 +1069,41 @@ const TokenAmount = ({ amount, symbol }) => {
         recipient: recipients.primary
       };
 
-      // Update state
       setPaymentStatus(paymentDetails);
+      setGameState(prev => ({
+        ...prev,
+        hasValidPayment: true
+      }));
+      
+      // Set max attempts based on the tier
+      setMaxAttempts(tierConfig.plays || 1);
+      setPaidGameAttempts(0);
 
-      // Wait for a moment to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Start countdown and game
+      setCountdown(3);
+      await new Promise((resolve) => {
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              resolve();
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      });
 
-      // Submit score with the same payment details
-      await handleScoreSubmit(finalScore, 'paid', type, paymentDetails);
+      // Start the game after countdown
+      startGame(type);
+
     } catch (error) {
       console.error('Payment error:', error);
       setCountdown(null);
+      alert(`Payment failed: ${error.message}`);
     } finally {
       setTransactionInProgress(false);
+      setPaying(false);
     }
   };
 
