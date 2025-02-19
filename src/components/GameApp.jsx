@@ -1835,11 +1835,13 @@ const handleSuinsChange = (e) => {
                     } catch (error) {
                       console.error('Error submitting to free leaderboard:', error);
                     }
+                    resetGameState();
+                    restartGame();
                   }}
                   className="submit-free-button"
                   disabled={transactionInProgress}
                 >
-                  Submit to Free Leaderboard
+                  Submit to Free Leaderboard and Play Again
                 </button>
               )}
             </div>
