@@ -10,7 +10,11 @@ class GameManager {
       SCORE_FONT: "25px Inconsolata",
       LIVES_FONT: "18px Inconsolata",
       LEGEND_FONT: "18px Inconsolata",
-      BACKGROUND_HEIGHT: 700
+      BACKGROUND_HEIGHT: 700,
+      HEALTH_BAR_WIDTH: 20,
+      HEALTH_BAR_HEIGHT: 200,
+      HEALTH_BAR_X: 0, // Will be set based on canvas width
+      HEALTH_BAR_Y: 50,
     };
     // Initialize game state variables
     this.canvas = null;
@@ -68,6 +72,18 @@ class GameManager {
 
     // Add floating text array
     this.floatingTexts = [];
+
+    // Define health bar colors for different layers
+    this.HEALTH_COLORS = [
+      '#f9f9f9',  // Base health (1-10)
+      '#FFD700',  // First overflow (11-20)
+      '#FF69B4',  // Second overflow (21-30)
+      '#00FF00',  // Third overflow (31-40)
+      '#00FFFF',  // Fourth overflow (41-50)
+    ];
+
+    this.MAX_LIVES = 50;
+    this.LIVES_PER_BAR = 10;
   }
 
   // Image Loading Method
@@ -362,7 +378,6 @@ class GameManager {
     const splashX = entity.x + entity.width / 2;
     const splashY = this.bucket.y;
 
-    // Create floating text based on tear type
     if (isGold) {
       this.score += 15;
       this.floatingTexts.push(new FloatingText(splashX, splashY, '15', '#FFD700'));
@@ -372,8 +387,14 @@ class GameManager {
       this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
       this.splashes.push(new RedSplash(splashX, splashY));
     } else if (isBlack) {
-      this.lives++;
-      this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
+      if (this.lives >= this.MAX_LIVES) {
+        // Convert life to points if at max lives
+        this.score += 25;
+        this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
+      } else {
+        this.lives++;
+        this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
+      }
       this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
       this.score += 1;
@@ -464,33 +485,23 @@ drawUI() {
   this.ctx.fillStyle = "#f9f9f9";
   this.ctx.fillText(`Score: ${this.score}`, 20, 30);
 
-  // Draw lives (centered in bucket)
-  if (this.bucket) {
-    this.ctx.font = this.UI_SIZES.LIVES_FONT;
-    const livesText = `${this.lives}`;
-    const textMetrics = this.ctx.measureText(livesText);
-    const textX = this.bucket.x + (this.bucket.width / 2) - (textMetrics.width / 2);
-    const textY = this.bucket.y + (this.bucket.height / 2) + 6; // +6 for better vertical centering
-    this.ctx.fillText(livesText, textX, textY);
+  // Draw health bars
+  this.drawHealthBars();
+
+  // Keep the warning message for low lives
+  if (this.lives <= 5) {
+    this.ctx.fillStyle = "#FF4D6D";
+    this.ctx.font = this.UI_SIZES.SCORE_FONT;
+    const warningText = "Lives remaining!";
+    const warningMetrics = this.ctx.measureText(warningText);
+    const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
+    this.ctx.fillText(warningText, warningX, 140);
     
-    // Draw warning message when lives are low
-    if (this.lives <= 5) {
-      this.ctx.fillStyle = "#FF4D6D"; // Red warning color
-      
-      // Draw warning text
-      this.ctx.font = this.UI_SIZES.SCORE_FONT;
-      const warningText = "Lives remaining!";
-      const warningMetrics = this.ctx.measureText(warningText);
-      const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-      this.ctx.fillText(warningText, warningX, 140);
-      
-      // Draw lives number bigger below
-      this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
-      const livesCountText = `${this.lives}`;
-      const livesMetrics = this.ctx.measureText(livesCountText);
-      const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
-      this.ctx.fillText(livesCountText, livesX, 190);
-    }
+    this.ctx.font = "bold 48px Inconsolata";
+    const livesCountText = `${this.lives}`;
+    const livesMetrics = this.ctx.measureText(livesCountText);
+    const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
+    this.ctx.fillText(livesCountText, livesX, 190);
   }
 
   // Draw speed
@@ -521,6 +532,69 @@ drawUI() {
       this.ctx.fillText(text, 20, y);
     });
 }
+
+  // Add method to draw health bars
+  drawHealthBars() {
+    if (!this.ctx) return;
+
+    // Position health bar on right side with some padding
+    const barX = this.canvas.width - this.UI_SIZES.HEALTH_BAR_WIDTH - 20;
+    const barY = this.UI_SIZES.HEALTH_BAR_Y;
+    const barWidth = this.UI_SIZES.HEALTH_BAR_WIDTH;
+    const barHeight = this.UI_SIZES.HEALTH_BAR_HEIGHT;
+
+    // Draw background for all possible health bars
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // Calculate how many full bars and partial bar
+    const currentLives = Math.min(this.lives, this.MAX_LIVES);
+    const numFullBars = Math.floor(currentLives / this.LIVES_PER_BAR);
+    const partialBarHeight = (currentLives % this.LIVES_PER_BAR) / this.LIVES_PER_BAR;
+
+    // Draw each full bar
+    for (let i = 0; i < numFullBars; i++) {
+      this.ctx.fillStyle = this.HEALTH_COLORS[i];
+      this.ctx.fillRect(
+        barX,
+        barY + barHeight - ((i + 1) * (barHeight / 5)),
+        barWidth,
+        barHeight / 5
+      );
+    }
+
+    // Draw partial bar if any
+    if (partialBarHeight > 0) {
+      this.ctx.fillStyle = this.HEALTH_COLORS[numFullBars];
+      this.ctx.fillRect(
+        barX,
+        barY + barHeight - (numFullBars * (barHeight / 5)) - (partialBarHeight * (barHeight / 5)),
+        barWidth,
+        partialBarHeight * (barHeight / 5)
+      );
+    }
+
+    // Draw segment lines
+    this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    this.ctx.lineWidth = 1;
+    for (let i = 1; i < 5; i++) {
+      const y = barY + (i * (barHeight / 5));
+      this.ctx.beginPath();
+      this.ctx.moveTo(barX, y);
+      this.ctx.lineTo(barX + barWidth, y);
+      this.ctx.stroke();
+    }
+
+    // Draw lives count
+    this.ctx.fillStyle = '#f9f9f9';
+    this.ctx.font = '16px Inconsolata';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(
+      `${this.lives}/${this.MAX_LIVES}`,
+      barX + (barWidth / 2),
+      barY - 10
+    );
+  }
 
   // Game Loop
   gameLoop() {
