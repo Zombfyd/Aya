@@ -281,25 +281,10 @@ const TokenAmount = ({ amount, symbol }) => {
                         setPaidGameAttempts(0);
                         
                         setTransactionInProgress(false);
-                        
-                        // Start countdown and game
-                        setCountdown(3);
-                        await new Promise((resolve) => {
-                            const countdownInterval = setInterval(() => {
-                                setCountdown(prev => {
-                                    if (prev <= 1) {
-                                        clearInterval(countdownInterval);
-                                        resolve();
-                                        return null;
-                                    }
-                                    return prev - 1;
-                                });
-                            }, 1000);
-                        });
-                        
-                        // Get the game type from the active game manager
-                        const gameType = window.activeGameManager === window.gameManager1 ? 'aya' : 'blood';
-                        startGame(gameType);
+                        setPaying(false);
+
+                        // Start game with type that was selected during payment
+                        startGame(window.selectedGameType || 'aya');
                     }
                 }
             } catch (error) {
@@ -1053,6 +1038,9 @@ const TokenAmount = ({ amount, symbol }) => {
     setPaying(true);
     
     try {
+        // Store selected game type for after payment confirmation
+        window.selectedGameType = type;
+
         const tierConfig = gameMode === 'free' ? 
             config.scoreSubmissionTiers[qualifyingTier] : 
             config.paymentTiers[selectedTier];
@@ -1115,9 +1103,9 @@ const TokenAmount = ({ amount, symbol }) => {
     } catch (error) {
         console.error('Payment error:', error);
         alert(`Payment failed: ${error.message}`);
-        setCountdown(null);
         setTransactionInProgress(false);
         setPaying(false);
+        window.selectedGameType = null; // Clear selected game type on error
     }
 };
 
@@ -1335,9 +1323,9 @@ useEffect(() => {
 }, []);
 
 const resetGameState = () => {
-    if (window.gameManager) {
-        window.gameManager.cleanup();
-        window.gameManager.initGame(); // Reinitialize the game manager
+    if (window.gameManager1) {
+        window.gameManager1.cleanup();
+        window.gameManager1.initGame(); // Reinitialize the game manager
     }
     
     setGameState({
