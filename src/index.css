@@ -115,51 +115,98 @@
 }
 /* Header and wallet styles from App.css */
 header {
-  position: fixed;
-  color: #2054c9;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.95);
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
   padding: 2rem;
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 10px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  color: #2054c9;
+  position: relative;
   z-index: 1000;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-   @media (max-width: 768px) {
-    min-width: unset;
-    padding: 0.75rem;
-    gap: 0rem;
-    margin-bottom: 0.5rem;
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.user-info {
+  text-align: center;
+}
+
+.user-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.suins-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.game-mode-selection {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.mode-selector {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.game-type-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.payment-section {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.player-display {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  z-index: 1001;
+  color: #2054c9;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  header {
+    padding: 1rem;
+  }
+
+  .mode-selector,
+  .game-type-buttons {
+    flex-direction: column;
+  }
+
+  .user-controls {
+    flex-direction: column;
   }
 }
-header.scrolled {
-  position: absolute;  /* Change from fixed to relative */
-  width: auto;
-  top: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 2rem;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-  margin: 2rem auto; 
-  @media (max-width: 768px) {
-    width:auto;
-    min-width: unset;
-    padding: 0.75rem;
-    gap: 0rem;
-    margin-bottom: 0.5rem;
-  }/* Add some margin to position it nicely */
-}
+
 .wallet-status {
   text-align: center;
   padding: 0.75rem 1.5rem;
@@ -263,13 +310,6 @@ header.scrolled {
 }
 
 /* Mode selector styles merged */
-.mode-selector {
-  display: flex;
-  gap: 1rem;
-  width: 100%;
-  margin-bottom: 1rem;
-}
-
 .mode-selector button {
   flex: 1;
   border: 2px solid #2054c9;
