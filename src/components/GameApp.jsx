@@ -1749,17 +1749,17 @@ const handleSuinsChange = (e) => {
     return (
       <div className="user-info-section">
         <div className="assets-header" onClick={() => setIsUserInfoExpanded(!isUserInfoExpanded)}>
-          <h3>User Information</h3>
+          <h3>{useSuins && suinsData ? suinsData.name : playerName}'s Profile</h3>
           <span className={`dropdown-arrow ${isUserInfoExpanded ? 'expanded' : ''}`}>▼</span>
         </div>
         <div className={`assets-content ${isUserInfoExpanded ? 'expanded' : ''}`}>
           {!isUsernameSubmitted ? (
-            <form onSubmit={handleUsernameSubmit}>
+            <form onSubmit={handleUsernameSubmit} className="username-form">
               <input
                 type="text"
                 placeholder="Enter your username"
                 value={playerName}
-                onChange={handleUsernameChange}
+                onChange={(e) => setPlayerName(e.target.value)}
                 className="username-input"
                 maxLength={25}
                 required
@@ -1814,6 +1814,12 @@ const handleSuinsChange = (e) => {
         <GameInfoPopup onClose={handlePopupClose} />
       )}
       
+      {gameState.gameStarted && (
+        <div className="player-display">
+          Playing as: <span className="player-name">{useSuins && suinsData ? suinsData.name : playerName}</span>
+        </div>
+      )}
+
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
           <div className="title">Tears of Aya</div>
