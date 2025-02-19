@@ -358,20 +358,6 @@ const TokenAmount = ({ amount, symbol }) => {
   // Modify handleGameStart
   const handleGameStart = async (type = 'aya') => {
     if (gameMode === 'free') {
-      setCountdown(3);
-      await new Promise((resolve) => {
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      });
-      
       startGame(type);
       return;
     }
@@ -427,20 +413,6 @@ const TokenAmount = ({ amount, symbol }) => {
         setGameState(prev => ({ ...prev, hasValidPayment: false }));
         return;
       }
-      setCountdown(3);
-      await new Promise((resolve) => {
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      });
-      
       startGame(type);
     }
   };
@@ -915,6 +887,19 @@ const TokenAmount = ({ amount, symbol }) => {
       window.activeGameManager = activeManager;
 
       console.log(`Starting game in ${gameMode} mode, type: ${type}`);
+      setCountdown(3);
+      await new Promise((resolve) => {
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              resolve();
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      });
       activeManager.startGame(gameMode);
     } catch (error) {
       console.error('Error starting game:', error);
