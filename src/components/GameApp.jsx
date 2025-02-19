@@ -878,7 +878,7 @@ const TokenAmount = ({ amount, symbol }) => {
     }, 100);
   };
 
-  // Update startGame to properly handle game initialization
+  // Update startGame to track bucket click state
   const startGame = (type = 'aya') => {
     if (!window.gameManager1 && !window.gameManager2) {
       console.error('Game managers not found');
@@ -887,26 +887,6 @@ const TokenAmount = ({ amount, symbol }) => {
     }
 
     try {
-      console.log('Starting game:', {
-        type,
-        gameMode,
-        hasValidPayment: gameState.hasValidPayment,
-        attempts: paidGameAttempts,
-        maxAttempts
-      });
-
-      // For paid mode, verify payment and attempts
-      if (gameMode === 'paid') {
-        if (!gameState.hasValidPayment) {
-          alert('Please complete payment to play in paid mode.');
-          return;
-        }
-        if (paidGameAttempts >= maxAttempts) {
-          alert('All paid attempts used. Please make a new payment to continue playing.');
-          return;
-        }
-      }
-
       setGameState(prev => ({
         ...prev,
         gameStarted: true,
@@ -930,18 +910,11 @@ const TokenAmount = ({ amount, symbol }) => {
       }
 
       // Choose which game manager to use based on type
-      const activeManager = type === 'aya' ? window.gameManager1 : window.gameManager2;
+      const activeManager = type === 'aya' ? gameManager1 : gameManager2;
       window.activeGameManager = activeManager;
 
       console.log(`Starting game in ${gameMode} mode, type: ${type}`);
-      
-      // Ensure the game manager is initialized before starting
-      if (activeManager && typeof activeManager.startGame === 'function') {
-        activeManager.startGame(gameMode);
-      } else {
-        throw new Error('Game manager not properly initialized');
-      }
-
+      activeManager.startGame(gameMode);
     } catch (error) {
       console.error('Error starting game:', error);
       setGameState(prev => ({
@@ -1026,7 +999,7 @@ const TokenAmount = ({ amount, symbol }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Update handleGamePayment to properly start the game after payment
+  // Modify handleGamePayment to include the game type
   const handleGamePayment = async (type = 'aya') => {
     console.log('Payment handler state:', {
       walletConnected: wallet.connected,
@@ -1065,11 +1038,13 @@ const TokenAmount = ({ amount, symbol }) => {
       
       const txb = new TransactionBlock();
       
+      // Split the coins for all recipients
       const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
         txb.gas,
         [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
       );
 
+      // Transfer to all recipients
       txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
       txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
       txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
@@ -1086,7 +1061,7 @@ const TokenAmount = ({ amount, symbol }) => {
 
       console.log('Transaction successful:', response.digest);
 
-      // Update payment status
+      // Add payment status update here
       const paymentDetails = {
         verified: true,
         transactionId: response.digest,
@@ -1097,34 +1072,15 @@ const TokenAmount = ({ amount, symbol }) => {
 
       // Update state
       setPaymentStatus(paymentDetails);
-      setGameState(prev => ({
-        ...prev,
-        hasValidPayment: true
-      }));
-      setPaidGameAttempts(0);
-      setMaxAttempts(tierConfig.plays);
 
-      // Start countdown and game
-      setCountdown(3);
-      await new Promise((resolve) => {
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      });
+      // Wait for a moment to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Start the game after countdown
-      startGame(type);
-
+      // Submit score with the same payment details
+      await handleScoreSubmit(finalScore, 'paid', type, paymentDetails);
     } catch (error) {
       console.error('Payment error:', error);
-      alert(`Payment failed: ${error.message}`);
+      setCountdown(null);
     } finally {
       setTransactionInProgress(false);
     }
@@ -1207,58 +1163,34 @@ useEffect(() => {
         console.log(`Current ${game} weekly paid leaderboard:`, {
             totalEntries: leaderboardData.length,
             topScore: leaderboardData[0]?.score,
-            secondPlace: leaderboardData[1]?.score,
             thirdPlace: leaderboardData[2]?.score,
             eighthPlace: leaderboardData[7]?.score
         });
 
-        // Empty leaderboard - automatically qualifies for first place
+        // FIXED: Changed comparison logic - lower scores should qualify against higher thresholds
+        let qualificationTier = null;
         if (leaderboardData.length === 0) {
+            qualificationTier = 'firstPlace';
             console.log(`Score ${score} qualifies for first place (empty leaderboard)!`);
-            return 'firstPlace';
-        }
-
-        // Check first place
-        if (!leaderboardData[0] || score > leaderboardData[0].score) {
-            console.log(`Score ${score} qualifies for first place!`);
-            return 'firstPlace';
-        }
-
-        // Check second/third place
-        if (leaderboardData.length < 3) {
-            // If there's only one score and we're better than it, we already returned firstPlace
-            // If there's only one score and we're worse than it, we qualify for second
-            if (leaderboardData.length === 1) {
-                console.log(`Score ${score} qualifies for second place (only one score on leaderboard)!`);
-                return 'topThree';
-            }
-            // If there are two scores and we're better than the second one
-            if (score > leaderboardData[1].score) {
-                console.log(`Score ${score} qualifies for second place!`);
-                return 'topThree';
+        } else if (leaderboardData[0]?.score >= score) {
+            // If top score is higher, check other tiers
+            if (leaderboardData[2]?.score >= score || !leaderboardData[2]) {
+                // If third place is higher or doesn't exist, check top 8
+                if (leaderboardData[7]?.score >= score || !leaderboardData[7]) {
+                    qualificationTier = 'topEight';
+                    console.log(`Score ${score} qualifies for top eight!`);
+                }
+            } else {
+                qualificationTier = 'topThree';
+                console.log(`Score ${score} qualifies for top three!`);
             }
         } else {
-            // Three or more scores - check if we beat the third place score
-            if (score > leaderboardData[2].score) {
-                console.log(`Score ${score} qualifies for top three!`);
-                return 'topThree';
-            }
+            qualificationTier = 'firstPlace';
+            console.log(`Score ${score} qualifies for first place!`);
         }
 
-        // Check top 8
-        if (leaderboardData.length < 8) {
-            // If there are fewer than 8 scores, we automatically qualify for top 8
-            console.log(`Score ${score} qualifies for top eight (fewer than 8 scores on leaderboard)!`);
-            return 'topEight';
-        } else if (score > leaderboardData[7].score) {
-            console.log(`Score ${score} qualifies for top eight!`);
-            return 'topEight';
-        }
-
-        // No qualification
-        console.log(`Score ${score} does not qualify for any tier`);
-        return null;
-
+        setTopScores(leaderboardData);
+        return qualificationTier;
     } catch (error) {
         console.error('Error checking score qualification:', error);
         return null;
