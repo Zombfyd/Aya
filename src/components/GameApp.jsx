@@ -1761,11 +1761,8 @@ const handleSuinsChange = (e) => {
 
     return (
       <div className="user-profile">
-        <div 
-          className="assets-header" 
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          <h3>{username || "Guest User"}</h3>
+        <div className="assets-header" onClick={() => setIsExpanded(!isExpanded)}>
+          <h3>User Profile</h3>
           <span className={`dropdown-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>
         </div>
         <div className={`assets-content ${isExpanded ? 'expanded' : ''}`}>
@@ -1779,20 +1776,25 @@ const handleSuinsChange = (e) => {
                 className="username-input"
               />
             </div>
-            <label className="suins-checkbox">
+            
+            <div className="suins-checkbox">
               <input
                 type="checkbox"
                 checked={useSuins}
                 onChange={onSuinsChange}
+                id="suins-checkbox"
               />
-              Use SUI Name Service
-            </label>
+              <label htmlFor="suins-checkbox">Use SUINS Name</label>
+            </div>
+
             {!isConnected && (
               <button className="wallet-button" onClick={onConnect}>
                 Connect Wallet
               </button>
             )}
-            <NFTDisplay />
+
+            {isConnected && <NFTDisplay />}
+
             <button className="view-tutorial-button" onClick={showTutorial}>
               View Tutorial
             </button>
@@ -1809,138 +1811,78 @@ const handleSuinsChange = (e) => {
         <h1 className="title">Tears of Aya</h1>
         
         <div className="header-content">
-          {!isUsernameSubmitted ? (
-            <form onSubmit={handleUsernameSubmit}>
-              <input
-                type="text"
-                placeholder="Enter your username"
-                value={playerName}
-                onChange={handleUsernameChange}
-                className="username-input"
-                maxLength={25}
-                required
-              />
-              <button type="submit">Submit</button>
-            </form>
-          ) : (
-            <div className="user-info">
-              <h2>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h2>
-              <div className="user-controls">
-                <button onClick={() => setIsUsernameSubmitted(false)}>Change Username</button>
-                <label className="suins-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={useSuins}
-                    onChange={handleSuinsChange}
-                  />
-                  Use SUINS name
-                </label>
-              </div>
-            </div>
-          )}
-
-          <ConnectButton
-            label="Connect SUI Wallet"
-            onConnectError={(error) => {
-              if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                console.warn("User rejected connection to " + error.details?.wallet);
-              } else {
-                console.warn("Unknown connect error: ", error);
-              }
-            }}
+          <UserProfile 
+            username={playerName}
+            onUsernameChange={handleUsernameChange}
+            onSuinsChange={handleSuinsChange}
+            useSuins={useSuins}
+            isConnected={wallet.connected}
+            onConnect={() => {}}
+            showTutorial={() => setShowGameInfoPopup(true)}
           />
 
-          {wallet.connected && <NFTDisplay />}
-
-          <div className="wallet-info">
-            <div 
-              className="assets-header" 
-              onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
-            >
-              <h3>Prize Pool Assets</h3>
-              <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>▼</span>
-            </div>
-            
-            <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
-              <div className="balance-list">
-                {Object.entries(allBalances).map(([symbol, balance]) => (
-                  <p key={symbol} className="balance-item">
-                    <TokenAmount amount={balance} symbol={symbol} /> {symbol}
-                  </p>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <button 
-            onClick={() => setShowGameInfoPopup(true)} 
-            className="view-tutorial-button"
-          >
-            View Tutorial
-          </button>
-        </div>
-
-        {isUsernameSubmitted && (
-          <div className="game-mode-selection">
-            <h2>Select Game Mode</h2>
-            <div className="mode-selector">
-              <button 
-                onClick={() => handleGameModeSelection('free')} 
-                className={gameMode === 'free' ? 'active' : ''}
-              >
-                Free Mode
-              </button>
-              <button 
-                onClick={() => handleGameModeSelection('paid')} 
-                className={gameMode === 'paid' ? 'active' : ''}
-              >
-                Paid Mode
-              </button>
-            </div>
-
-            {gameMode === 'free' && (
-              <div className="game-type-buttons">
-                <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
-                  Play Tears of Aya
+          {isUsernameSubmitted && (
+            <div className="game-mode-selection">
+              <h2>Select Game Mode</h2>
+              <div className="mode-selector">
+                <button 
+                  onClick={() => handleGameModeSelection('free')} 
+                  className={gameMode === 'free' ? 'active' : ''}
+                >
+                  Free Mode
                 </button>
-                <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
-                  Play Tears of Blood
+                <button 
+                  onClick={() => handleGameModeSelection('paid')} 
+                  className={gameMode === 'paid' ? 'active' : ''}
+                >
+                  Paid Mode
                 </button>
               </div>
-            )}
 
-            {gameMode === 'paid' && wallet.connected && (
-              <div className="payment-section">
-                {!gameState.hasValidPayment ? (
-                  <>
-                    <h3>Select Payment Tier</h3>
-                    {renderPaymentTiers()}
-                    <div className="game-type-buttons">
-                      <button 
-                        onClick={() => handleGamePayment('aya')}
-                        disabled={paying || !selectedTier}
-                        className="start-button aya"
-                      >
-                        {paying ? 'Processing...' : 'Start Tears of Aya'}
-                      </button>
-                      <button 
-                        onClick={() => handleGamePayment('blood')}
-                        disabled={paying || !selectedTier}
-                        className="start-button blood"
-                      >
-                        {paying ? 'Processing...' : 'Start Tears of Blood'}
-                      </button>
+              {gameMode === 'free' && (
+                <div className="game-type-buttons">
+                  <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
+                    Play Tears of Aya
+                  </button>
+                  <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
+                    Play Tears of Blood
+                  </button>
+                </div>
+              )}
+
+              {gameMode === 'paid' && wallet.connected && (
+                <div className="payment-section">
+                  {!gameState.hasValidPayment ? (
+                    <>
+                      <h3>Select Payment Tier</h3>
+                      {renderPaymentTiers()}
+                      <div className="game-type-buttons">
+                        <button 
+                          onClick={() => handleGamePayment('aya')}
+                          disabled={paying || !selectedTier}
+                          className="start-button aya"
+                        >
+                          {paying ? 'Processing...' : 'Start Tears of Aya'}
+                        </button>
+                        <button 
+                          onClick={() => handleGamePayment('blood')}
+                          disabled={paying || !selectedTier}
+                          className="start-button blood"
+                        >
+                          {paying ? 'Processing...' : 'Start Tears of Blood'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="attempts-info">
+                      <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
                     </div>
-                  </>
-                ) : (
-                  <div className="attempts-info">
-                    <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </header>
 
       {showGameInfoPopup && (
