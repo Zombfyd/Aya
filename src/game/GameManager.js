@@ -14,7 +14,7 @@ class GameManager {
       HEALTH_BAR_WIDTH: 20,
       HEALTH_BAR_HEIGHT: 200,
       HEALTH_BAR_X: 0, // Will be set based on canvas width
-      HEALTH_BAR_Y: 50,
+      HEALTH_BAR_Y: 420,
     };
     // Initialize game state variables
     this.canvas = null;
@@ -75,15 +75,15 @@ class GameManager {
 
     // Define health bar colors for different layers
     this.HEALTH_COLORS = [
-      '#f9f9f9',  // Base health (1-10)
+      '#FF69B4',  // Base health (1-10)
       '#FFD700',  // First overflow (11-20)
-      '#FF69B4',  // Second overflow (21-30)
+      '#F9f9f9',  // Second overflow (21-30)
       '#00FF00',  // Third overflow (31-40)
       '#00FFFF',  // Fourth overflow (41-50)
     ];
 
-    this.MAX_LIVES = 50;
-    this.LIVES_PER_BAR = 10;
+    this.MAX_LIVES = 25;
+    this.LIVES_PER_BAR = 5;
   }
 
   // Image Loading Method
