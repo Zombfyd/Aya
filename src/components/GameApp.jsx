@@ -1049,7 +1049,6 @@ const TokenAmount = ({ amount, symbol }) => {
     setPaying(true);
     
     try {
-        // Store selected game type for after payment confirmation
         window.selectedGameType = type;
 
         const tierConfig = gameMode === 'free' ? 
@@ -1068,32 +1067,21 @@ const TokenAmount = ({ amount, symbol }) => {
         const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
         const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
         const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
-        
-        // Create a new transaction block
+
         const txb = new TransactionBlock();
-        
-        // Split the coins for all recipients
         const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
             txb.gas,
             [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
         );
 
-        // Transfer to all recipients
         txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
         txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
         txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
         txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
 
-        // Execute transaction with explicit options
         const response = await wallet.signAndExecuteTransactionBlock({
             transactionBlock: txb,
-            options: { 
-                showEffects: true,
-                showEvents: true,
-                showInput: true,
-                showRawInput: true
-            },
-            chain: wallet.chain?.id || 'sui:mainnet',
+            options: { showEffects: true },
             requestType: 'WaitForLocalExecution'
         });
 
@@ -1103,29 +1091,26 @@ const TokenAmount = ({ amount, symbol }) => {
 
         console.log('Transaction initiated:', response.digest);
 
-        // Set initial payment status
         const paymentDetails = {
-            verified: false, // Will be set to true after confirmation
+            verified: false,
             transactionId: response.digest,
             amount: totalAmount,
             timestamp: Date.now(),
             recipient: recipients.primary
         };
 
-        // Update payment status - other states will be updated after confirmation
         setPaymentStatus(paymentDetails);
         setMaxAttempts(tierConfig.plays);
 
     } catch (error) {
         console.error('Payment error:', error);
-        // More descriptive error message
         const errorMessage = error.message.includes('insufficient balance') 
             ? 'Insufficient balance to complete the transaction. Please ensure you have enough SUI to cover the payment and gas fees.'
             : error.message;
         alert(`Payment failed: ${errorMessage}`);
         setTransactionInProgress(false);
         setPaying(false);
-        window.selectedGameType = null; // Clear selected game type on error
+        window.selectedGameType = null;
     }
 };
 
