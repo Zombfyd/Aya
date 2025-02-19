@@ -1363,3 +1363,94 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   transform: translateY(-2px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
+.user-profile {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.user-profile .assets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.user-profile .assets-header:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.user-profile .assets-header h3 {
+  margin: 0;
+  color: white;
+  font-size: 1.2em;
+}
+
+.user-profile .dropdown-arrow {
+  color: white;
+  transition: transform 0.3s ease;
+}
+
+.user-profile .dropdown-arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.user-profile .assets-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.user-profile .assets-content.expanded {
+  max-height: 1000px;
+}
+
+.user-profile-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.username-input-container {
+  width: 100%;
+}
+
+.username-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.suins-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+}
+
+.wallet-button,
+.view-tutorial-button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  background: #4a90e2;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.wallet-button:hover,
+.view-tutorial-button:hover {
+  background: #357abd;
+}
+

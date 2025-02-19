@@ -1643,30 +1643,35 @@ const handleSuinsChange = (e) => {
 
     const getImageUrl = (nft) => {
       try {
-        console.log('Getting image URL for NFT:', nft);
-        
-        // First try to get URL from display.data
-        const displayUrl = nft?.data?.display?.data?.image_url;
+        // Get URL directly from the user's NFT data
+        const nftData = nft.data;
+        if (!nftData) {
+          console.warn('No NFT data found:', nft);
+          return '/placeholder-nft.png';
+        }
+
+        // Try to get URL from the NFT's content fields
+        const contentUrl = nftData.content?.fields?.url;
+        if (contentUrl) {
+          console.log('Found content URL:', contentUrl);
+          return handleImageUrl(contentUrl);
+        }
+
+        // Try to get URL from the NFT's content fields image_url
+        const imageUrl = nftData.content?.fields?.image_url;
+        if (imageUrl) {
+          console.log('Found image URL:', imageUrl);
+          return handleImageUrl(imageUrl);
+        }
+
+        // Try to get URL from display data
+        const displayUrl = nftData.display?.data?.image_url;
         if (displayUrl) {
           console.log('Found display URL:', displayUrl);
           return handleImageUrl(displayUrl);
         }
-        
-        // Then try content.fields
-        const fieldsUrl = nft?.data?.content?.fields?.image_url;
-        if (fieldsUrl) {
-          console.log('Found fields URL:', fieldsUrl);
-          return handleImageUrl(fieldsUrl);
-        }
-        
-        // Finally try url field directly
-        const directUrl = nft?.data?.content?.fields?.url;
-        if (directUrl) {
-          console.log('Found direct URL:', directUrl);
-          return handleImageUrl(directUrl);
-        }
 
-        console.warn('No image URL found for NFT:', nft);
+        console.warn('No image URL found in NFT data:', nftData);
         return '/placeholder-nft.png';
       } catch (error) {
         console.error('Error getting NFT image URL:', error);
@@ -1742,9 +1747,76 @@ const handleSuinsChange = (e) => {
     );
   };
 
+  // Add User Profile dropdown component
+  const UserProfile = ({ 
+    username, 
+    onUsernameChange, 
+    onSuinsChange, 
+    useSuins, 
+    isConnected, 
+    onConnect, 
+    showTutorial 
+  }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    return (
+      <div className="user-profile">
+        <div 
+          className="assets-header" 
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <h3>{username || "Guest User"}</h3>
+          <span className={`dropdown-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>
+        </div>
+        <div className={`assets-content ${isExpanded ? 'expanded' : ''}`}>
+          <div className="user-profile-content">
+            <div className="username-input-container">
+              <input
+                type="text"
+                value={username}
+                onChange={onUsernameChange}
+                placeholder="Enter username"
+                className="username-input"
+              />
+            </div>
+            <label className="suins-checkbox">
+              <input
+                type="checkbox"
+                checked={useSuins}
+                onChange={onSuinsChange}
+              />
+              Use SUI Name Service
+            </label>
+            {!isConnected && (
+              <button className="wallet-button" onClick={onConnect}>
+                Connect Wallet
+              </button>
+            )}
+            <NFTDisplay />
+            <button className="view-tutorial-button" onClick={showTutorial}>
+              View Tutorial
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render method
   return (
-    <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+    <div className="game-container">
+      <h1 className="title">Tears of Aya</h1>
+      <header className={isScrolled ? 'scrolled' : ''}>
+        <UserProfile
+          username={playerName}
+          onUsernameChange={handleUsernameChange}
+          onSuinsChange={handleSuinsChange}
+          useSuins={useSuins}
+          isConnected={!!wallet}
+          onConnect={() => connect()}
+          showTutorial={() => setShowTutorial(true)}
+        />
+      </header>
       {showGameInfoPopup && (
         <GameInfoPopup onClose={handlePopupClose} />
       )}
