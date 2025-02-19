@@ -1807,7 +1807,7 @@ const handleSuinsChange = (e) => {
                       className="submit-paid-button"
                       disabled={transactionInProgress}
                     >
-                      Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
+                      Submit to Paid Leaderboard and Play Again - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
                       ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
                     </button>
                     <button 
@@ -1818,6 +1818,8 @@ const handleSuinsChange = (e) => {
                         } catch (error) {
                           console.error('Error submitting to free leaderboard:', error);
                         }
+                        resetGameState();
+                        restartGame();
                       }}
                       className="submit-free-button"
                       disabled={transactionInProgress}
