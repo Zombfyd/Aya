@@ -1150,19 +1150,19 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 .header-controls {
   display: flex;
   justify-content: center;
-  margin: 10px 0;
+  margin: 5px 0;
 }
 
 .view-tutorial-button {
   background: #4a90e2;
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 8px;
   transition: background 0.3s ease;
-  margin: 0 10px;
+  margin: 0 2px;
 }
 
 .view-tutorial-button:hover {
@@ -1172,4 +1172,76 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 .view-tutorial-button:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}
+
+.collection-name {
+  position: relative;
+  cursor: help;
+  padding: 5px;
+  color: #2054c9;
+  font-weight: 500;
+}
+
+.collection-name:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  white-space: pre-wrap;
+  max-width: 200px;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.collection-name:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+  margin-bottom: -12px;
+}
+
+.collection-item h4 {
+  position: relative;
+  cursor: help;
+  color: #2054c9;
+  margin: 0;
+  padding: 8px;
+}
+
+.collection-item h4:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  white-space: pre-wrap;
+  max-width: 200px;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.collection-item h4:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+  margin-bottom: -12px;
 }

@@ -1603,6 +1603,8 @@ const handleSuinsChange = (e) => {
             collectionName: matchingCollection.name,
             collectionType: matchingCollection.collectionType
           });
+          // Add collection info to the NFT object
+          nft.collectionInfo = matchingCollection;
         }
 
         return matchingCollection !== undefined;
@@ -1614,7 +1616,7 @@ const handleSuinsChange = (e) => {
         verifiedNFTs: userNFTs.map(nft => ({
           id: nft.data?.objectId,
           type: nft.data?.content?.type,
-          name: nft.data?.content?.fields?.name
+          name: nft.collectionInfo?.name || 'Unknown Collection'
         }))
       });
 
@@ -1653,11 +1655,13 @@ const handleSuinsChange = (e) => {
                       {nft.data?.content?.fields?.url && (
                         <img 
                           src={nft.data.content.fields.url} 
-                          alt={nft.data.content.fields?.name || 'NFT'} 
+                          alt={nft.collectionInfo?.name || 'NFT'} 
                           className="nft-image"
                         />
                       )}
-                      <div>{nft.data?.content?.fields?.name || 'Unnamed NFT'}</div>
+                      <div className="collection-name" title={nft.collectionInfo?.description || ''}>
+                        {nft.collectionInfo?.name || 'Unknown Collection'}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1668,8 +1672,7 @@ const handleSuinsChange = (e) => {
                 <div className="active-collections">
                   {activeCollections.map((collection, index) => (
                     <div key={index} className="collection-item">
-                      <h4>{collection.name}</h4>
-                      <p>{collection.description}</p>
+                      <h4 title={collection.description}>{collection.name}</h4>
                     </div>
                   ))}
                 </div>
