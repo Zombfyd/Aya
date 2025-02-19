@@ -1639,6 +1639,24 @@ const handleSuinsChange = (e) => {
   const NFTDisplay = () => {
     if (!wallet.connected) return null;
 
+    const getImageUrl = (nft) => {
+      // Try to get URL from display.data first
+      const displayUrl = nft.data?.display?.data?.image_url;
+      // Fallback to content.fields
+      const fieldsUrl = nft.data?.content?.fields?.image_url;
+      const imageUrl = displayUrl || fieldsUrl;
+
+      if (!imageUrl) return null;
+
+      // Handle IPFS URLs
+      if (imageUrl.startsWith('ipfs://')) {
+        const ipfsHash = imageUrl.replace('ipfs://', '');
+        return `https://ipfs.io/ipfs/${ipfsHash}`;
+      }
+
+      return imageUrl;
+    };
+
     return (
       <div className="nft-verification-section">
         {isLoadingNFTs ? (
@@ -1652,11 +1670,15 @@ const handleSuinsChange = (e) => {
                 <div className="verified-nfts">
                   {verifiedNFTs.map((nft, index) => (
                     <div key={index} className="nft-item">
-                      {nft.data?.content?.fields?.url && (
+                      {getImageUrl(nft) && (
                         <img 
-                          src={nft.data.content.fields.url} 
+                          src={getImageUrl(nft)} 
                           alt={nft.collectionInfo?.name || 'NFT'} 
                           className="nft-image"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://placehold.co/150x150?text=NFT';
+                          }}
                         />
                       )}
                       <div className="collection-name" title={nft.collectionInfo?.description || ''}>
