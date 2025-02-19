@@ -886,6 +886,15 @@ const TokenAmount = ({ amount, symbol }) => {
       return;
     }
 
+    // For paid mode, verify we have attempts left
+    if (gameMode === 'paid') {
+      if (paidGameAttempts >= maxAttempts) {
+        alert('All paid attempts used. Please make a new payment to continue playing.');
+        setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        return;
+      }
+    }
+
     try {
       setGameState(prev => ({
         ...prev,
@@ -941,30 +950,44 @@ const TokenAmount = ({ amount, symbol }) => {
                     gameStarted: false,
                 }));
 
-                // If not connected to wallet, submit to Web2 directly
-                if (!wallet.connected) {
-                    await handleScoreSubmit(finalScore, 'free', gameType);
-                    return;
-                }
-
-                // If in paid mode, submit to paid leaderboard
-                if (gameMode === 'paid') {
-                    await handleScoreSubmit(finalScore, 'paid', gameType);
-                    return;
-                }
-
-                // If in free mode with wallet connected, check qualification but don't submit yet
-                if (gameMode === 'free' && wallet.connected) {
-                    const qualificationResult = await checkScoreQualification(finalScore, gameType);
-                    if (qualificationResult) {
-                        setQualifiedForPaid(true);
-                        setQualifyingTier(qualificationResult);
-                        // Don't submit score - wait for user choice
-                    } else {
-                        // If they don't qualify for paid, show only free submission option
-                        setQualifiedForPaid(false);
-                        setQualifyingTier(null);
+                try {
+                    // If not connected to wallet, submit to Web2 directly
+                    if (!wallet.connected) {
+                        await handleScoreSubmit(finalScore, 'free', gameType);
+                        return;
                     }
+
+                    // If in paid mode, submit to paid leaderboard
+                    if (gameMode === 'paid') {
+                        // Submit score with current payment status
+                        await handleScoreSubmit(finalScore, 'paid', gameType, paymentStatus);
+                        
+                        // Check if this was the last attempt
+                        if (paidGameAttempts >= maxAttempts) {
+                            setGameState(prev => ({
+                                ...prev,
+                                hasValidPayment: false
+                            }));
+                        }
+                        return;
+                    }
+
+                    // If in free mode with wallet connected, check qualification
+                    if (gameMode === 'free' && wallet.connected) {
+                        const qualificationResult = await checkScoreQualification(finalScore, gameType);
+                        if (qualificationResult) {
+                            setQualifiedForPaid(true);
+                            setQualifyingTier(qualificationResult);
+                        } else {
+                            setQualifiedForPaid(false);
+                            setQualifyingTier(null);
+                            // Submit to free leaderboard automatically if they don't qualify
+                            await handleScoreSubmit(finalScore, 'free', gameType);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling game over:', error);
+                    alert('Failed to submit score. Please try again.');
                 }
             };
         }
@@ -973,7 +996,7 @@ const TokenAmount = ({ amount, symbol }) => {
     // Set up game over handlers for both game types
     setupGameOver(window.gameManager1, 'TOA');
     setupGameOver(window.gameManager2, 'TOB');
-}, [gameMode, wallet.connected, handleScoreSubmit]);
+}, [gameMode, wallet.connected, handleScoreSubmit, paymentStatus, paidGameAttempts, maxAttempts]);
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
@@ -1018,6 +1041,8 @@ const TokenAmount = ({ amount, symbol }) => {
     }
 
     setTransactionInProgress(true);
+    setPaying(true);
+    
     try {
       const tierConfig = gameMode === 'free' ? 
         config.scoreSubmissionTiers[qualifyingTier] : 
@@ -1051,7 +1076,8 @@ const TokenAmount = ({ amount, symbol }) => {
       txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
 
       const response = await wallet.signAndExecuteTransaction({
-        transaction: txb
+        transaction: txb,
+        options: { showEffects: true }
       });
 
       if (!response.digest) {
@@ -1060,7 +1086,7 @@ const TokenAmount = ({ amount, symbol }) => {
 
       console.log('Transaction successful:', response.digest);
 
-      // Update payment status and game state
+      // Update payment status
       const paymentDetails = {
         verified: true,
         transactionId: response.digest,
@@ -1069,22 +1095,37 @@ const TokenAmount = ({ amount, symbol }) => {
         recipient: recipients.primary
       };
 
+      // Update states
       setPaymentStatus(paymentDetails);
       setGameState(prev => ({
         ...prev,
         hasValidPayment: true
       }));
-      
-      // Set max attempts based on the tier
-      setMaxAttempts(tierConfig.plays || 1);
       setPaidGameAttempts(0);
+      setMaxAttempts(tierConfig.plays);
 
-      // Start the game using handleGameStart which handles the countdown
-      handleGameStart(type);
+      // Start countdown and game automatically
+      setCountdown(3);
+      await new Promise((resolve) => {
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              resolve();
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      });
+
+      // Start the game
+      startGame(type);
 
     } catch (error) {
       console.error('Payment error:', error);
       alert(`Payment failed: ${error.message}`);
+      setCountdown(null);
     } finally {
       setTransactionInProgress(false);
       setPaying(false);
