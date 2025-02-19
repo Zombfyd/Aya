@@ -1679,9 +1679,9 @@ const handleSuinsChange = (e) => {
     const handleImageUrl = (url) => {
       if (!url) return '/placeholder-nft.png';
       
-      // Handle IPFS URLs
-      if (url.startsWith('ipfs://')) {
-        return `https://ipfs.io/ipfs/${url.replace('ipfs://', '')}`;
+      // Handle IPFS URLs by using the hash directly
+      if (url.includes('ipfs')) {
+        return `https://ipfs.io/ipfs/${url}`;
       }
       
       return url;
@@ -1746,6 +1746,11 @@ const handleSuinsChange = (e) => {
 
   // Add UserInfo component before the return statement
   const UserInfo = () => {
+    const handleUsernameInputChange = (e) => {
+      e.preventDefault();
+      setPlayerName(e.target.value);
+    };
+
     return (
       <div className="user-info-section">
         <div className="assets-header" onClick={() => setIsUserInfoExpanded(!isUserInfoExpanded)}>
@@ -1759,7 +1764,7 @@ const handleSuinsChange = (e) => {
                 type="text"
                 placeholder="Enter your username"
                 value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
+                onChange={handleUsernameInputChange}
                 className="username-input"
                 maxLength={25}
                 required
@@ -1794,8 +1799,6 @@ const handleSuinsChange = (e) => {
             }}
           />
 
-          {wallet.connected && <NFTDisplay />}
-
           <button 
             onClick={() => setShowGameInfoPopup(true)} 
             className="view-tutorial-button"
@@ -1806,6 +1809,107 @@ const handleSuinsChange = (e) => {
       </div>
     );
   };
+
+  // Separate NFTInfo component to prevent re-renders
+  const NFTInfo = React.memo(() => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    if (!wallet.connected) return null;
+
+    const getImageUrl = (nft) => {
+      try {
+        // First try to get URL from display.data
+        const displayUrl = nft?.data?.display?.data?.image_url;
+        if (displayUrl) {
+          return handleImageUrl(displayUrl);
+        }
+        
+        // Then try content.fields
+        const fieldsUrl = nft?.data?.content?.fields?.image_url;
+        if (fieldsUrl) {
+          return handleImageUrl(fieldsUrl);
+        }
+        
+        // Finally try url field directly
+        const directUrl = nft?.data?.content?.fields?.url;
+        if (directUrl) {
+          return handleImageUrl(directUrl);
+        }
+
+        return '/placeholder-nft.png';
+      } catch (error) {
+        console.error('Error getting NFT image URL:', error);
+        return '/placeholder-nft.png';
+      }
+    };
+
+    const handleImageUrl = (url) => {
+      if (!url) return '/placeholder-nft.png';
+      
+      // Handle IPFS URLs by using the hash directly
+      if (url.includes('ipfs')) {
+        return `https://ipfs.io/ipfs/${url}`;
+      }
+      
+      return url;
+    };
+
+    return (
+      <div className="nft-verification-section">
+        <div className="assets-header" onClick={() => setIsExpanded(!isExpanded)}>
+          <h3>NFT Status</h3>
+          <span className={`dropdown-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>
+        </div>
+        <div className={`assets-content ${isExpanded ? 'expanded' : ''}`}>
+          {isLoadingNFTs ? (
+            <div>Verifying NFTs...</div>
+          ) : (
+            <>
+              {hasValidNFT ? (
+                <div className="nft-status success">
+                  <span>✅ You have access to paid games with your NFT!</span>
+                  <div className="verified-nfts">
+                    {verifiedNFTs.map((nft, index) => (
+                      <div key={index} className="nft-item">
+                        <img 
+                          src={getImageUrl(nft)} 
+                          alt={nft.data?.content?.fields?.name || nft.collectionInfo?.name || 'NFT'} 
+                          className="nft-image"
+                          onError={(e) => {
+                            e.target.src = '/placeholder-nft.png';
+                            e.target.onerror = null;
+                          }}
+                        />
+                        <h4 
+                          className="collection-name" 
+                          title={nft.collectionInfo?.description || 'No description available'}
+                        >
+                          {nft.data?.content?.fields?.name || nft.collectionInfo?.name || 'Unknown NFT'}
+                        </h4>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="nft-status">
+                  <span>Get an NFT from these collections for free access:</span>
+                  <div className="active-collections">
+                    {activeCollections.map((collection, index) => (
+                      <div key={index} className="collection-item">
+                        <h4 title={collection.description || 'No description available'}>
+                          {collection.name}
+                        </h4>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  });
 
   // Render method
   return (
@@ -1844,9 +1948,9 @@ const handleSuinsChange = (e) => {
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
           <div className="title">Tears of Aya</div>
-          
           <UserInfo />
-
+          {wallet.connected && <NFTInfo />}
+          
           <div className="wallet-info">
             <div 
               className="assets-header" 
