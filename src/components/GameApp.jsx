@@ -1079,27 +1079,11 @@ const TokenAmount = ({ amount, symbol }) => {
       setMaxAttempts(tierConfig.plays || 1);
       setPaidGameAttempts(0);
 
-      // Start countdown and game
-      setCountdown(3);
-      await new Promise((resolve) => {
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      });
-
-      // Start the game after countdown
-      startGame(type);
+      // Start the game using handleGameStart which handles the countdown
+      handleGameStart(type);
 
     } catch (error) {
       console.error('Payment error:', error);
-      setCountdown(null);
       alert(`Payment failed: ${error.message}`);
     } finally {
       setTransactionInProgress(false);
