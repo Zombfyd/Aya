@@ -586,7 +586,7 @@ drawUI() {
     }
 
     // Draw lives count
-    this.ctx.fillStyle = this.HEALTH_COLORS[i];
+    this.ctx.fillStyle = this.HEALTH_COLORS[0];
     this.ctx.font = '16px Inconsolata';
     this.ctx.textAlign = 'center';
     this.ctx.fillText(
