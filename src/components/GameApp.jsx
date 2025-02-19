@@ -141,6 +141,8 @@ const GameApp = () => {
   const [activeCollections, setActiveCollections] = useState([]);
   const [isLoadingNFTs, setIsLoadingNFTs] = useState(false);
   
+  const [isUserInfoExpanded, setIsUserInfoExpanded] = useState(false);
+  
   useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -1643,35 +1645,30 @@ const handleSuinsChange = (e) => {
 
     const getImageUrl = (nft) => {
       try {
-        // Get URL directly from the user's NFT data
-        const nftData = nft.data;
-        if (!nftData) {
-          console.warn('No NFT data found:', nft);
-          return '/placeholder-nft.png';
-        }
-
-        // Try to get URL from the NFT's content fields
-        const contentUrl = nftData.content?.fields?.url;
-        if (contentUrl) {
-          console.log('Found content URL:', contentUrl);
-          return handleImageUrl(contentUrl);
-        }
-
-        // Try to get URL from the NFT's content fields image_url
-        const imageUrl = nftData.content?.fields?.image_url;
-        if (imageUrl) {
-          console.log('Found image URL:', imageUrl);
-          return handleImageUrl(imageUrl);
-        }
-
-        // Try to get URL from display data
-        const displayUrl = nftData.display?.data?.image_url;
+        console.log('Getting image URL for NFT:', nft);
+        
+        // First try to get URL from display.data
+        const displayUrl = nft?.data?.display?.data?.image_url;
         if (displayUrl) {
           console.log('Found display URL:', displayUrl);
           return handleImageUrl(displayUrl);
         }
+        
+        // Then try content.fields
+        const fieldsUrl = nft?.data?.content?.fields?.image_url;
+        if (fieldsUrl) {
+          console.log('Found fields URL:', fieldsUrl);
+          return handleImageUrl(fieldsUrl);
+        }
+        
+        // Finally try url field directly
+        const directUrl = nft?.data?.content?.fields?.url;
+        if (directUrl) {
+          console.log('Found direct URL:', directUrl);
+          return handleImageUrl(directUrl);
+        }
 
-        console.warn('No image URL found in NFT data:', nftData);
+        console.warn('No image URL found for NFT:', nft);
         return '/placeholder-nft.png';
       } catch (error) {
         console.error('Error getting NFT image URL:', error);
@@ -1747,58 +1744,64 @@ const handleSuinsChange = (e) => {
     );
   };
 
-  // Add User Profile dropdown component
-  const UserProfile = ({ 
-    username, 
-    onUsernameChange, 
-    onSuinsChange, 
-    useSuins, 
-    isConnected, 
-    onConnect, 
-    showTutorial 
-  }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
+  // Add UserInfo component before the return statement
+  const UserInfo = () => {
     return (
-      <div className="user-profile">
-        <div className="assets-header" onClick={() => setIsExpanded(!isExpanded)}>
-          <h3>User Profile</h3>
-          <span className={`dropdown-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>
+      <div className="user-info-section">
+        <div className="assets-header" onClick={() => setIsUserInfoExpanded(!isUserInfoExpanded)}>
+          <h3>User Information</h3>
+          <span className={`dropdown-arrow ${isUserInfoExpanded ? 'expanded' : ''}`}>▼</span>
         </div>
-        <div className={`assets-content ${isExpanded ? 'expanded' : ''}`}>
-          <div className="user-profile-content">
-            <div className="username-input-container">
+        <div className={`assets-content ${isUserInfoExpanded ? 'expanded' : ''}`}>
+          {!isUsernameSubmitted ? (
+            <form onSubmit={handleUsernameSubmit}>
               <input
                 type="text"
-                value={username}
-                onChange={onUsernameChange}
-                placeholder="Enter username"
+                placeholder="Enter your username"
+                value={playerName}
+                onChange={handleUsernameChange}
                 className="username-input"
+                maxLength={25}
+                required
               />
+              <button type="submit">Submit</button>
+            </form>
+          ) : (
+            <div className="username-container">
+              <h4>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h4>
+              <div className="username-controls">
+                <button onClick={() => setIsUsernameSubmitted(false)}>Change Username</button>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={useSuins}
+                    onChange={handleSuinsChange}
+                  />
+                  use SUINS name
+                </label>
+              </div>
             </div>
-            
-            <div className="suins-checkbox">
-              <input
-                type="checkbox"
-                checked={useSuins}
-                onChange={onSuinsChange}
-                id="suins-checkbox"
-              />
-              <label htmlFor="suins-checkbox">Use SUINS Name</label>
-            </div>
+          )}
+          
+          <ConnectButton
+            label="Connect SUI Wallet"
+            onConnectError={(error) => {
+              if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
+                console.warn("User rejected connection to " + error.details?.wallet);
+              } else {
+                console.warn("Unknown connect error: ", error);
+              }
+            }}
+          />
 
-            {!isConnected && (
-              <button className="wallet-button" onClick={onConnect}>
-                Connect Wallet
-              </button>
-            )}
+          {wallet.connected && <NFTDisplay />}
 
-            {isConnected && <NFTDisplay />}
-
-            <button className="view-tutorial-button" onClick={showTutorial}>
-              View Tutorial
-            </button>
-          </div>
+          <button 
+            onClick={() => setShowGameInfoPopup(true)} 
+            className="view-tutorial-button"
+          >
+            View Tutorial
+          </button>
         </div>
       </div>
     );
@@ -1806,41 +1809,97 @@ const handleSuinsChange = (e) => {
 
   // Render method
   return (
-    <div className="game-container">
-      <header>
-        <h1 className="title">Tears of Aya</h1>
-        
-        <div className="header-content">
-          <UserProfile 
-            username={playerName}
-            onUsernameChange={handleUsernameChange}
-            onSuinsChange={handleSuinsChange}
-            useSuins={useSuins}
-            isConnected={wallet.connected}
-            onConnect={() => {}}
-            showTutorial={() => setShowGameInfoPopup(true)}
-          />
+    <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+      {showGameInfoPopup && (
+        <GameInfoPopup onClose={handlePopupClose} />
+      )}
+      
+      {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
+        <header>
+          <div className="title">Tears of Aya</div>
+          
+          <UserInfo />
 
-          {isUsernameSubmitted && (
-            <div className="game-mode-selection">
-              <h2>Select Game Mode</h2>
-              <div className="mode-selector">
-                <button 
-                  onClick={() => handleGameModeSelection('free')} 
-                  className={gameMode === 'free' ? 'active' : ''}
-                >
-                  Free Mode
-                </button>
-                <button 
-                  onClick={() => handleGameModeSelection('paid')} 
-                  className={gameMode === 'paid' ? 'active' : ''}
-                >
-                  Paid Mode
-                </button>
+          <div className="wallet-info">
+            <div 
+              className="assets-header" 
+              onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
+            >
+              <h3>Prize Pool Assets</h3>
+              <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>▼</span>
+            </div>
+            
+            <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
+              <div className="balance-list">
+                {Object.entries(allBalances).map(([symbol, balance]) => {
+                 
+                  return (
+                    <p key={symbol} className="balance-item">
+                      <TokenAmount amount={balance} symbol={symbol} /> {symbol}
+                    </p>
+                  );
+                })}
               </div>
+              {nfts.length > 0 && (
+                <>
+                  <h3>NFTs:</h3>
+                  <div className="nft-list">
+                    {nfts.map((nft) => (
+                      <div key={nft.id} className="nft-item">
+                        {nft.url && (
+                          <img 
+                            src={nft.url} 
+                            alt={nft.name} 
+                            className="nft-image"
+                          />
+                        )}
+                        <p>{nft.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
+          <p className="creator-credit">
+            Created by <a 
+                href="https://x.com/Zombfyd" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="creator-name"
+            >
+              🎮 Zombfyd 🎮
+            </a>
+          </p>
+
+          <h2>Select Game Mode</h2>
+          <div className="mode-selector">
+            <button 
+              onClick={() => handleGameModeSelection('free')} 
+              className={gameMode === 'free' ? 'active' : ''}
+            >
+              Free Mode
+            </button>
+            <button 
+              onClick={() => handleGameModeSelection('paid')} 
+              className={gameMode === 'paid' ? 'active' : ''}
+            >
+              Paid Mode
+            </button>
+          </div>
+
+          {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
+            <div className="attempts-info">
+              <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
+            </div>
+          )}
+
+          {!gameState.gameStarted && isUsernameSubmitted && (
+            <>
               {gameMode === 'free' && (
-                <div className="game-type-buttons">
+                <div className="game-mode-selection">
+                  <h2>Select Your Game</h2>
                   <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
                     Play Tears of Aya
                   </button>
@@ -1850,348 +1909,340 @@ const handleSuinsChange = (e) => {
                 </div>
               )}
 
-              {gameMode === 'paid' && wallet.connected && (
-                <div className="payment-section">
-                  {!gameState.hasValidPayment ? (
-                    <>
-                      <h3>Select Payment Tier</h3>
-                      {renderPaymentTiers()}
-                      <div className="game-type-buttons">
-                        <button 
-                          onClick={() => handleGamePayment('aya')}
-                          disabled={paying || !selectedTier}
-                          className="start-button aya"
-                        >
-                          {paying ? 'Processing...' : 'Start Tears of Aya'}
-                        </button>
-                        <button 
-                          onClick={() => handleGamePayment('blood')}
-                          disabled={paying || !selectedTier}
-                          className="start-button blood"
-                        >
-                          {paying ? 'Processing...' : 'Start Tears of Blood'}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="attempts-info">
-                      <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
-
-      {showGameInfoPopup && (
-        <GameInfoPopup onClose={handlePopupClose} />
-      )}
-      
-      {playerName && playerName.length > 0 && (
-        <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
-          Playing as: 
-          <span className="player-name">
-            {suinsData?.imageUrl && (
-              <img 
-                src={suinsData.imageUrl} 
-                alt="SUINS avatar" 
-                className="suins-avatar"
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  marginRight: '5px',
-                  verticalAlign: 'middle'
-                }}
-              />
-            )}
-            <span>{playerName}</span>
-          </span>
-        </div>
-      )}
-
-      <canvas id="tearCatchGameCanvas" className={`game-canvas ${gameState.gameStarted ? 'centered-canvas' : ''}`} />
-
-      {gameState.isGameOver && (
-        <div className="game-over-overlay">
-          <div className="game-over-popup">
-            <h2>Game Over!</h2>
-            <p>Final Score: {gameState.score}</p>
-            
-            {/* Show qualification notice and choices for free mode with connected wallet */}
-            {gameMode === 'free' && wallet.connected && (
-              <div className="score-submission-options">
-                {qualifiedForPaid ? (
-                  <div>
-                    <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
-                    <p>Choose where to submit your score:</p>
-                    <div className="submission-buttons">
-                      <button 
-                        onClick={async () => {
-                          try {
-                            console.log('Starting paid submission for free mode score');
-                            setPaying(true);
-                            setTransactionInProgress(true);
-
-                            const scoreToSubmit = gameState.score;
-                            const currentGameType = window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB';
-                            const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
-                            const recipients = config.getCurrentRecipients();
-                            const totalAmount = tierConfig.amount;
-                            
-                            const txb = new TransactionBlock();
-                            const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
-                              txb.gas,
-                              [
-                                Math.floor(totalAmount * (config.shares.primary / 10000)),
-                                Math.floor(totalAmount * (config.shares.secondary / 10000)),
-                                Math.floor(totalAmount * (config.shares.tertiary / 10000)),
-                                Math.floor(totalAmount * (config.shares.rewards / 10000))
-                              ]
-                            );
-
-                            txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
-                            txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
-                            txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
-                            txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
-
-                            const response = await wallet.signAndExecuteTransaction({
-                              transaction: txb,
-                              options: { showEffects: true }
-                            });
-
-                            if (!response.digest) {
-                              throw new Error('Transaction failed - no digest received');
-                            }
-
-                            console.log('Transaction successful:', response.digest);
-
-                            // Add payment status update here
-                            const paymentDetails = {
-                              verified: true,
-                              transactionId: response.digest,
-                              amount: totalAmount,
-                              timestamp: Date.now(),
-                              recipient: recipients.primary
-                            };
-
-                            // Update state
-                            setPaymentStatus(paymentDetails);
-
-                            // Wait for a moment to ensure state is updated
-                            await new Promise(resolve => setTimeout(resolve, 100));
-
-                            // Submit score with the same payment details
-                            await handleScoreSubmit(scoreToSubmit, 'paid', currentGameType, paymentDetails);
-                            
-                            setQualifiedForPaid(false);
-                            setQualifyingTier(null);
-                            alert('Score successfully submitted to paid leaderboard!');
-                          } catch (error) {
-                            console.error('Error in paid submission process:', error);
-                            alert(`Failed to submit score: ${error.message}`);
-                          } finally {
-                            setPaying(false);
-                            setTransactionInProgress(false);
-                          }
-                        }}
-                        className="submit-paid-button"
-                        disabled={transactionInProgress}
+    {gameMode === 'paid' && wallet.connected && (
+              <div className="game-mode-selection">
+                <h2>Select Your Game</h2>
+                {!gameState.hasValidPayment ? (
+                  <div className="payment-section">
+                    <h3>Select Payment Tier</h3>
+                    
+                    {/* Mobile dropdown */}
+                    <div className="payment-tiers-mobile">
+                      <select 
+                        className="tier-select"
+                        value={selectedTier || ''}
+                        onChange={(e) => setSelectedTier(e.target.value)}
                       >
-                        Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
-                        ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
+                        <option value="">Select Payment Tier</option>
+                        <option value="tier3">A Quickie - 0.4 SUI (1 Play)</option>
+                        <option value="tier2">Short Break - 0.8 SUI (2 Plays)</option>
+                        <option value="tier1">Degen Time! - 1.0 SUI (3 Plays)</option>
+                      </select>
+                    </div>
+
+                    {/* Desktop payment tiers */}
+                    {renderPaymentTiers()}
+
+                    {/* Game type buttons */}
+                    <div className="game-type-buttons">
+                      <button 
+                        onClick={() => handleGamePayment('aya')}
+                        disabled={paying || !selectedTier}
+                        className="start-button aya"
+                      >
+                        {paying ? 'Processing...' : 'Start Tears of Aya'}
                       </button>
                       <button 
-                        onClick={async () => {
-                          try {
-                            await handleScoreSubmit(gameState.score, 'free', 
-                              window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                            // After submitting the score, restart the game
-                            resetGameState();
-                            restartGame(window.activeGameManager === window.gameManager1 ? 'aya' : 'blood');
-                          } catch (error) {
-                            console.error('Error submitting to free leaderboard:', error);
-                          }
-                        }}
-                        className="submit-free-button"
-                        disabled={transactionInProgress}
+                        onClick={() => handleGamePayment('blood')}
+                        disabled={paying || !selectedTier}
+                        className="start-button blood"
                       >
-                        Submit to Free Leaderboard
+                        {paying ? 'Processing...' : 'Start Tears of Blood'}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <button 
-                    onClick={async () => {
-                      try {
-                        await handleScoreSubmit(gameState.score, 'free', 
-                          window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                        // After submitting the score, restart the game
-                        resetGameState();
-                        restartGame(window.activeGameManager === window.gameManager1 ? 'aya' : 'blood');
-                      } catch (error) {
-                        console.error('Error submitting to free leaderboard:', error);
-                      }
-                    }}
-                    className="submit-free-button"
-                    disabled={transactionInProgress}
-                  >
-                    Submit and Play Again
-                  </button>
+                  <div className="attempts-info">
+                    <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
+                  </div>
                 )}
               </div>
             )}
+          </>
+        )}
+      </header>
+    )}
 
-            {/* Show play again and return to menu buttons */}
-            <div className="game-over-buttons">
-              <button 
-                onClick={() => {
-                  resetGameState();
-                  restartGame();
-                }}
-                className="restart-button"
-              >
-                Play Again
-              </button>
-              <button 
-                onClick={() => {
-                  resetGameState();
-                }}
-                className="return-menu-button"
-              >
-                Return to Menu
-              </button>
+    <canvas id="tearCatchGameCanvas" className={`game-canvas ${gameState.gameStarted ? 'centered-canvas' : ''}`} />
+
+    {gameState.isGameOver && (
+      <div className="game-over-overlay">
+        <div className="game-over-popup">
+          <h2>Game Over!</h2>
+          <p>Final Score: {gameState.score}</p>
+          
+          {/* Show qualification notice and choices for free mode with connected wallet */}
+          {gameMode === 'free' && wallet.connected && (
+            <div className="score-submission-options">
+              {qualifiedForPaid ? (
+                <div>
+                  <h3>Congratulations! Your score qualifies for the paid leaderboard!</h3>
+                  <p>Choose where to submit your score:</p>
+                  <div className="submission-buttons">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          console.log('Starting paid submission for free mode score');
+                          setPaying(true);
+                          setTransactionInProgress(true);
+
+                          const scoreToSubmit = gameState.score;
+                          const currentGameType = window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB';
+                          const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
+                          const recipients = config.getCurrentRecipients();
+                          const totalAmount = tierConfig.amount;
+                          
+                          const txb = new TransactionBlock();
+                          const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
+                            txb.gas,
+                            [
+                              Math.floor(totalAmount * (config.shares.primary / 10000)),
+                              Math.floor(totalAmount * (config.shares.secondary / 10000)),
+                              Math.floor(totalAmount * (config.shares.tertiary / 10000)),
+                              Math.floor(totalAmount * (config.shares.rewards / 10000))
+                            ]
+                          );
+
+                          txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+                          txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+                          txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+                          txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+
+                          const response = await wallet.signAndExecuteTransaction({
+                            transaction: txb,
+                            options: { showEffects: true }
+                          });
+
+                          if (!response.digest) {
+                            throw new Error('Transaction failed - no digest received');
+                          }
+
+                          console.log('Transaction successful:', response.digest);
+
+                          // Add payment status update here
+                          const paymentDetails = {
+                            verified: true,
+                            transactionId: response.digest,
+                            amount: totalAmount,
+                            timestamp: Date.now(),
+                            recipient: recipients.primary
+                          };
+
+                          // Update state
+                          setPaymentStatus(paymentDetails);
+
+                          // Wait for a moment to ensure state is updated
+                          await new Promise(resolve => setTimeout(resolve, 100));
+
+                          // Submit score with the same payment details
+                          await handleScoreSubmit(scoreToSubmit, 'paid', currentGameType, paymentDetails);
+                          
+                          setQualifiedForPaid(false);
+                          setQualifyingTier(null);
+                          alert('Score successfully submitted to paid leaderboard!');
+                        } catch (error) {
+                          console.error('Error in paid submission process:', error);
+                          alert(`Failed to submit score: ${error.message}`);
+                        } finally {
+                          setPaying(false);
+                          setTransactionInProgress(false);
+                        }
+                      }}
+                      className="submit-paid-button"
+                      disabled={transactionInProgress}
+                    >
+                      Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
+                      ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await handleScoreSubmit(gameState.score, 'free', 
+                            window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                          // After submitting the score, restart the game
+                          resetGameState();
+                          restartGame(window.activeGameManager === window.gameManager1 ? 'aya' : 'blood');
+                        } catch (error) {
+                          console.error('Error submitting to free leaderboard:', error);
+                        }
+                      }}
+                      className="submit-free-button"
+                      disabled={transactionInProgress}
+                    >
+                      Submit to Free Leaderboard
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={async () => {
+                    try {
+                      await handleScoreSubmit(gameState.score, 'free', 
+                        window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                      // After submitting the score, restart the game
+                      resetGameState();
+                      restartGame(window.activeGameManager === window.gameManager1 ? 'aya' : 'blood');
+                    } catch (error) {
+                      console.error('Error submitting to free leaderboard:', error);
+                    }
+                  }}
+                  className="submit-free-button"
+                  disabled={transactionInProgress}
+                >
+                  Submit and Play Again
+                </button>
+              )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {process.env.NODE_ENV === 'development' && (
-        <div className="debug-info">
-          <p>Wallet Connected: {String(wallet.connected)}</p>
-          <p>Wallet Initialized: {String(walletInitialized)}</p>
-          <p>Game Manager Initialized: {String(gameManagerInitialized)}</p>
-          <p>Wallet Name: {wallet.adapter?.name || 'None'}</p>
-          <p>Wallet Address: {wallet.account?.address || 'None'}</p>
-          <p>Game Mode: {gameMode}</p>
-          <p>Game Started: {String(gameState.gameStarted)}</p>
-          <p>Score: {gameState.score}</p>
-        </div>
-      )}
-
-      {!gameState.gameStarted && (
-        <div className="leaderboards-container">
-          {isLeaderboardLoading ? (
-            <div className="leaderboard-loading">Loading leaderboards...</div>
-          ) : (
-              <>
-                  <div className="leaderboard-section">
-                      <h2>Free Leaderboards</h2>
-                      <select 
-                          className="leaderboard-type-selector"
-                          value={selectedLeaderboards.free}
-                          onChange={(e) => setSelectedLeaderboards(prev => ({
-                              ...prev,
-                              free: e.target.value
-                          }))}
-                      >
-                          <option value="mainFreeTOA">TOA All Time Leaderboard</option>
-                          <option value="secondaryFreeTOA">TOA Weekly Leaderboard</option>
-                          <option value="web2TOA">TOA Normal Players</option>
-                          <option value="mainFreeTOB">TOB All Time Leaderboard</option>
-                          <option value="secondaryFreeTOB">TOB Weekly Leaderboard</option>
-                          <option value="web2TOB">TOB Normal Players</option>
-                      </select>
-                      <table className="leaderboard-table">
-                          <thead>
-                              <tr>
-                                  <th>Rank</th>
-                                  <th>Player Name</th>
-                                  <th>Wallet</th>
-                                  <th>Score</th>
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {leaderboardData[selectedLeaderboards.free]?.map((entry, index) => (
-                                  <tr key={index} className={`rank-${index + 1}`}>
-                                      <td>{index + 1}</td>
-                                      <td className="playername-cell">{entry.playerName}</td>
-                                      <td className="wallet-cell">
-                                          {entry.playerWallet ? getDisplayName(entry.playerWallet) : 'N/A'}
-                                      </td>
-                                      <td className="score-cell">{entry.score}</td>
-                                  </tr>
-                              ))}
-                          </tbody>
-                      </table>
-                  </div>
-
-                  <div className="leaderboard-section">
-                      <h2>Paid Leaderboards</h2>
-                      <select 
-                          className="leaderboard-type-selector"
-                          value={selectedLeaderboards.paid}
-                          onChange={(e) => setSelectedLeaderboards(prev => ({
-                              ...prev,
-                              paid: e.target.value
-                          }))}
-                      >
-                          <option value="mainPaidTOA">TOA All Time Leaderboard</option>
-                          <option value="secondaryPaidTOA">TOA Weekly Leaderboard</option>
-                          <option value="mainPaidTOB">TOB All Time Leaderboard</option>
-                          <option value="secondaryPaidTOB">TOB Weekly Leaderboard</option>
-                      </select>
-                      <table className="leaderboard-table">
-                          <thead>
-                              <tr>
-                                  <th>Rank</th>
-                                  <th>Player Name</th>
-                                  <th>Wallet</th>
-                                  <th>Score</th>
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {leaderboardData[selectedLeaderboards.paid]?.map((entry, index) => (
-                                  <tr key={index} className={`rank-${index + 1}`}>
-                                      <td>{index + 1}</td>
-                                      <td className="playername-cell">{entry.playerName}</td>
-                                      <td className="wallet-cell">
-                                          {entry.playerWallet ? getDisplayName(entry.playerWallet) : 'N/A'}
-                                      </td>
-                                      <td className="score-cell">{entry.score}</td>
-                                  </tr>
-                              ))}
-                          </tbody>
-                      </table>
-                  </div>
-              </>
           )}
-        </div>
-      )}
 
-      {countdown !== null && (
-        <div className="countdown-overlay">
-          <div className="countdown-popup">
-            <h2>Get Ready!</h2>
-            <p>Move your mouse to control the bucket</p>
-            <p>Catch the tears to score points!</p>
-            <div className="countdown-number">{countdown}</div>
-            <div className="countdown-progress">
-              <div 
-                className="countdown-bar" 
-                style={{ 
-                  width: `${(countdown / 3) * 100}%`,
-                  transition: 'width 1s linear'
-                }}
-              />
-            </div>
+          {/* Show play again and return to menu buttons */}
+          <div className="game-over-buttons">
+            <button 
+              onClick={() => {
+                resetGameState();
+                restartGame();
+              }}
+              className="restart-button"
+            >
+              Play Again
+            </button>
+            <button 
+              onClick={() => {
+                resetGameState();
+              }}
+              className="return-menu-button"
+            >
+              Return to Menu
+            </button>
           </div>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    )}
+
+    {process.env.NODE_ENV === 'development' && (
+      <div className="debug-info">
+        <p>Wallet Connected: {String(wallet.connected)}</p>
+        <p>Wallet Initialized: {String(walletInitialized)}</p>
+        <p>Game Manager Initialized: {String(gameManagerInitialized)}</p>
+        <p>Wallet Name: {wallet.adapter?.name || 'None'}</p>
+        <p>Wallet Address: {wallet.account?.address || 'None'}</p>
+        <p>Game Mode: {gameMode}</p>
+        <p>Game Started: {String(gameState.gameStarted)}</p>
+        <p>Score: {gameState.score}</p>
+      </div>
+    )}
+
+    {!gameState.gameStarted && (
+      <div className="leaderboards-container">
+        {isLeaderboardLoading ? (
+          <div className="leaderboard-loading">Loading leaderboards...</div>
+        ) : (
+            <>
+                <div className="leaderboard-section">
+                    <h2>Free Leaderboards</h2>
+                    <select 
+                        className="leaderboard-type-selector"
+                        value={selectedLeaderboards.free}
+                        onChange={(e) => setSelectedLeaderboards(prev => ({
+                            ...prev,
+                            free: e.target.value
+                        }))}
+                    >
+                        <option value="mainFreeTOA">TOA All Time Leaderboard</option>
+                        <option value="secondaryFreeTOA">TOA Weekly Leaderboard</option>
+                        <option value="web2TOA">TOA Normal Players</option>
+                        <option value="mainFreeTOB">TOB All Time Leaderboard</option>
+                        <option value="secondaryFreeTOB">TOB Weekly Leaderboard</option>
+                        <option value="web2TOB">TOB Normal Players</option>
+                    </select>
+                    <table className="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player Name</th>
+                                <th>Wallet</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {leaderboardData[selectedLeaderboards.free]?.map((entry, index) => (
+                                <tr key={index} className={`rank-${index + 1}`}>
+                                    <td>{index + 1}</td>
+                                    <td className="playername-cell">{entry.playerName}</td>
+                                    <td className="wallet-cell">
+                                        {entry.playerWallet ? getDisplayName(entry.playerWallet) : 'N/A'}
+                                    </td>
+                                    <td className="score-cell">{entry.score}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="leaderboard-section">
+                    <h2>Paid Leaderboards</h2>
+                    <select 
+                        className="leaderboard-type-selector"
+                        value={selectedLeaderboards.paid}
+                        onChange={(e) => setSelectedLeaderboards(prev => ({
+                            ...prev,
+                            paid: e.target.value
+                        }))}
+                    >
+                        <option value="mainPaidTOA">TOA All Time Leaderboard</option>
+                        <option value="secondaryPaidTOA">TOA Weekly Leaderboard</option>
+                        <option value="mainPaidTOB">TOB All Time Leaderboard</option>
+                        <option value="secondaryPaidTOB">TOB Weekly Leaderboard</option>
+                    </select>
+                    <table className="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player Name</th>
+                                <th>Wallet</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {leaderboardData[selectedLeaderboards.paid]?.map((entry, index) => (
+                                <tr key={index} className={`rank-${index + 1}`}>
+                                    <td>{index + 1}</td>
+                                    <td className="playername-cell">{entry.playerName}</td>
+                                    <td className="wallet-cell">
+                                        {entry.playerWallet ? getDisplayName(entry.playerWallet) : 'N/A'}
+                                    </td>
+                                    <td className="score-cell">{entry.score}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </>
+        )}
+      </div>
+    )}
+
+    {countdown !== null && (
+      <div className="countdown-overlay">
+        <div className="countdown-popup">
+          <h2>Get Ready!</h2>
+          <p>Move your mouse to control the bucket</p>
+          <p>Catch the tears to score points!</p>
+          <div className="countdown-number">{countdown}</div>
+          <div className="countdown-progress">
+            <div 
+              className="countdown-bar" 
+              style={{ 
+                width: `${(countdown / 3) * 100}%`,
+                transition: 'width 1s linear'
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
 };
 
 export default GameApp;
