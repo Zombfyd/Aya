@@ -896,10 +896,6 @@ const TokenAmount = ({ amount, symbol }) => {
       }));
 
       // Track attempts for paid games
-      if (gameMode === 'paid') {
-        handlePaidGameAttempt();
-      }
-
       const canvas = document.getElementById('tearCatchGameCanvas');
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
@@ -1188,26 +1184,16 @@ useEffect(() => {
             eighthPlace: leaderboardData[7]?.score
         });
 
-        // FIXED: Changed comparison logic - lower scores should qualify against higher thresholds
+        // Corrected logic
         let qualificationTier = null;
         if (leaderboardData.length === 0) {
             qualificationTier = 'firstPlace';
-            console.log(`Score ${score} qualifies for first place (empty leaderboard)!`);
-        } else if (leaderboardData[0]?.score >= score) {
-            // If top score is higher, check other tiers
-            if (leaderboardData[2]?.score >= score || !leaderboardData[2]) {
-                // If third place is higher or doesn't exist, check top 8
-                if (leaderboardData[7]?.score >= score || !leaderboardData[7]) {
-                    qualificationTier = 'topEight';
-                    console.log(`Score ${score} qualifies for top eight!`);
-                }
-            } else {
-                qualificationTier = 'topThree';
-                console.log(`Score ${score} qualifies for top three!`);
-            }
-        } else {
+        } else if (score > leaderboardData[0]?.score) {
             qualificationTier = 'firstPlace';
-            console.log(`Score ${score} qualifies for first place!`);
+        } else if (score > leaderboardData[2]?.score) {
+            qualificationTier = 'topThree';
+        } else if (score > leaderboardData[7]?.score) {
+            qualificationTier = 'topEight';
         }
 
         setTopScores(leaderboardData);
