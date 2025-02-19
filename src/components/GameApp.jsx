@@ -1813,7 +1813,28 @@ const handleSuinsChange = (e) => {
       {showGameInfoPopup && (
         <GameInfoPopup onClose={handlePopupClose} />
       )}
-      
+      {playerName && playerName.length > 0 && (
+        <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
+          Playing as: 
+          <span className="player-name">
+            {suinsData?.imageUrl && (
+              <img 
+                src={suinsData.imageUrl} 
+                alt="SUINS avatar" 
+                className="suins-avatar"
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  marginRight: '5px',
+                  verticalAlign: 'middle'
+                }}
+              />
+            )}
+            <span>{playerName}</span>
+          </span>
+        </div>
+      )}
       {gameState.gameStarted && (
         <div className="player-display">
           Playing as: <span className="player-name">{useSuins && suinsData ? suinsData.name : playerName}</span>
