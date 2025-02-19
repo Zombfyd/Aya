@@ -519,16 +519,6 @@ const TokenAmount = ({ amount, symbol }) => {
                 main: mainResult, 
                 secondary: secondaryResult 
             });
-
-            // Check for qualification after submission
-            if (submissionGameMode === 'free' && wallet.connected) {
-                const qualificationResult = await checkScoreQualification(finalScore, currentGame);
-                if (qualificationResult) {
-                    setQualifiedForPaid(true);
-                    setQualifyingTier(qualificationResult);
-                }
-            }
-
             await fetchLeaderboards();
             return { main: mainResult, secondary: secondaryResult };
         }
@@ -1807,11 +1797,11 @@ const handleSuinsChange = (e) => {
                           console.error('Error in paid submission process:', error);
                           alert(`Failed to submit score: ${error.message}`);
                         } finally {
-                          setPaying(false);
                           setTransactionInProgress(false);
-                          resetGameState();
-                          restartGame();
-                        }
+                          setPaying(false);
+                          }
+                        resetGameState();
+                        restartGame();
                       }}
                       className="submit-paid-button"
                       disabled={transactionInProgress}
