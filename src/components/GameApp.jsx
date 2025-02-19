@@ -277,8 +277,7 @@ const TokenAmount = ({ amount, symbol }) => {
                             hasValidPayment: true
                         }));
                         
-                        // Reset attempt counter only after confirmation
-                        setPaidGameAttempts(0);
+                        
                         
                         setTransactionInProgress(false);
                         setPaying(false);
@@ -414,8 +413,7 @@ const TokenAmount = ({ amount, symbol }) => {
             verified: true,
             transactionId: response.digest
           }));
-          startGame(type);
-        }
+          }
 
       } catch (error) {
         console.error('Payment process error:', error);
@@ -955,7 +953,7 @@ const TokenAmount = ({ amount, symbol }) => {
                     if (gameMode === 'paid') {
                         // Submit score with current payment status
                         await handleScoreSubmit(finalScore, 'paid', gameType, paymentStatus);
-                        
+                        await handlePaidGameAttempt();
                         // Check if this was the last attempt
                         if (paidGameAttempts >= maxAttempts) {
                             setGameState(prev => ({
@@ -1825,6 +1823,8 @@ const handleSuinsChange = (e) => {
                         } finally {
                           setPaying(false);
                           setTransactionInProgress(false);
+                          resetGameState();
+                          restartGame();
                         }
                       }}
                       className="submit-paid-button"
@@ -1847,7 +1847,7 @@ const handleSuinsChange = (e) => {
                       className="submit-free-button"
                       disabled={transactionInProgress}
                     >
-                      Submit to Free Leaderboard
+                      Submit to Free Leaderboard and Play Again
                     </button>
                   </div>
                 </div>
