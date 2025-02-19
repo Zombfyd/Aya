@@ -247,7 +247,9 @@ class GameManager {
   resizeCanvas() {
     if (this.canvas) {
         // Get parent width to set canvas width dynamically
-        this.canvas.width = this.canvas.parentNode.offsetWidth;
+        const parentWidth = this.canvas.parentNode.offsetWidth;
+        // Set canvas width to parent width, but cap it at a maximum width if needed
+        this.canvas.width = Math.min(parentWidth, 800); // Cap at 800px or your desired max width
         this.canvas.height = 700; // Keep height fixed
 
         // Ensure bucket stays within bounds
@@ -477,40 +479,47 @@ class GameManager {
 drawUI() {
   if (!this.ctx) return;
 
-  // Reset transform before drawing text
+  // Reset transform and save context state
+  this.ctx.save();
   this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Draw score - move it to the right of the health bar
-  this.ctx.font = this.UI_SIZES.SCORE_FONT;
-  this.ctx.fillStyle = "#f9f9f9";
-  this.ctx.fillText(`Score: ${this.score}`, 60, 30);
+  // Calculate canvas center and edges
+  const canvasCenter = this.canvas.width / 2;
+  const leftEdge = 20; // Minimum padding from left
+  const rightEdge = this.canvas.width - 20; // Minimum padding from right
 
-  // Draw health bars
+  // Draw health bars first (keep on left)
   this.drawHealthBars();
 
-  // Draw speed - keep it on the right side
-  this.ctx.fillStyle = "#2054c9";
+  // Draw score (left aligned after health bar)
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
-  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+  this.ctx.fillStyle = "#f9f9f9";
+  this.ctx.textAlign = 'left';
+  this.ctx.fillText(`Score: ${this.score}`, leftEdge + 80, 30);
 
-  // Draw legend - move it to the right of the health bar
+  // Draw speed (right aligned)
+  this.ctx.fillStyle = "#2054c9";
+  this.ctx.textAlign = 'right';
+  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, rightEdge, 30);
+
+  // Draw legend (left aligned after health bar)
   this.drawLegend();
 
-  // Keep the warning message for low lives - centered
+  // Warning message (centered)
   if (this.lives <= 5) {
     this.ctx.fillStyle = "#FF4D6D";
     this.ctx.font = this.UI_SIZES.SCORE_FONT;
+    this.ctx.textAlign = 'center';
     const warningText = "Lives remaining!";
-    const warningMetrics = this.ctx.measureText(warningText);
-    const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-    this.ctx.fillText(warningText, warningX, 140);
+    this.ctx.fillText(warningText, canvasCenter, 140);
     
     this.ctx.font = "bold 48px Inconsolata";
     const livesCountText = `${this.lives}`;
-    const livesMetrics = this.ctx.measureText(livesCountText);
-    const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
-    this.ctx.fillText(livesCountText, livesX, 190);
+    this.ctx.fillText(livesCountText, canvasCenter, 190);
   }
+
+  // Restore context state
+  this.ctx.restore();
 }
 
   drawLegend() {
@@ -522,7 +531,7 @@ drawUI() {
     this.ctx.font = this.UI_SIZES.LEGEND_FONT;
 
     // Move legend to the right of the health bar
-    const legendX = 60;
+    const legendX = 100;
     const legends = [
       { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
       { text: 'Gold Tear = 15 points', color: '#FFD04D', y: 70 },
