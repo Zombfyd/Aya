@@ -427,6 +427,20 @@ const TokenAmount = ({ amount, symbol }) => {
         setGameState(prev => ({ ...prev, hasValidPayment: false }));
         return;
       }
+      setCountdown(3);
+      await new Promise((resolve) => {
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              resolve();
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      });
+      
       startGame(type);
     }
   };
