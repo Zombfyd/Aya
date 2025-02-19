@@ -315,6 +315,12 @@ const TokenAmount = ({ amount, symbol }) => {
   // Enhanced wallet connection monitoring
   useEffect(() => {
     const updateWalletState = async () => {
+      console.log('Wallet state update triggered:', {
+        connected: wallet.connected,
+        hasAccount: !!wallet.account,
+        chainName: wallet.chain?.name
+      });
+
       if (wallet.connected && wallet.account) {
         const requiredNetwork = process.env.NODE_ENV === 'development' ? 'Sui Testnet' : 'Sui Mainnet';
         
@@ -329,13 +335,24 @@ const TokenAmount = ({ amount, symbol }) => {
           return;
         }
 
-        console.log('Correct network detected:', wallet.chain?.name);
+        console.log('Correct network detected, proceeding with wallet initialization:', {
+          address: wallet.account.address,
+          network: wallet.chain?.name
+        });
+        
         window.currentWalletAddress = wallet.account.address;
         setWalletInitialized(true);
         
-        // Verify NFTs when wallet connects
-        await verifyUserNFTs();
+        try {
+          // Verify NFTs when wallet connects
+          console.log('Starting NFT verification process...');
+          const verified = await verifyUserNFTs();
+          console.log('NFT verification completed:', { verified, hasValidNFT });
+        } catch (error) {
+          console.error('Error during NFT verification:', error);
+        }
       } else {
+        console.log('Wallet disconnected or no account, resetting states');
         window.currentWalletAddress = null;
         setWalletInitialized(false);
         setHasValidNFT(false);
@@ -1500,14 +1517,22 @@ const handleSuinsChange = (e) => {
 
   // Function to verify user's NFTs against active collections
   const verifyUserNFTs = async () => {
+    console.log('verifyUserNFTs called, checking wallet state:', {
+      connected: wallet.connected,
+      hasAccount: !!wallet.account,
+      address: wallet.account?.address
+    });
+
     if (!wallet.connected || !wallet.account) {
-      console.log('Wallet not connected or no account');
-      return;
+      console.log('Wallet not connected or no account, aborting NFT verification');
+      setHasValidNFT(false);
+      setVerifiedNFTs([]);
+      return false;
     }
     
     setIsLoadingNFTs(true);
     try {
-      console.log('Fetching NFTs for wallet:', wallet.account.address);
+      console.log('Starting NFT fetch for wallet:', wallet.account.address);
       
       // Fetch user's NFTs
       const nftResponse = await client.getOwnedObjects({
@@ -1515,19 +1540,25 @@ const handleSuinsChange = (e) => {
         options: { showContent: true }
       });
       
-      console.log('User NFTs response:', nftResponse);
+      console.log('NFT response received:', {
+        status: nftResponse.status,
+        hasData: !!nftResponse.data,
+        count: nftResponse.data?.length
+      });
 
       // Fetch active collections
       const collections = await fetchActiveCollections();
-      console.log('Active collections:', collections);
+      console.log('Active collections fetched:', {
+        count: collections.length,
+        types: collections.map(c => c.collectionType)
+      });
       
-      // Filter and verify NFTs with detailed logging
+      // Filter and verify NFTs
       const userNFTs = nftResponse.data.filter(nft => {
         const nftType = nft.data?.content?.type;
-        console.log('Checking NFT:', {
-          nftId: nft.data?.objectId,
-          nftType: nftType,
-          nftContent: nft.data?.content
+        console.log('Processing NFT:', {
+          id: nft.data?.objectId,
+          type: nftType
         });
 
         const matchingCollection = collections.find(collection => 
@@ -1535,9 +1566,9 @@ const handleSuinsChange = (e) => {
         );
 
         if (matchingCollection) {
-          console.log('Found matching collection:', {
-            nftType: nftType,
-            matchingCollection: matchingCollection.name,
+          console.log('NFT matches collection:', {
+            nftType,
+            collectionName: matchingCollection.name,
             collectionType: matchingCollection.collectionType
           });
         }
@@ -1545,13 +1576,23 @@ const handleSuinsChange = (e) => {
         return matchingCollection !== undefined;
       });
 
-      console.log('Verified NFTs:', userNFTs);
+      console.log('NFT verification results:', {
+        totalNFTs: nftResponse.data.length,
+        verifiedCount: userNFTs.length,
+        verifiedNFTs: userNFTs.map(nft => ({
+          id: nft.data?.objectId,
+          type: nft.data?.content?.type
+        }))
+      });
+
       setVerifiedNFTs(userNFTs);
       setHasValidNFT(userNFTs.length > 0);
       
       return userNFTs.length > 0;
     } catch (error) {
-      console.error('Error verifying NFTs:', error);
+      console.error('Error in NFT verification:', error);
+      setHasValidNFT(false);
+      setVerifiedNFTs([]);
       return false;
     } finally {
       setIsLoadingNFTs(false);
