@@ -318,48 +318,64 @@ const TokenAmount = ({ amount, symbol }) => {
       console.log('Wallet state update triggered:', {
         connected: wallet.connected,
         hasAccount: !!wallet.account,
-        chainName: wallet.chain?.name
+        chainName: wallet.chain?.name,
+        address: wallet.account?.address
       });
 
-      if (wallet.connected && wallet.account) {
-        const requiredNetwork = process.env.NODE_ENV === 'development' ? 'Sui Testnet' : 'Sui Mainnet';
-        
-        if (wallet.chain?.name !== requiredNetwork) {
-          console.log(`Wrong network detected. Current: ${wallet.chain?.name}, Required: ${requiredNetwork}`);
-          setWalletInitialized(false);
-          setGameState(prev => ({
-            ...prev,
-            gameStarted: false,
-            isGameOver: false
-          }));
-          return;
-        }
-
-        console.log('Correct network detected, proceeding with wallet initialization:', {
-          address: wallet.account.address,
-          network: wallet.chain?.name
-        });
-        
-        window.currentWalletAddress = wallet.account.address;
-        setWalletInitialized(true);
-        
-        try {
-          // Verify NFTs when wallet connects
-          console.log('Starting NFT verification process...');
-          const verified = await verifyUserNFTs();
-          console.log('NFT verification completed:', { verified, hasValidNFT });
-        } catch (error) {
-          console.error('Error during NFT verification:', error);
-        }
-      } else {
+      if (!wallet.connected || !wallet.account) {
         console.log('Wallet disconnected or no account, resetting states');
         window.currentWalletAddress = null;
         setWalletInitialized(false);
         setHasValidNFT(false);
         setVerifiedNFTs([]);
+        return;
+      }
+
+      const requiredNetwork = process.env.NODE_ENV === 'development' ? 'Sui Testnet' : 'Sui Mainnet';
+      
+      if (wallet.chain?.name !== requiredNetwork) {
+        console.log(`Wrong network detected. Current: ${wallet.chain?.name}, Required: ${requiredNetwork}`);
+        setWalletInitialized(false);
+        setHasValidNFT(false);
+        setVerifiedNFTs([]);
+        setGameState(prev => ({
+          ...prev,
+          gameStarted: false,
+          isGameOver: false
+        }));
+        return;
+      }
+
+      console.log('Correct network detected, proceeding with wallet initialization:', {
+        address: wallet.account.address,
+        network: wallet.chain?.name
+      });
+      
+      window.currentWalletAddress = wallet.account.address;
+      setWalletInitialized(true);
+      
+      try {
+        // Verify NFTs when wallet connects
+        console.log('Starting NFT verification process for wallet:', wallet.account.address);
+        const collections = await fetchActiveCollections();
+        console.log('Active collections fetched:', collections);
+        
+        if (collections.length === 0) {
+          console.log('No active collections found');
+          setHasValidNFT(false);
+          setVerifiedNFTs([]);
+          return;
+        }
+
+        await verifyUserNFTs();
+      } catch (error) {
+        console.error('Error during NFT verification:', error);
+        setHasValidNFT(false);
+        setVerifiedNFTs([]);
       }
     };
 
+    // Call immediately when wallet state changes
     updateWalletState();
   }, [wallet.connected, wallet.account, wallet.chain?.name]);
 
@@ -1543,22 +1559,38 @@ const handleSuinsChange = (e) => {
       console.log('NFT response received:', {
         status: nftResponse.status,
         hasData: !!nftResponse.data,
-        count: nftResponse.data?.length
+        count: nftResponse.data?.length,
+        data: nftResponse.data
       });
 
-      // Fetch active collections
+      if (!nftResponse.data || nftResponse.data.length === 0) {
+        console.log('No NFTs found in wallet');
+        setHasValidNFT(false);
+        setVerifiedNFTs([]);
+        return false;
+      }
+
+      // Get active collections
       const collections = await fetchActiveCollections();
       console.log('Active collections fetched:', {
         count: collections.length,
         types: collections.map(c => c.collectionType)
       });
+
+      if (collections.length === 0) {
+        console.log('No active collections found');
+        setHasValidNFT(false);
+        setVerifiedNFTs([]);
+        return false;
+      }
       
       // Filter and verify NFTs
       const userNFTs = nftResponse.data.filter(nft => {
         const nftType = nft.data?.content?.type;
         console.log('Processing NFT:', {
           id: nft.data?.objectId,
-          type: nftType
+          type: nftType,
+          content: nft.data?.content
         });
 
         const matchingCollection = collections.find(collection => 
@@ -1581,14 +1613,16 @@ const handleSuinsChange = (e) => {
         verifiedCount: userNFTs.length,
         verifiedNFTs: userNFTs.map(nft => ({
           id: nft.data?.objectId,
-          type: nft.data?.content?.type
+          type: nft.data?.content?.type,
+          name: nft.data?.content?.fields?.name
         }))
       });
 
       setVerifiedNFTs(userNFTs);
-      setHasValidNFT(userNFTs.length > 0);
+      const hasValid = userNFTs.length > 0;
+      setHasValidNFT(hasValid);
       
-      return userNFTs.length > 0;
+      return hasValid;
     } catch (error) {
       console.error('Error in NFT verification:', error);
       setHasValidNFT(false);
