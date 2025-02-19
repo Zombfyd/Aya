@@ -10,11 +10,7 @@ class GameManager {
       SCORE_FONT: "25px Inconsolata",
       LIVES_FONT: "18px Inconsolata",
       LEGEND_FONT: "18px Inconsolata",
-      BACKGROUND_HEIGHT: 700,
-      HEALTH_BAR_WIDTH: 20,
-      HEALTH_BAR_HEIGHT: 200,
-      HEALTH_BAR_X: 0, // Will be set based on canvas width
-      HEALTH_BAR_Y: 420,
+      BACKGROUND_HEIGHT: 700
     };
     // Initialize game state variables
     this.canvas = null;
@@ -72,18 +68,6 @@ class GameManager {
 
     // Add floating text array
     this.floatingTexts = [];
-
-    // Define health bar colors for different layers
-    this.HEALTH_COLORS = [
-      '#8B0000',  // Base health (1-10)
-      '#FFD700',  // First overflow (11-20)
-      '#F9f9f9',  // Second overflow (21-30)
-      '#00FF00',  // Third overflow (31-40)
-      '#00FFFF',  // Fourth overflow (41-50)
-    ];
-
-    this.MAX_LIVES = 25;
-    this.LIVES_PER_BAR = 5;
   }
 
   // Image Loading Method
@@ -247,9 +231,7 @@ class GameManager {
   resizeCanvas() {
     if (this.canvas) {
         // Get parent width to set canvas width dynamically
-        const parentWidth = this.canvas.parentNode.offsetWidth;
-        // Set canvas width to parent width, but cap it at a maximum width if needed
-        this.canvas.width = Math.min(parentWidth, 1111); // Cap at 800px or your desired max width
+        this.canvas.width = this.canvas.parentNode.offsetWidth;
         this.canvas.height = 700; // Keep height fixed
 
         // Ensure bucket stays within bounds
@@ -380,6 +362,7 @@ class GameManager {
     const splashX = entity.x + entity.width / 2;
     const splashY = this.bucket.y;
 
+    // Create floating text based on tear type
     if (isGold) {
       this.score += 15;
       this.floatingTexts.push(new FloatingText(splashX, splashY, '15', '#FFD700'));
@@ -389,14 +372,8 @@ class GameManager {
       this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
       this.splashes.push(new RedSplash(splashX, splashY));
     } else if (isBlack) {
-      if (this.lives >= this.MAX_LIVES) {
-        // Convert life to points if at max lives
-        this.score += 25;
-        this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
-      } else {
-        this.lives++;
-        this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
-      }
+      this.lives++;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
       this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
       this.score += 1;
@@ -479,122 +456,71 @@ class GameManager {
 drawUI() {
   if (!this.ctx) return;
 
-  this.ctx.save();
+  // Reset transform before drawing text
   this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Draw score (left side)
-  this.ctx.font = "25px Inconsolata";
+  // Draw score
+  this.ctx.font = this.UI_SIZES.SCORE_FONT;
   this.ctx.fillStyle = "#f9f9f9";
-  this.ctx.textAlign = 'left';
-  this.ctx.fillText(`Score: ${this.score}`, this.canvas.width * 0.1, 30);
+  this.ctx.fillText(`Score: ${this.score}`, 20, 30);
 
-  // Draw speed (right side)
-  this.ctx.fillStyle = "#2054c9";
-  this.ctx.textAlign = 'right';
-  this.ctx.fillText(
-    `Speed ${Math.round(this.speedMultiplier * 10) - 10}`, 
-    this.canvas.width * 0.98, 
-    30
-  );
-
-  // Draw legend
-  this.drawLegend();
-
-  // Draw health bars
-  this.drawHealthBars();
-
-  // Warning message (centered)
-  if (this.lives <= 5) {
-    this.ctx.fillStyle = "#FF4D6D";
-    this.ctx.font = "25px Inconsolata";
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(
-      "Lives remaining!", 
-      this.canvas.width * 0.5, 
-      this.canvas.height * 0.2
-    );
+  // Draw lives (centered in bucket)
+  if (this.bucket) {
+    this.ctx.font = this.UI_SIZES.LIVES_FONT;
+    const livesText = (`${this.lives}`, '#2054c9');
+    const textMetrics = this.ctx.measureText(livesText);
+    const textX = this.bucket.x + (this.bucket.width / 2) - (textMetrics.width / 2);
+    const textY = this.bucket.y + (this.bucket.height / 2) + 6; // +6 for better vertical centering
+    this.ctx.fillText(livesText, textX, textY);
     
-    this.ctx.font = "bold 48px Inconsolata";
-    this.ctx.fillText(
-      `${this.lives}`, 
-      this.canvas.width * 0.5, 
-      this.canvas.height * 0.27
-    );
+    // Draw warning message when lives are low
+    if (this.lives <= 5) {
+      this.ctx.fillStyle = "#FF4D6D"; // Red warning color
+      
+      // Draw warning text
+      this.ctx.font = this.UI_SIZES.SCORE_FONT;
+      const warningText = "Lives remaining!";
+      const warningMetrics = this.ctx.measureText(warningText);
+      const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
+      this.ctx.fillText(warningText, warningX, 140);
+      
+      // Draw lives number bigger below
+      this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
+      const livesCountText = `${this.lives}`;
+      const livesMetrics = this.ctx.measureText(livesCountText);
+      const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
+      this.ctx.fillText(livesCountText, livesX, 190);
+    }
   }
 
-  this.ctx.restore();
+  // Draw speed
+  this.ctx.fillStyle = "#2054c9";
+  this.ctx.font = this.UI_SIZES.SCORE_FONT;
+  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+
+  this.drawLegend();
 }
 
   drawLegend() {
     if (!this.ctx) return;
+
+    // Reset transform before drawing legend
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     
-    this.ctx.font = "18px Inconsolata";
-    
+    this.ctx.font = this.UI_SIZES.LEGEND_FONT;
+
     const legends = [
-      { text: 'Blue Tear = 1 point', color: '#2054c9', y: this.canvas.height * 0.07 },
-      { text: 'Gold Tear = 15 points', color: '#FFD04D', y: this.canvas.height * 0.1 },
-      { text: 'Red Tear = -1 life', color: '#FF4D6D', y: this.canvas.height * 0.13 },
-      { text: 'Green Tear = +1 life', color: '#39B037', y: this.canvas.height * 0.16 }
+      { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
+      { text: 'Gold Tear = 15 points', color: '#FFD04D', y: 70 },
+      { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
+      { text: 'Green Tear = +1 life', color: '#39B037', y: 110 }
     ];
 
     legends.forEach(({ text, color, y }) => {
       this.ctx.fillStyle = color;
-      this.ctx.fillText(text, this.canvas.width * 0.1, y);
+      this.ctx.fillText(text, 20, y);
     });
 }
-
-  // Add method to draw health bars
-  drawHealthBars() {
-    if (!this.ctx) return;
-
-    // Position health bar relative to canvas dimensions
-    const barWidth = 20;
-    const barHeight = this.canvas.height * 0.3; // 30% of canvas height
-    const barX = this.canvas.width * 0.02; // 2% from left edge
-    const barY = this.canvas.height * 0.4; // 40% from top
-
-    // Draw background
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    this.ctx.fillRect(barX, barY, barWidth, barHeight);
-
-    // Calculate bars
-    const currentLives = Math.min(this.lives, this.MAX_LIVES);
-    const numFullBars = Math.floor(currentLives / this.LIVES_PER_BAR);
-    const partialBarHeight = (currentLives % this.LIVES_PER_BAR) / this.LIVES_PER_BAR;
-    const sectionHeight = barHeight / 5;
-
-    // Draw full bars
-    for (let i = 0; i < numFullBars; i++) {
-      this.ctx.fillStyle = this.HEALTH_COLORS[i];
-      this.ctx.fillRect(
-        barX,
-        barY + barHeight - ((i + 1) * sectionHeight),
-        barWidth,
-        sectionHeight
-      );
-    }
-
-    // Draw partial bar
-    if (partialBarHeight > 0) {
-      this.ctx.fillStyle = this.HEALTH_COLORS[numFullBars];
-      this.ctx.fillRect(
-        barX,
-        barY + barHeight - (numFullBars * sectionHeight) - (partialBarHeight * sectionHeight),
-        barWidth,
-        partialBarHeight * sectionHeight
-      );
-    }
-
-    // Draw lives count
-    this.ctx.fillStyle = this.HEALTH_COLORS[2];
-    this.ctx.font = '16px Inconsolata';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(
-      `${this.lives}`,
-      barX + (barWidth / 2),
-      barY - 10
-    );
-  }
 
   // Game Loop
   gameLoop() {
