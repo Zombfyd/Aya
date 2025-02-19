@@ -847,7 +847,7 @@ const TokenAmount = ({ amount, symbol }) => {
   };
 
   // Update startGame to track bucket click state
-  const startGame = (type = 'aya') => {
+  const startGame = async (type = 'aya') => {
     if (!window.gameManager1 && !window.gameManager2) {
       console.error('Game managers not found');
       alert('Game initialization failed. Please refresh the page and try again.');
@@ -887,19 +887,26 @@ const TokenAmount = ({ amount, symbol }) => {
       window.activeGameManager = activeManager;
 
       console.log(`Starting game in ${gameMode} mode, type: ${type}`);
+      
+      // Start countdown from 3
       setCountdown(3);
+      
+      // Wait for countdown to complete
       await new Promise((resolve) => {
+        let count = 3;
         const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
-            }
-            return prev - 1;
-          });
+          count--;
+          setCountdown(count);
+          
+          if (count <= 0) {
+            clearInterval(countdownInterval);
+            setCountdown(null);
+            resolve();
+          }
         }, 1000);
       });
+
+      // Start the game after countdown
       activeManager.startGame(gameMode);
     } catch (error) {
       console.error('Error starting game:', error);
