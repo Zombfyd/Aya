@@ -75,7 +75,7 @@ class GameManager {
 
     // Define health bar colors for different layers
     this.HEALTH_COLORS = [
-      '#FF69B4',  // Base health (1-10)
+      '#8B0000',  // Base health (1-10)
       '#FFD700',  // First overflow (11-20)
       '#F9f9f9',  // Second overflow (21-30)
       '#00FF00',  // Third overflow (31-40)
@@ -538,7 +538,7 @@ drawUI() {
     if (!this.ctx) return;
 
     // Position health bar on right side with some padding
-    const barX = this.canvas.width - this.UI_SIZES.HEALTH_BAR_WIDTH - 20;
+    const barX = this.canvas.width - 200 - this.UI_SIZES.HEALTH_BAR_WIDTH - 20;
     const barY = this.UI_SIZES.HEALTH_BAR_Y;
     const barWidth = this.UI_SIZES.HEALTH_BAR_WIDTH;
     const barHeight = this.UI_SIZES.HEALTH_BAR_HEIGHT;
@@ -586,11 +586,11 @@ drawUI() {
     }
 
     // Draw lives count
-    this.ctx.fillStyle = '#f9f9f9';
+    this.ctx.fillStyle = this.HEALTH_COLORS[i];
     this.ctx.font = '16px Inconsolata';
     this.ctx.textAlign = 'center';
     this.ctx.fillText(
-      `${this.lives}/${this.MAX_LIVES}`,
+      `${this.lives}`,
       barX + (barWidth / 2),
       barY - 10
     );
