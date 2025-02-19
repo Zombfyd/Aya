@@ -480,15 +480,23 @@ drawUI() {
   // Reset transform before drawing text
   this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Draw score
+  // Draw score - move it to the right of the health bar
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
   this.ctx.fillStyle = "#f9f9f9";
-  this.ctx.fillText(`Score: ${this.score}`, 20, 30);
+  this.ctx.fillText(`Score: ${this.score}`, 60, 30);
 
   // Draw health bars
   this.drawHealthBars();
 
-  // Keep the warning message for low lives
+  // Draw speed - keep it on the right side
+  this.ctx.fillStyle = "#2054c9";
+  this.ctx.font = this.UI_SIZES.SCORE_FONT;
+  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+
+  // Draw legend - move it to the right of the health bar
+  this.drawLegend();
+
+  // Keep the warning message for low lives - centered
   if (this.lives <= 5) {
     this.ctx.fillStyle = "#FF4D6D";
     this.ctx.font = this.UI_SIZES.SCORE_FONT;
@@ -503,13 +511,6 @@ drawUI() {
     const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
     this.ctx.fillText(livesCountText, livesX, 190);
   }
-
-  // Draw speed
-  this.ctx.fillStyle = "#2054c9";
-  this.ctx.font = this.UI_SIZES.SCORE_FONT;
-  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
-
-  this.drawLegend();
 }
 
   drawLegend() {
@@ -520,6 +521,8 @@ drawUI() {
     
     this.ctx.font = this.UI_SIZES.LEGEND_FONT;
 
+    // Move legend to the right of the health bar
+    const legendX = 60;
     const legends = [
       { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
       { text: 'Gold Tear = 15 points', color: '#FFD04D', y: 70 },
@@ -529,7 +532,7 @@ drawUI() {
 
     legends.forEach(({ text, color, y }) => {
       this.ctx.fillStyle = color;
-      this.ctx.fillText(text, 20, y);
+      this.ctx.fillText(text, legendX, y);
     });
 }
 
@@ -538,7 +541,7 @@ drawUI() {
     if (!this.ctx) return;
 
     // Position health bar on left side with padding
-    const barX = 50; // Padding from left edge
+    const barX = 20; // Padding from left edge
     const barY = this.UI_SIZES.HEALTH_BAR_Y;
     const barWidth = this.UI_SIZES.HEALTH_BAR_WIDTH;
     const barHeight = this.UI_SIZES.HEALTH_BAR_HEIGHT;
@@ -586,7 +589,7 @@ drawUI() {
     }
 
     // Draw lives count
-    this.ctx.fillStyle = this.HEALTH_COLORS[0];
+    this.ctx.fillStyle = this.HEALTH_COLORS[2];
     this.ctx.font = '16px Inconsolata';
     this.ctx.textAlign = 'center';
     this.ctx.fillText(
