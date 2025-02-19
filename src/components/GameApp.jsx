@@ -841,7 +841,7 @@ const TokenAmount = ({ amount, symbol }) => {
       
       if (window.activeGameManager) {
         console.log(`Restarting game in ${gameMode} mode, type: ${type}`);
-        window.activeGameManager.startGame(gameMode);
+        startGame(type);
       }
     }, 100);
   };
