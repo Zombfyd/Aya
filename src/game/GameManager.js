@@ -65,6 +65,9 @@ class GameManager {
     // Fixed sizes for game entities - these won't scale
     this.BUCKET_SIZE = 70;  // Fixed bucket size
     this.TEAR_SIZE = 50;    // Fixed tear size
+
+    // Add floating text array
+    this.floatingTexts = [];
   }
 
   // Image Loading Method
@@ -307,6 +310,9 @@ class GameManager {
         this.onGameOver(this.score);
       }
     }
+
+    // Update floating texts
+    this.floatingTexts = this.floatingTexts.filter(text => text.update());
   }
 
   updateEntities(entities, isGold, isRed, isBlack) {
@@ -353,23 +359,28 @@ class GameManager {
   }
 
   handleCollision(entity, isGold, isRed, isBlack) {
-  const splashX = entity.x + entity.width / 2;
-  const splashY = this.bucket.y;
+    const splashX = entity.x + entity.width / 2;
+    const splashY = this.bucket.y;
 
-  if (isGold) {
-    this.score += 15;
-    this.splashes.push(new GoldSplash(splashX, splashY));
-  } else if (isRed) {
-    this.lives--;
-    this.splashes.push(new RedSplash(splashX, splashY));
-  } else if (isBlack) {
-    this.lives++;
-    this.splashes.push(new GreenSplash(splashX, splashY));
-  } else {
-    this.score += 1;
-    this.splashes.push(new BlueSplash(splashX, splashY));  // Changed from base Splash to BlueSplash
+    // Create floating text based on tear type
+    if (isGold) {
+      this.score += 15;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, '15', '#FFD700'));
+      this.splashes.push(new GoldSplash(splashX, splashY));
+    } else if (isRed) {
+      this.lives--;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
+      this.splashes.push(new RedSplash(splashX, splashY));
+    } else if (isBlack) {
+      this.lives++;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
+      this.splashes.push(new GreenSplash(splashX, splashY));
+    } else {
+      this.score += 1;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, '1', '#2054c9'));
+      this.splashes.push(new BlueSplash(splashX, splashY));
+    }
   }
-}
 
   // Drawing Methods
   drawGame() {
@@ -433,6 +444,9 @@ class GameManager {
       this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       splash.draw(this.ctx);
     });
+
+    // Draw floating texts
+    this.floatingTexts.forEach(text => text.draw(this.ctx));
 
     // Draw UI with fixed fonts
     this.drawUI();
@@ -778,6 +792,41 @@ class RedSplash extends BaseSplash {
 class GreenSplash extends BaseSplash {
   constructor(x, y) {
     super(x, y, "rgba(0, 255, 0, ");
+  }
+}
+
+/**
+ * FloatingText class for score/life indicators
+ */
+class FloatingText {
+  constructor(x, y, text, color) {
+    this.x = x;
+    this.y = y;
+    this.text = text;
+    this.color = color;
+    this.opacity = 1;
+    this.scale = 1;
+    // Speed of floating upward
+    this.vy = -2;
+    // How quickly it fades
+    this.fadeSpeed = 0.02;
+  }
+
+  update() {
+    this.y += this.vy;
+    this.opacity -= this.fadeSpeed;
+    this.scale += 0.01;
+    return this.opacity > 0;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+    ctx.fillStyle = this.color;
+    ctx.font = `${Math.floor(20 * this.scale)}px Inconsolata`;
+    ctx.textAlign = 'center';
+    ctx.fillText(this.text, this.x, this.y);
+    ctx.restore();
   }
 }
 

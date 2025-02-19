@@ -134,14 +134,6 @@ const GameApp = () => {
   
   // First, add a new state for the checkbox
   const [neverShowTutorial, setNeverShowTutorial] = useState(false);
-
-  // Add new state for NFT verification
-  const [verifiedNFTs, setVerifiedNFTs] = useState([]);
-  const [hasValidNFT, setHasValidNFT] = useState(false);
-  const [activeCollections, setActiveCollections] = useState([]);
-  const [isLoadingNFTs, setIsLoadingNFTs] = useState(false);
-  
-  const [isUserInfoExpanded, setIsUserInfoExpanded] = useState(false);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -259,125 +251,80 @@ const TokenAmount = ({ amount, symbol }) => {
   // Modify payment status monitoring
   useEffect(() => {
     if (transactionInProgress) {
-      const checkPaymentStatus = async () => {
-        try {
-          if (paymentStatus.transactionId) {
-            const status = await wallet.getTransactionBlock({
-              digest: paymentStatus.transactionId,
-              options: {
-                showEvents: true,
-                showEffects: true,
-              },
-            });
+        const checkPaymentStatus = async () => {
+            try {
+                if (paymentStatus.transactionId) {
+                    // Use SuiClient to check transaction status
+                    const status = await client.getTransactionBlock({
+                        digest: paymentStatus.transactionId,
+                        options: {
+                            showEffects: true,
+                            showEvents: true,
+                        }
+                    });
 
-            if (status.digest) {
-              console.log('Transaction successful');
-              setPaymentStatus(prev => ({
-                ...prev,
-                verified: true,
-                transactionId: status.digest
-              }));
-              setGameState(prev => ({
-                ...prev,
-                hasValidPayment: true
-              }));
-              setPaidGameAttempts(0); // Reset attempts when payment is verified
-              setTransactionInProgress(false);
-              
-              // Start countdown and game automatically after payment verification
-              setCountdown(3);
-              await new Promise((resolve) => {
-                const countdownInterval = setInterval(() => {
-                  setCountdown(prev => {
-                    if (prev <= 1) {
-                      clearInterval(countdownInterval);
-                      resolve();
-                      return null;
+                    if (status && status.digest) {
+                        console.log('Transaction confirmed:', status);
+                        
+                        // Update states only after confirmation
+                        setPaymentStatus(prev => ({
+                            ...prev,
+                            verified: true
+                        }));
+                        
+                        setGameState(prev => ({
+                            ...prev,
+                            hasValidPayment: true
+                        }));
+                        
+                        
+                        
+                        setTransactionInProgress(false);
+                        setPaying(false);
+
+                        // Start game with type that was selected during payment
+                        startGame(window.selectedGameType || 'aya');
                     }
-                    return prev - 1;
-                  });
-                }, 1000);
-              });
-              
-              // Get the game type from the active game manager
-              const gameType = window.activeGameManager === window.gameManager1 ? 'aya' : 'blood';
-              startGame(gameType);
+                }
+            } catch (error) {
+                console.error('Payment status check failed:', error);
+                setTransactionInProgress(false);
+                setPaying(false);
+                alert('Failed to verify payment. Please try again.');
             }
-          }
-        } catch (error) {
-          console.error('Payment status check failed:', error);
-        }
-      };
+        };
 
-      const interval = setInterval(checkPaymentStatus, 2000);
-      return () => clearInterval(interval);
+        const interval = setInterval(checkPaymentStatus, 2000);
+        return () => clearInterval(interval);
     }
-  }, [transactionInProgress, paymentStatus.transactionId]);
+}, [transactionInProgress, paymentStatus.transactionId]);
 
   // Enhanced wallet connection monitoring
   useEffect(() => {
     const updateWalletState = async () => {
-      console.log('Wallet state update triggered:', {
-        connected: wallet.connected,
-        hasAccount: !!wallet.account,
-        chainName: wallet.chain?.name,
-        address: wallet.account?.address
-      });
-
-      if (!wallet.connected || !wallet.account) {
-        console.log('Wallet disconnected or no account, resetting states');
-        window.currentWalletAddress = null;
-        setWalletInitialized(false);
-        setHasValidNFT(false);
-        setVerifiedNFTs([]);
-        return;
-      }
-
-      const requiredNetwork = process.env.NODE_ENV === 'development' ? 'Sui Testnet' : 'Sui Mainnet';
-      
-      if (wallet.chain?.name !== requiredNetwork) {
-        console.log(`Wrong network detected. Current: ${wallet.chain?.name}, Required: ${requiredNetwork}`);
-        setWalletInitialized(false);
-        setHasValidNFT(false);
-        setVerifiedNFTs([]);
-        setGameState(prev => ({
-          ...prev,
-          gameStarted: false,
-          isGameOver: false
-        }));
-        return;
-      }
-
-      console.log('Correct network detected, proceeding with wallet initialization:', {
-        address: wallet.account.address,
-        network: wallet.chain?.name
-      });
-      
-      window.currentWalletAddress = wallet.account.address;
-      setWalletInitialized(true);
-      
-      try {
-        // Verify NFTs when wallet connects
-        console.log('Starting NFT verification process for wallet:', wallet.account.address);
-        const collections = await fetchActiveCollections();
-        console.log('Active collections fetched:', collections);
+      if (wallet.connected && wallet.account) {
+        const requiredNetwork = process.env.NODE_ENV === 'development' ? 'Sui Testnet' : 'Sui Mainnet';
         
-        if (collections.length === 0) {
-          console.log('No active collections found');
-          setHasValidNFT(false);
-          setVerifiedNFTs([]);
+        if (wallet.chain?.name !== requiredNetwork) {
+          console.log(`Wrong network detected. Current: ${wallet.chain?.name}, Required: ${requiredNetwork}`);
+          setWalletInitialized(false);
+          setGameState(prev => ({
+            ...prev,
+            gameStarted: false,
+            isGameOver: false
+          }));
           return;
         }
 
-        await verifyUserNFTs();
-      } catch (error) {
-        console.error('Error during NFT verification:', error);
-        setHasValidNFT(false);
-        setVerifiedNFTs([]);
+        console.log('Correct network detected:', wallet.chain?.name);
+        window.currentWalletAddress = wallet.account.address;
+        setWalletInitialized(true);
+      } else {
+        window.currentWalletAddress = null;
+        setWalletInitialized(false);
       }
     };
 
-    // Call immediately when wallet state changes
     updateWalletState();
   }, [wallet.connected, wallet.account, wallet.chain?.name]);
 
@@ -410,21 +357,7 @@ const TokenAmount = ({ amount, symbol }) => {
   };
   // Modify handleGameStart
   const handleGameStart = async (type = 'aya') => {
-    if (gameMode === 'free' || hasValidNFT) {
-      setCountdown(3);
-      await new Promise((resolve) => {
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      });
-      
+    if (gameMode === 'free') {
       startGame(type);
       return;
     }
@@ -466,8 +399,7 @@ const TokenAmount = ({ amount, symbol }) => {
             verified: true,
             transactionId: response.digest
           }));
-          startGame(type);
-        }
+          }
 
       } catch (error) {
         console.error('Payment process error:', error);
@@ -476,7 +408,7 @@ const TokenAmount = ({ amount, symbol }) => {
         setPaying(false);
         setTransactionInProgress(false);
       }
-    
+    } else {
       if (paidGameAttempts >= maxAttempts) {
         setGameState(prev => ({ ...prev, hasValidPayment: false }));
         return;
@@ -495,8 +427,7 @@ const TokenAmount = ({ amount, symbol }) => {
         gameMode: submissionGameMode,
         game: currentGame,
         walletConnected: wallet.connected,
-        paymentStatus,
-        hasValidNFT
+        paymentStatus
     });
 
     try {
@@ -504,49 +435,85 @@ const TokenAmount = ({ amount, symbol }) => {
         let requestBody;
 
         if (!wallet.connected) {
+            // Web2 submission - specific to the game played
             endpoint = `${config.apiBaseUrl}/api/web2/scores`;
             requestBody = {
                 playerName,
                 score: finalScore,
-                game: currentGame
+                game: currentGame // Ensures score goes to correct game leaderboard
             };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log(`Web2 score submitted successfully for ${currentGame}:`, result);
+            return result;
+
         } else {
+            // Enhanced verification for paid submissions
+            if (submissionGameMode === 'paid') {
+                // Check both state and passed payment details
+                const verifiedPayment = paymentDetails || paymentStatus;
+                if (!verifiedPayment.verified || !verifiedPayment.transactionId) {
+                    throw new Error('Payment verification failed - no valid payment found');
+                }
+            }
+
+            // Submit score with verification data
             endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
-            requestBody = {
-                playerWallet: wallet.account?.address,
-                score: finalScore,
-                gameType: 'main',
-                playerName: playerName || null,
-                game: currentGame,
-                nftHolder: hasValidNFT,
-                paymentVerification: submissionGameMode === 'paid' ? {
-                    transactionId: paymentDetails?.transactionId,
-                    amount: paymentDetails?.amount,
-                    timestamp: paymentDetails?.timestamp,
-                    recipient: paymentDetails?.recipient
-                } : null
-            };
+            
+            const submissions = ['main', 'secondary'].map(async (gameType) => {
+                const body = {
+                    playerWallet: wallet.account?.address,
+                    score: finalScore,
+                    gameType: gameType,
+                    playerName: playerName || null,
+                    game: currentGame,
+                    paymentVerification: submissionGameMode === 'paid' ? {
+                        transactionId: paymentDetails?.transactionId,
+                        amount: paymentDetails?.amount,
+                        timestamp: paymentDetails?.timestamp,
+                        recipient: paymentDetails?.recipient
+                    } : null
+                };
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                return response.json();
+            });
+
+            const [mainResult, secondaryResult] = await Promise.all(submissions);
+            console.log(`Scores submitted successfully for ${currentGame}:`, { 
+                main: mainResult, 
+                secondary: secondaryResult 
+            });
+            await fetchLeaderboards();
+            return { main: mainResult, secondary: secondaryResult };
         }
-
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log(`Score submitted successfully for ${currentGame}:`, result);
-        return result;
     } catch (error) {
-        console.error('Score submission error:', error);
+        console.error(`Error submitting score for ${currentGame}:`, error);
+        alert(`Failed to submit score for ${currentGame}: ${error.message}`);
         throw error;
     }
-  };
+};
 
   // Update the fetchLeaderboards function
   const fetchLeaderboards = async () => {
@@ -874,17 +841,26 @@ const TokenAmount = ({ amount, symbol }) => {
       
       if (window.activeGameManager) {
         console.log(`Restarting game in ${gameMode} mode, type: ${type}`);
-        window.activeGameManager.startGame(gameMode);
+        startGame(type);
       }
     }, 100);
   };
 
   // Update startGame to track bucket click state
-  const startGame = (type = 'aya') => {
+  const startGame = async (type = 'aya') => {
     if (!window.gameManager1 && !window.gameManager2) {
       console.error('Game managers not found');
       alert('Game initialization failed. Please refresh the page and try again.');
       return;
+    }
+
+    // For paid mode, verify we have attempts left
+    if (gameMode === 'paid') {
+      if (paidGameAttempts >= maxAttempts) {
+        alert('All paid attempts used. Please make a new payment to continue playing.');
+        setGameState(prev => ({ ...prev, hasValidPayment: false }));
+        return;
+      }
     }
 
     try {
@@ -896,10 +872,6 @@ const TokenAmount = ({ amount, symbol }) => {
       }));
 
       // Track attempts for paid games
-      if (gameMode === 'paid') {
-        handlePaidGameAttempt();
-      }
-
       const canvas = document.getElementById('tearCatchGameCanvas');
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
@@ -915,6 +887,26 @@ const TokenAmount = ({ amount, symbol }) => {
       window.activeGameManager = activeManager;
 
       console.log(`Starting game in ${gameMode} mode, type: ${type}`);
+      
+      // Start countdown from 3
+      setCountdown(3);
+      
+      // Wait for countdown to complete
+      await new Promise((resolve) => {
+        let count = 3;
+        const countdownInterval = setInterval(() => {
+          count--;
+          setCountdown(count);
+          
+          if (count <= 0) {
+            clearInterval(countdownInterval);
+            setCountdown(null);
+            resolve();
+          }
+        }, 1000);
+      });
+
+      // Start the game after countdown
       activeManager.startGame(gameMode);
     } catch (error) {
       console.error('Error starting game:', error);
@@ -942,30 +934,44 @@ const TokenAmount = ({ amount, symbol }) => {
                     gameStarted: false,
                 }));
 
-                // If not connected to wallet, submit to Web2 directly
-                if (!wallet.connected) {
-                    await handleScoreSubmit(finalScore, 'free', gameType);
-                    return;
-                }
-
-                // If in paid mode, submit to paid leaderboard
-                if (gameMode === 'paid') {
-                    await handleScoreSubmit(finalScore, 'paid', gameType);
-                    return;
-                }
-
-                // If in free mode with wallet connected, check qualification but don't submit yet
-                if (gameMode === 'free' && wallet.connected) {
-                    const qualificationResult = await checkScoreQualification(finalScore, gameType);
-                    if (qualificationResult) {
-                        setQualifiedForPaid(true);
-                        setQualifyingTier(qualificationResult);
-                        // Don't submit score - wait for user choice
-                    } else {
-                        // If they don't qualify for paid, show only free submission option
-                        setQualifiedForPaid(false);
-                        setQualifyingTier(null);
+                try {
+                    // If not connected to wallet, submit to Web2 directly
+                    if (!wallet.connected) {
+                        await handleScoreSubmit(finalScore, 'free', gameType);
+                        return;
                     }
+
+                    // If in paid mode, submit to paid leaderboard
+                    if (gameMode === 'paid') {
+                        // Submit score with current payment status
+                        await handleScoreSubmit(finalScore, 'paid', gameType, paymentStatus);
+                        await handlePaidGameAttempt();
+                        // Check if this was the last attempt
+                        if (paidGameAttempts >= maxAttempts) {
+                            setGameState(prev => ({
+                                ...prev,
+                                hasValidPayment: false
+                            }));
+                        }
+                        return;
+                    }
+
+                    // If in free mode with wallet connected, check qualification
+                    if (gameMode === 'free' && wallet.connected) {
+                        const qualificationResult = await checkScoreQualification(finalScore, gameType);
+                        if (qualificationResult) {
+                            setQualifiedForPaid(true);
+                            setQualifyingTier(qualificationResult);
+                        } else {
+                            setQualifiedForPaid(false);
+                            setQualifyingTier(null);
+                            // Submit to free leaderboard automatically if they don't qualify
+                            await handleScoreSubmit(finalScore, 'free', gameType);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling game over:', error);
+                    alert('Failed to submit score. Please try again.');
                 }
             };
         }
@@ -974,7 +980,7 @@ const TokenAmount = ({ amount, symbol }) => {
     // Set up game over handlers for both game types
     setupGameOver(window.gameManager1, 'TOA');
     setupGameOver(window.gameManager2, 'TOB');
-}, [gameMode, wallet.connected, handleScoreSubmit]);
+}, [gameMode, wallet.connected, handleScoreSubmit, paymentStatus, paidGameAttempts, maxAttempts]);
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
@@ -1000,92 +1006,98 @@ const TokenAmount = ({ amount, symbol }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Modify handleGamePayment to include the game type
+  // Modify handleGamePayment
   const handleGamePayment = async (type = 'aya') => {
     console.log('Payment handler state:', {
-      walletConnected: wallet.connected,
-      walletAccount: wallet.account,
-      selectedTier: selectedTier,
-      qualifyingTier: qualifyingTier,
-      gameMode: gameMode,
-      gameType: type
+        walletConnected: wallet.connected,
+        walletAccount: wallet.account,
+        selectedTier: selectedTier,
+        qualifyingTier: qualifyingTier,
+        gameMode: gameMode,
+        gameType: type
     });
 
     const tierToUse = selectedTier || qualifyingTier;
     
     if (!wallet.connected || !tierToUse) {
-      alert('Please connect wallet and select a payment tier');
-      return;
+        alert('Please connect wallet and select a payment tier');
+        return;
     }
 
     setTransactionInProgress(true);
+    setPaying(true);
+    
     try {
-      const tierConfig = gameMode === 'free' ? 
-        config.scoreSubmissionTiers[qualifyingTier] : 
-        config.paymentTiers[selectedTier];
+        // Store selected game type for after payment confirmation
+        window.selectedGameType = type;
 
-      if (!tierConfig) {
-        throw new Error('Invalid tier configuration');
-      }
+        const tierConfig = gameMode === 'free' ? 
+            config.scoreSubmissionTiers[qualifyingTier] : 
+            config.paymentTiers[selectedTier];
 
-      const recipients = config.getCurrentRecipients();
-      const totalAmount = tierConfig.amount;
-      
-      // Calculate amounts based on shares
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-      const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
-      
-      const txb = new TransactionBlock();
-      
-      // Split the coins for all recipients
-      const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
-        txb.gas,
-        [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
-      );
+        if (!tierConfig) {
+            throw new Error('Invalid tier configuration');
+        }
 
-      // Transfer to all recipients
-      txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
-      txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
-      txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
-      txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+        const recipients = config.getCurrentRecipients();
+        const totalAmount = tierConfig.amount;
+        
+        // Calculate amounts based on shares
+        const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+        const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+        const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+        const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
+        
+        const txb = new TransactionBlock();
+        
+        // Split the coins for all recipients
+        const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
+            txb.gas,
+            [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
+        );
 
-      const response = await wallet.signAndExecuteTransaction({
-        transaction: txb,
-        options: { showEffects: true }
-      });
+        // Transfer to all recipients
+        txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+        txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+        txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+        txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
 
-      if (!response.digest) {
-        throw new Error('Transaction failed - no digest received');
-      }
+        // Execute transaction
+        const response = await wallet.signAndExecuteTransactionBlock({
+            transactionBlock: txb,
+            options: { 
+                showEffects: true,
+                showEvents: true
+            }
+        });
 
-      console.log('Transaction successful:', response.digest);
+        if (!response.digest) {
+            throw new Error('Transaction failed - no digest received');
+        }
 
-      // Add payment status update here
-      const paymentDetails = {
-        verified: true,
-        transactionId: response.digest,
-        amount: totalAmount,
-        timestamp: Date.now(),
-        recipient: recipients.primary
-      };
+        console.log('Transaction initiated:', response.digest);
 
-      // Update state
-      setPaymentStatus(paymentDetails);
+        // Set initial payment status
+        const paymentDetails = {
+            verified: false, // Will be set to true after confirmation
+            transactionId: response.digest,
+            amount: totalAmount,
+            timestamp: Date.now(),
+            recipient: recipients.primary
+        };
 
-      // Wait for a moment to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
+        // Update payment status - other states will be updated after confirmation
+        setPaymentStatus(paymentDetails);
+        setMaxAttempts(tierConfig.plays);
 
-      // Submit score with the same payment details
-      await handleScoreSubmit(finalScore, 'paid', type, paymentDetails);
     } catch (error) {
-      console.error('Payment error:', error);
-      setCountdown(null);
-    } finally {
-      setTransactionInProgress(false);
+        console.error('Payment error:', error);
+        alert(`Payment failed: ${error.message}`);
+        setTransactionInProgress(false);
+        setPaying(false);
+        window.selectedGameType = null; // Clear selected game type on error
     }
-  };
+};
 
   // Add useEffect for periodic leaderboard updates
   useEffect(() => {
@@ -1164,58 +1176,24 @@ useEffect(() => {
         console.log(`Current ${game} weekly paid leaderboard:`, {
             totalEntries: leaderboardData.length,
             topScore: leaderboardData[0]?.score,
-            secondPlace: leaderboardData[1]?.score,
             thirdPlace: leaderboardData[2]?.score,
             eighthPlace: leaderboardData[7]?.score
         });
 
-        // Empty leaderboard - automatically qualifies for first place
+        // Corrected logic
+        let qualificationTier = null;
         if (leaderboardData.length === 0) {
-            console.log(`Score ${score} qualifies for first place (empty leaderboard)!`);
-            return 'firstPlace';
+            qualificationTier = 'firstPlace';
+        } else if (score > leaderboardData[0]?.score) {
+            qualificationTier = 'firstPlace';
+        } else if (score > leaderboardData[2]?.score) {
+            qualificationTier = 'topThree';
+        } else if (score > leaderboardData[7]?.score) {
+            qualificationTier = 'topEight';
         }
 
-        // Check first place
-        if (!leaderboardData[0] || score > leaderboardData[0].score) {
-            console.log(`Score ${score} qualifies for first place!`);
-            return 'firstPlace';
-        }
-
-        // Check second/third place
-        if (leaderboardData.length < 3) {
-            // If there's only one score and we're better than it, we already returned firstPlace
-            // If there's only one score and we're worse than it, we qualify for second
-            if (leaderboardData.length === 1) {
-                console.log(`Score ${score} qualifies for second place (only one score on leaderboard)!`);
-                return 'topThree';
-            }
-            // If there are two scores and we're better than the second one
-            if (score > leaderboardData[1].score) {
-                console.log(`Score ${score} qualifies for second place!`);
-                return 'topThree';
-            }
-        } else {
-            // Three or more scores - check if we beat the third place score
-            if (score > leaderboardData[2].score) {
-                console.log(`Score ${score} qualifies for top three!`);
-                return 'topThree';
-            }
-        }
-
-        // Check top 8
-        if (leaderboardData.length < 8) {
-            // If there are fewer than 8 scores, we automatically qualify for top 8
-            console.log(`Score ${score} qualifies for top eight (fewer than 8 scores on leaderboard)!`);
-            return 'topEight';
-        } else if (score > leaderboardData[7].score) {
-            console.log(`Score ${score} qualifies for top eight!`);
-            return 'topEight';
-        }
-
-        // No qualification
-        console.log(`Score ${score} does not qualify for any tier`);
-        return null;
-
+        setTopScores(leaderboardData);
+        return qualificationTier;
     } catch (error) {
         console.error('Error checking score qualification:', error);
         return null;
@@ -1325,9 +1303,9 @@ useEffect(() => {
 }, []);
 
 const resetGameState = () => {
-    if (window.gameManager) {
-        window.gameManager.cleanup();
-        window.gameManager.initGame(); // Reinitialize the game manager
+    if (window.gameManager1) {
+        window.gameManager1.cleanup();
+        window.gameManager1.initGame(); // Reinitialize the game manager
     }
     
     setGameState({
@@ -1423,26 +1401,36 @@ const handleSuinsChange = (e) => {
 
   // Update this useEffect to properly handle the popup state
   useEffect(() => {
-    const hasSeenTutorial = localStorage.getItem('neverShowTutorial') === 'true';
-    if (!hasSeenTutorial) {
+    // Check both localStorage (permanent) and sessionStorage (temporary)
+    const permanentlyClosed = localStorage.getItem('hasSeenGameTutorial');
+    const temporarilyClosed = sessionStorage.getItem('hasSeenGameTutorial');
+    
+    if (!permanentlyClosed && !temporarilyClosed) {
       setShowGameInfoPopup(true);
     }
   }, []);
 
   // Update the handlePopupClose function
-  const handlePopupClose = (dontShowAgain) => {
-    if (dontShowAgain) {
-      localStorage.setItem('neverShowTutorial', 'true');
-    }
-    setShowGameInfoPopup(false);
+  const handlePopupClose = () => {
+    // Add a small delay before hiding the popup to ensure animations complete
+    setTimeout(() => {
+      setShowGameInfoPopup(false);
+      localStorage.setItem('hasSeenGameTutorial', 'true');
+    }, 100);
   };
 
-  // Update the GameInfoPopup component
+  // Update the GameInfoPopup component to include transition styles
   const GameInfoPopup = ({ onClose }) => {
     const [dontShowAgain, setDontShowAgain] = useState(false);
 
     const handleClose = () => {
-      onClose(dontShowAgain);
+      if (dontShowAgain) {
+        localStorage.setItem('hasSeenGameTutorial', 'true');
+      } else {
+        // If they don't check "don't show again", we'll show it next time
+        sessionStorage.setItem('hasSeenGameTutorial', 'true');
+      }
+      onClose();
     };
 
     return (
@@ -1513,410 +1501,13 @@ const handleSuinsChange = (e) => {
     );
   };
 
-  // Function to fetch active NFT collections
-  const fetchActiveCollections = async () => {
-    console.log('Fetching active collections from:', `${config.apiBaseUrl}/api/sui/collections/active`);
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/api/sui/collections/active`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Failed to fetch collections:', errorData);
-        throw new Error('Failed to fetch active collections');
-      }
-      const collections = await response.json();
-      console.log('Received active collections:', collections);
-      setActiveCollections(collections);
-      return collections;
-    } catch (error) {
-      console.error('Error fetching active collections:', error);
-      return [];
-    }
-  };
-
-  // Function to verify user's NFTs against active collections
-  const verifyUserNFTs = async () => {
-    console.log('verifyUserNFTs called, checking wallet state:', {
-      connected: wallet.connected,
-      hasAccount: !!wallet.account,
-      address: wallet.account?.address
-    });
-
-    if (!wallet.connected || !wallet.account) {
-      console.log('Wallet not connected or no account, aborting NFT verification');
-      setHasValidNFT(false);
-      setVerifiedNFTs([]);
-      return false;
-    }
-    
-    setIsLoadingNFTs(true);
-    try {
-      console.log('Starting NFT fetch for wallet:', wallet.account.address);
-      
-      // Fetch user's NFTs
-      const nftResponse = await client.getOwnedObjects({
-        owner: wallet.account.address,
-        options: { showContent: true }
-      });
-      
-      console.log('NFT response received:', {
-        status: nftResponse.status,
-        hasData: !!nftResponse.data,
-        count: nftResponse.data?.length,
-        data: nftResponse.data
-      });
-
-      if (!nftResponse.data || nftResponse.data.length === 0) {
-        console.log('No NFTs found in wallet');
-        setHasValidNFT(false);
-        setVerifiedNFTs([]);
-        return false;
-      }
-
-      // Get active collections
-      const collections = await fetchActiveCollections();
-      console.log('Active collections fetched:', {
-        count: collections.length,
-        types: collections.map(c => c.collectionType)
-      });
-
-      if (collections.length === 0) {
-        console.log('No active collections found');
-        setHasValidNFT(false);
-        setVerifiedNFTs([]);
-        return false;
-      }
-      
-      // Filter and verify NFTs
-      const userNFTs = nftResponse.data.filter(nft => {
-        const nftType = nft.data?.content?.type;
-        console.log('Processing NFT:', {
-          id: nft.data?.objectId,
-          type: nftType,
-          content: nft.data?.content
-        });
-
-        const matchingCollection = collections.find(collection => 
-          nftType && nftType === collection.collectionType
-        );
-
-        if (matchingCollection) {
-          console.log('NFT matches collection:', {
-            nftType,
-            collectionName: matchingCollection.name,
-            collectionType: matchingCollection.collectionType
-          });
-          // Add collection info to the NFT object
-          nft.collectionInfo = matchingCollection;
-        }
-
-        return matchingCollection !== undefined;
-      });
-
-      console.log('NFT verification results:', {
-        totalNFTs: nftResponse.data.length,
-        verifiedCount: userNFTs.length,
-        verifiedNFTs: userNFTs.map(nft => ({
-          id: nft.data?.objectId,
-          type: nft.data?.content?.type,
-          name: nft.collectionInfo?.name || 'Unknown Collection'
-        }))
-      });
-
-      setVerifiedNFTs(userNFTs);
-      const hasValid = userNFTs.length > 0;
-      setHasValidNFT(hasValid);
-      
-      return hasValid;
-    } catch (error) {
-      console.error('Error in NFT verification:', error);
-      setHasValidNFT(false);
-      setVerifiedNFTs([]);
-      return false;
-    } finally {
-      setIsLoadingNFTs(false);
-    }
-  };
-
-  // Add NFTDisplay component before the main render
-  const NFTDisplay = () => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    if (!wallet.connected) return null;
-
-    const getImageUrl = (nft) => {
-      try {
-        console.log('Getting image URL for NFT:', nft);
-        
-        // First try to get URL from display.data
-        const displayUrl = nft?.data?.display?.data?.image_url;
-        if (displayUrl) {
-          console.log('Found display URL:', displayUrl);
-          return handleImageUrl(displayUrl);
-        }
-        
-        // Then try content.fields
-        const fieldsUrl = nft?.data?.content?.fields?.image_url;
-        if (fieldsUrl) {
-          console.log('Found fields URL:', fieldsUrl);
-          return handleImageUrl(fieldsUrl);
-        }
-        
-        // Finally try url field directly
-        const directUrl = nft?.data?.content?.fields?.url;
-        if (directUrl) {
-          console.log('Found direct URL:', directUrl);
-          return handleImageUrl(directUrl);
-        }
-
-        console.warn('No image URL found for NFT:', nft);
-        return '/placeholder-nft.png';
-      } catch (error) {
-        console.error('Error getting NFT image URL:', error);
-        return '/placeholder-nft.png';
-      }
-    };
-
-    const handleImageUrl = (url) => {
-      if (!url) return '/placeholder-nft.png';
-      
-      // Handle IPFS URLs by using the hash directly
-      if (url.includes('ipfs')) {
-        return `https://ipfs.io/ipfs/${url}`;
-      }
-      
-      return url;
-    };
-
-    return (
-      <div className="nft-verification-section">
-        <div className="assets-header" onClick={() => setIsExpanded(!isExpanded)}>
-          <h3>NFT Status</h3>
-          <span className={`dropdown-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>
-        </div>
-        <div className={`assets-content ${isExpanded ? 'expanded' : ''}`}>
-          {isLoadingNFTs ? (
-            <div>Verifying NFTs...</div>
-          ) : (
-            <>
-              {hasValidNFT ? (
-                <div className="nft-status success">
-                  <span>✅ You have access to paid games with your NFT!</span>
-                  <div className="verified-nfts">
-                    {verifiedNFTs.map((nft, index) => (
-                      <div key={index} className="nft-item">
-                        <img 
-                          src={getImageUrl(nft)} 
-                          alt={nft.data?.content?.fields?.name || nft.collectionInfo?.name || 'NFT'} 
-                          className="nft-image"
-                          onError={(e) => {
-                            e.target.src = '/placeholder-nft.png';
-                            e.target.onerror = null;
-                          }}
-                        />
-                        <h4 
-                          className="collection-name" 
-                          title={nft.collectionInfo?.description || 'No description available'}
-                        >
-                          {nft.data?.content?.fields?.name || nft.collectionInfo?.name || 'Unknown NFT'}
-                        </h4>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="nft-status">
-                  <span>Get an NFT from these collections for free access:</span>
-                  <div className="active-collections">
-                    {activeCollections.map((collection, index) => (
-                      <div key={index} className="collection-item">
-                        <h4 title={collection.description || 'No description available'}>
-                          {collection.name}
-                        </h4>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Add UserInfo component before the return statement
-  const UserInfo = () => {
-    const handleUsernameInputChange = (e) => {
-      e.preventDefault();
-      setPlayerName(e.target.value);
-    };
-
-    return (
-      <div className="user-info-section">
-        <div className="assets-header" onClick={() => setIsUserInfoExpanded(!isUserInfoExpanded)}>
-          <h3>{useSuins && suinsData ? suinsData.name : playerName}'s Profile</h3>
-          <span className={`dropdown-arrow ${isUserInfoExpanded ? 'expanded' : ''}`}>▼</span>
-        </div>
-        <div className={`assets-content ${isUserInfoExpanded ? 'expanded' : ''}`}>
-          {!isUsernameSubmitted ? (
-            <form onSubmit={handleUsernameSubmit} className="username-form">
-              <input
-                type="text"
-                placeholder="Enter your username"
-                value={playerName}
-                onChange={handleUsernameInputChange}
-                className="username-input"
-                maxLength={25}
-                required
-              />
-              <button type="submit">Submit</button>
-            </form>
-          ) : (
-            <div className="username-container">
-              <h4>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h4>
-              <div className="username-controls">
-                <button onClick={() => setIsUsernameSubmitted(false)}>Change Username</button>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={useSuins}
-                    onChange={handleSuinsChange}
-                  />
-                  use SUINS name
-                </label>
-              </div>
-            </div>
-          )}
-          
-          <ConnectButton
-            label="Connect SUI Wallet"
-            onConnectError={(error) => {
-              if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                console.warn("User rejected connection to " + error.details?.wallet);
-              } else {
-                console.warn("Unknown connect error: ", error);
-              }
-            }}
-          />
-
-          <button 
-            onClick={() => setShowGameInfoPopup(true)} 
-            className="view-tutorial-button"
-          >
-            View Tutorial
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // Separate NFTInfo component to prevent re-renders
-  const NFTInfo = React.memo(() => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    if (!wallet.connected) return null;
-
-    const getImageUrl = (nft) => {
-      try {
-        // First try to get URL from display.data
-        const displayUrl = nft?.data?.display?.data?.image_url;
-        if (displayUrl) {
-          return handleImageUrl(displayUrl);
-        }
-        
-        // Then try content.fields
-        const fieldsUrl = nft?.data?.content?.fields?.image_url;
-        if (fieldsUrl) {
-          return handleImageUrl(fieldsUrl);
-        }
-        
-        // Finally try url field directly
-        const directUrl = nft?.data?.content?.fields?.url;
-        if (directUrl) {
-          return handleImageUrl(directUrl);
-        }
-
-        return '/placeholder-nft.png';
-      } catch (error) {
-        console.error('Error getting NFT image URL:', error);
-        return '/placeholder-nft.png';
-      }
-    };
-
-    const handleImageUrl = (url) => {
-      if (!url) return '/placeholder-nft.png';
-      
-      // Handle IPFS URLs by using the hash directly
-      if (url.includes('ipfs')) {
-        return `https://ipfs.io/ipfs/${url}`;
-      }
-      
-      return url;
-    };
-
-    return (
-      <div className="nft-verification-section">
-        <div className="assets-header" onClick={() => setIsExpanded(!isExpanded)}>
-          <h3>NFT Status</h3>
-          <span className={`dropdown-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>
-        </div>
-        <div className={`assets-content ${isExpanded ? 'expanded' : ''}`}>
-          {isLoadingNFTs ? (
-            <div>Verifying NFTs...</div>
-          ) : (
-            <>
-              {hasValidNFT ? (
-                <div className="nft-status success">
-                  <span>✅ You have access to paid games with your NFT!</span>
-                  <div className="verified-nfts">
-                    {verifiedNFTs.map((nft, index) => (
-                      <div key={index} className="nft-item">
-                        <img 
-                          src={getImageUrl(nft)} 
-                          alt={nft.data?.content?.fields?.name || nft.collectionInfo?.name || 'NFT'} 
-                          className="nft-image"
-                          onError={(e) => {
-                            e.target.src = '/placeholder-nft.png';
-                            e.target.onerror = null;
-                          }}
-                        />
-                        <h4 
-                          className="collection-name" 
-                          title={nft.collectionInfo?.description || 'No description available'}
-                        >
-                          {nft.data?.content?.fields?.name || nft.collectionInfo?.name || 'Unknown NFT'}
-                        </h4>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="nft-status">
-                  <span>Get an NFT from these collections for free access:</span>
-                  <div className="active-collections">
-                    {activeCollections.map((collection, index) => (
-                      <div key={index} className="collection-item">
-                        <h4 title={collection.description || 'No description available'}>
-                          {collection.name}
-                        </h4>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  });
-
   // Render method
   return (
     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
       {showGameInfoPopup && (
         <GameInfoPopup onClose={handlePopupClose} />
       )}
+      
       {playerName && playerName.length > 0 && (
         <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
           Playing as: 
@@ -1939,108 +1530,145 @@ const handleSuinsChange = (e) => {
           </span>
         </div>
       )}
-      {gameState.gameStarted && (
-        <div className="player-display">
-          Playing as: <span className="player-name">{useSuins && suinsData ? suinsData.name : playerName}</span>
-        </div>
-      )}
 
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
           <div className="title">Tears of Aya</div>
-          <UserInfo />
-          {wallet.connected && <NFTInfo />}
-          
-          <div className="wallet-info">
-            <div 
-              className="assets-header" 
-              onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
-            >
-              <h3>Prize Pool Assets</h3>
-              <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>▼</span>
-            </div>
-            
-            <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
-              <div className="balance-list">
-                {Object.entries(allBalances).map(([symbol, balance]) => {
-                 
-                  return (
-                    <p key={symbol} className="balance-item">
-                      <TokenAmount amount={balance} symbol={symbol} /> {symbol}
-                    </p>
-                  );
-                })}
-              </div>
-              {nfts.length > 0 && (
-                <>
-                  <h3>NFTs:</h3>
-                  <div className="nft-list">
-                    {nfts.map((nft) => (
-                      <div key={nft.id} className="nft-item">
-                        {nft.url && (
-                          <img 
-                            src={nft.url} 
-                            alt={nft.name} 
-                            className="nft-image"
-                          />
-                        )}
-                        <p>{nft.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <p className="creator-credit">
-            Created by <a 
-                href="https://x.com/Zombfyd" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="creator-name"
-            >
-              🎮 Zombfyd 🎮
-            </a>
-          </p>
-
-          <h2>Select Game Mode</h2>
-          <div className="mode-selector">
-            <button 
-              onClick={() => handleGameModeSelection('free')} 
-              className={gameMode === 'free' ? 'active' : ''}
-            >
-              Free Mode
-            </button>
-            <button 
-              onClick={() => handleGameModeSelection('paid')} 
-              className={gameMode === 'paid' ? 'active' : ''}
-            >
-              Paid Mode
-            </button>
-          </div>
-
-          {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
-            <div className="attempts-info">
-              <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
-            </div>
-          )}
-
-          {!gameState.gameStarted && isUsernameSubmitted && (
-            <>
-              {gameMode === 'free' && (
-                <div className="game-mode-selection">
-                  <h2>Select Your Game</h2>
-                  <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
-                    Play Tears of Aya
-                  </button>
-                  <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
-                    Play Tears of Blood
-                  </button>
+          <div className="username-input-container">
+            {!isUsernameSubmitted ? (
+              <form onSubmit={handleUsernameSubmit}>
+                <input
+                  type="text"
+                  placeholder="Enter your username"
+                  value={playerName}
+                  onChange={handleUsernameChange}
+                  className="username-input"
+                  maxLength={25}
+                  required
+                />
+                <button type="submit">Submit</button>
+              </form>
+            ) : (
+              <div>
+                <h2>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h2>
+                <div>
+                  <button onClick={() => setIsUsernameSubmitted(false)}>Change Username</button>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={useSuins}
+                      onChange={handleSuinsChange}
+                    />
+                    use SUINS name
+                  </label>
                 </div>
-              )}
+              </div>
+            )}
+          </div>
 
-    {gameMode === 'paid' && wallet.connected && (
+        <ConnectButton
+          label="Connect SUI Wallet"
+          onConnectError={(error) => {
+            if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
+              console.warn("User rejected connection to " + error.details?.wallet);
+            } else {
+              console.warn("Unknown connect error: ", error);
+            }
+          }}
+        />
+
+        <div className="wallet-info">
+          <div 
+            className="assets-header" 
+            onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
+          >
+            <h3>Prize Pool Assets</h3>
+            <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
+              ▼
+            </span>
+          </div>
+          
+          <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
+            <div className="balance-list">
+              {Object.entries(allBalances).map(([symbol, balance]) => {
+               
+                return (
+                  <p key={symbol} className="balance-item">
+                    <TokenAmount amount={balance} symbol={symbol} /> {symbol}
+                  </p>
+                );
+              })}
+            </div>
+            {nfts.length > 0 && (
+              <>
+                <h3>NFTs:</h3>
+                <div className="nft-list">
+                  {nfts.map((nft) => (
+                    <div key={nft.id} className="nft-item">
+                      {nft.url && (
+                        <img 
+                          src={nft.url} 
+                          alt={nft.name} 
+                          className="nft-image"
+                        />
+                      )}
+                      <p>{nft.name}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <p className="creator-credit">
+          Created by <a 
+              href="https://x.com/Zombfyd" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="creator-name"
+          >
+            🎮 Zombfyd 🎮
+          </a>
+        </p>
+
+        <h2>Select Game Mode</h2>
+        <div className="mode-selector">
+          <button 
+            onClick={() => handleGameModeSelection('free')} 
+            className={gameMode === 'free' ? 'active' : ''}
+          >
+            Free Mode
+          </button>
+          <button 
+            onClick={() => handleGameModeSelection('paid')} 
+            className={gameMode === 'paid' ? 'active' : ''}
+          >
+            Paid Mode
+          </button>
+        </div>
+
+        {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
+          <div className="attempts-info">
+            <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
+          </div>
+        )}
+
+        {!gameState.gameStarted && isUsernameSubmitted && (
+          <>
+            {gameMode === 'free' && (
+              <div className="game-mode-selection">
+                <h2>Select Your Game</h2>
+                <button onClick={() => handleGameTypeStart('aya')} className="start-button aya">
+                  Play Tears of Aya
+                </button>
+                <button onClick={() => handleGameTypeStart('blood')} className="start-button blood">
+                  Play Tears of Blood
+                </button>
+              </div>
+            )}
+
+{gameMode === 'paid' && wallet.connected && (
               <div className="game-mode-selection">
                 <h2>Select Your Game</h2>
                 {!gameState.hasValidPayment ? (
@@ -2175,14 +1803,16 @@ const handleSuinsChange = (e) => {
                           console.error('Error in paid submission process:', error);
                           alert(`Failed to submit score: ${error.message}`);
                         } finally {
-                          setPaying(false);
                           setTransactionInProgress(false);
-                        }
+                          setPaying(false);
+                          }
+                        resetGameState();
+                        restartGame();
                       }}
                       className="submit-paid-button"
                       disabled={transactionInProgress}
                     >
-                      Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
+                      Submit to Paid Leaderboard and Play Again - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
                       ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
                     </button>
                     <button 
@@ -2190,17 +1820,16 @@ const handleSuinsChange = (e) => {
                         try {
                           await handleScoreSubmit(gameState.score, 'free', 
                             window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                          // After submitting the score, restart the game
-                          resetGameState();
-                          restartGame(window.activeGameManager === window.gameManager1 ? 'aya' : 'blood');
                         } catch (error) {
                           console.error('Error submitting to free leaderboard:', error);
                         }
+                        resetGameState();
+                        restartGame();
                       }}
                       className="submit-free-button"
                       disabled={transactionInProgress}
                     >
-                      Submit to Free Leaderboard
+                      Submit to Free Leaderboard and Play Again
                     </button>
                   </div>
                 </div>
@@ -2210,17 +1839,16 @@ const handleSuinsChange = (e) => {
                     try {
                       await handleScoreSubmit(gameState.score, 'free', 
                         window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                      // After submitting the score, restart the game
-                      resetGameState();
-                      restartGame(window.activeGameManager === window.gameManager1 ? 'aya' : 'blood');
                     } catch (error) {
                       console.error('Error submitting to free leaderboard:', error);
                     }
+                    resetGameState();
+                    restartGame();
                   }}
                   className="submit-free-button"
                   disabled={transactionInProgress}
                 >
-                  Submit and Play Again
+                  Submit to Free Leaderboard and Play Again
                 </button>
               )}
             </div>
