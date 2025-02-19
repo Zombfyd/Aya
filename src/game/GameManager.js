@@ -537,8 +537,8 @@ drawUI() {
   drawHealthBars() {
     if (!this.ctx) return;
 
-    // Position health bar on right side with some padding
-    const barX = this.canvas.width - 200 - this.UI_SIZES.HEALTH_BAR_WIDTH - 20;
+    // Position health bar on left side with padding
+    const barX = 50; // Padding from left edge
     const barY = this.UI_SIZES.HEALTH_BAR_Y;
     const barWidth = this.UI_SIZES.HEALTH_BAR_WIDTH;
     const barHeight = this.UI_SIZES.HEALTH_BAR_HEIGHT;
