@@ -1069,6 +1069,7 @@ const TokenAmount = ({ amount, symbol }) => {
         const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
         const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
         
+        // Create a new transaction block
         const txb = new TransactionBlock();
         
         // Split the coins for all recipients
@@ -1092,6 +1093,7 @@ const TokenAmount = ({ amount, symbol }) => {
                 showInput: true,
                 showRawInput: true
             },
+            chain: wallet.chain?.id || 'sui:mainnet',
             requestType: 'WaitForLocalExecution'
         });
 
