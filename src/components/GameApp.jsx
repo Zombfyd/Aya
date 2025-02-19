@@ -251,60 +251,69 @@ const TokenAmount = ({ amount, symbol }) => {
   // Modify payment status monitoring
   useEffect(() => {
     if (transactionInProgress) {
-      const checkPaymentStatus = async () => {
-        try {
-          if (paymentStatus.transactionId) {
-            const status = await wallet.getTransactionBlock({
-              digest: paymentStatus.transactionId,
-              options: {
-                showEvents: true,
-                showEffects: true,
-              },
-            });
+        const checkPaymentStatus = async () => {
+            try {
+                if (paymentStatus.transactionId) {
+                    // Use SuiClient to check transaction status
+                    const status = await client.getTransactionBlock({
+                        digest: paymentStatus.transactionId,
+                        options: {
+                            showEffects: true,
+                            showEvents: true,
+                        }
+                    });
 
-            if (status.digest) {
-              console.log('Transaction successful');
-              setPaymentStatus(prev => ({
-                ...prev,
-                verified: true,
-                transactionId: status.digest
-              }));
-              setGameState(prev => ({
-                ...prev,
-                hasValidPayment: true
-              }));
-              setPaidGameAttempts(0); // Reset attempts when payment is verified
-              setTransactionInProgress(false);
-              
-              // Start countdown and game automatically after payment verification
-              setCountdown(3);
-              await new Promise((resolve) => {
-                const countdownInterval = setInterval(() => {
-                  setCountdown(prev => {
-                    if (prev <= 1) {
-                      clearInterval(countdownInterval);
-                      resolve();
-                      return null;
+                    if (status && status.digest) {
+                        console.log('Transaction confirmed:', status);
+                        
+                        // Update states only after confirmation
+                        setPaymentStatus(prev => ({
+                            ...prev,
+                            verified: true
+                        }));
+                        
+                        setGameState(prev => ({
+                            ...prev,
+                            hasValidPayment: true
+                        }));
+                        
+                        // Reset attempt counter only after confirmation
+                        setPaidGameAttempts(0);
+                        
+                        setTransactionInProgress(false);
+                        
+                        // Start countdown and game
+                        setCountdown(3);
+                        await new Promise((resolve) => {
+                            const countdownInterval = setInterval(() => {
+                                setCountdown(prev => {
+                                    if (prev <= 1) {
+                                        clearInterval(countdownInterval);
+                                        resolve();
+                                        return null;
+                                    }
+                                    return prev - 1;
+                                });
+                            }, 1000);
+                        });
+                        
+                        // Get the game type from the active game manager
+                        const gameType = window.activeGameManager === window.gameManager1 ? 'aya' : 'blood';
+                        startGame(gameType);
                     }
-                    return prev - 1;
-                  });
-                }, 1000);
-              });
-              
-              // Get the game type from the active game manager
-              const gameType = window.activeGameManager === window.gameManager1 ? 'aya' : 'blood';
-              startGame(gameType);
+                }
+            } catch (error) {
+                console.error('Payment status check failed:', error);
+                setTransactionInProgress(false);
+                setPaying(false);
+                alert('Failed to verify payment. Please try again.');
             }
-          }
-        } catch (error) {
-          console.error('Payment status check failed:', error);
-        }
-      };
+        };
 
-      const interval = setInterval(checkPaymentStatus, 2000);
-      return () => clearInterval(interval);
+        const interval = setInterval(checkPaymentStatus, 2000);
+        return () => clearInterval(interval);
     }
-  }, [transactionInProgress, paymentStatus.transactionId]);
+}, [transactionInProgress, paymentStatus.transactionId]);
 
   // Enhanced wallet connection monitoring
   useEffect(() => {
@@ -1022,115 +1031,95 @@ const TokenAmount = ({ amount, symbol }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Modify handleGamePayment to include the game type
+  // Modify handleGamePayment
   const handleGamePayment = async (type = 'aya') => {
     console.log('Payment handler state:', {
-      walletConnected: wallet.connected,
-      walletAccount: wallet.account,
-      selectedTier: selectedTier,
-      qualifyingTier: qualifyingTier,
-      gameMode: gameMode,
-      gameType: type
+        walletConnected: wallet.connected,
+        walletAccount: wallet.account,
+        selectedTier: selectedTier,
+        qualifyingTier: qualifyingTier,
+        gameMode: gameMode,
+        gameType: type
     });
 
     const tierToUse = selectedTier || qualifyingTier;
     
     if (!wallet.connected || !tierToUse) {
-      alert('Please connect wallet and select a payment tier');
-      return;
+        alert('Please connect wallet and select a payment tier');
+        return;
     }
 
     setTransactionInProgress(true);
     setPaying(true);
     
     try {
-      const tierConfig = gameMode === 'free' ? 
-        config.scoreSubmissionTiers[qualifyingTier] : 
-        config.paymentTiers[selectedTier];
+        const tierConfig = gameMode === 'free' ? 
+            config.scoreSubmissionTiers[qualifyingTier] : 
+            config.paymentTiers[selectedTier];
 
-      if (!tierConfig) {
-        throw new Error('Invalid tier configuration');
-      }
+        if (!tierConfig) {
+            throw new Error('Invalid tier configuration');
+        }
 
-      const recipients = config.getCurrentRecipients();
-      const totalAmount = tierConfig.amount;
-      
-      // Calculate amounts based on shares
-      const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-      const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-      const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-      const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
-      
-      const txb = new TransactionBlock();
-      
-      // Split the coins for all recipients
-      const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
-        txb.gas,
-        [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
-      );
+        const recipients = config.getCurrentRecipients();
+        const totalAmount = tierConfig.amount;
+        
+        // Calculate amounts based on shares
+        const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
+        const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
+        const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
+        const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
+        
+        const txb = new TransactionBlock();
+        
+        // Split the coins for all recipients
+        const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
+            txb.gas,
+            [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
+        );
 
-      // Transfer to all recipients
-      txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
-      txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
-      txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
-      txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+        // Transfer to all recipients
+        txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
+        txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
+        txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
+        txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
 
-      const response = await wallet.signAndExecuteTransaction({
-        transaction: txb,
-        options: { showEffects: true }
-      });
-
-      if (!response.digest) {
-        throw new Error('Transaction failed - no digest received');
-      }
-
-      console.log('Transaction successful:', response.digest);
-
-      // Update payment status
-      const paymentDetails = {
-        verified: true,
-        transactionId: response.digest,
-        amount: totalAmount,
-        timestamp: Date.now(),
-        recipient: recipients.primary
-      };
-
-      // Update states
-      setPaymentStatus(paymentDetails);
-      setGameState(prev => ({
-        ...prev,
-        hasValidPayment: true
-      }));
-      setPaidGameAttempts(0);
-      setMaxAttempts(tierConfig.plays);
-
-      // Start countdown and game automatically
-      setCountdown(3);
-      await new Promise((resolve) => {
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              resolve();
-              return null;
+        // Execute transaction
+        const response = await wallet.signAndExecuteTransactionBlock({
+            transactionBlock: txb,
+            options: { 
+                showEffects: true,
+                showEvents: true
             }
-            return prev - 1;
-          });
-        }, 1000);
-      });
+        });
 
-      // Start the game
-      startGame(type);
+        if (!response.digest) {
+            throw new Error('Transaction failed - no digest received');
+        }
+
+        console.log('Transaction initiated:', response.digest);
+
+        // Set initial payment status
+        const paymentDetails = {
+            verified: false, // Will be set to true after confirmation
+            transactionId: response.digest,
+            amount: totalAmount,
+            timestamp: Date.now(),
+            recipient: recipients.primary
+        };
+
+        // Update payment status - other states will be updated after confirmation
+        setPaymentStatus(paymentDetails);
+        setMaxAttempts(tierConfig.plays);
 
     } catch (error) {
-      console.error('Payment error:', error);
-      alert(`Payment failed: ${error.message}`);
-      setCountdown(null);
-    } finally {
-      setTransactionInProgress(false);
-      setPaying(false);
+        console.error('Payment error:', error);
+        alert(`Payment failed: ${error.message}`);
+        setCountdown(null);
+        setTransactionInProgress(false);
+        setPaying(false);
     }
-  };
+};
 
   // Add useEffect for periodic leaderboard updates
   useEffect(() => {
