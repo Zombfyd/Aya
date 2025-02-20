@@ -20,7 +20,7 @@ import {
 import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
-import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { TransactionBlock } from '@mysten/sui/transactions';
 import { SuinsClient } from '@mysten/suins';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 // import { JsonRpcProvider } from "@mysten/sui.js";
@@ -123,9 +123,8 @@ const GameApp = () => {
   const [suinsCache, setSuinsCache] = useState({});
   
   // At the top of your component, add this log
-  const client = new SuiClient({ 
-    url: 'https://fullnode.mainnet.sui.io',
-    network: 'mainnet' // Explicitly set the network
+  const client = new SuiClient({
+    url: getFullnodeUrl('mainnet')
   });
   
   // Add this state near the top of your file
@@ -610,80 +609,57 @@ const GameApp = () => {
   // Update the getSuiNSName function to match the actual data structure
   const getSuiNSName = async (walletAddress) => {
     try {
-      // Check cache first
-      if (suinsCache[walletAddress]) {
-        console.log('Using cached SUINS data');
-        return suinsCache[walletAddress];
-      }
+        if (suinsCache[walletAddress]) {
+            console.log('Using cached SUINS data');
+            return suinsCache[walletAddress];
+        }
 
-      console.log('Fetching SUINS for wallet:', walletAddress);
+        console.log('Fetching SUINS for wallet:', walletAddress);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Add delay to prevent rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const response = await fetch('https://fullnode.mainnet.sui.io/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'suix_getOwnedObjects',
-          params: [
-            walletAddress,
-            {
-              filter: {
-                MoveModule: {
-                  package: "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0",
-                  module: "suins_registration"
-                }
-              },
-              options: {
+        const { data: objects } = await client.getOwnedObjects({
+            owner: walletAddress,
+            filter: {
+                MatchAll: [
+                    { Package: SUINS_REGISTRY },
+                    { Module: "suins_registration" }
+                ]
+            },
+            options: {
+                showType: true,
                 showContent: true,
                 showDisplay: true
-              }
             }
-          ]
-        })
-      });
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (objects && objects.length > 0) {
+            const suinsObject = objects[0];
+            const fields = suinsObject.data?.content?.fields;
 
-      const data = await response.json();
-
-      if (data.result?.data && data.result.data.length > 0) {
-        const suinsObject = data.result.data[0];
-        const fields = suinsObject.data?.content?.fields;
-
-        if (fields && fields.domain_name) {
-          const result = {
-            name: fields.domain_name,
-            imageUrl: `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`
-          };
-          
-          // Cache the result
-          setSuinsCache(prev => ({
-            ...prev,
-            [walletAddress]: result
-          }));
-          
-          return result;
+            if (fields && fields.domain_name) {
+                const result = {
+                    name: fields.domain_name,
+                    imageUrl: `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`
+                };
+                
+                setSuinsCache(prev => ({
+                    ...prev,
+                    [walletAddress]: result
+                }));
+                
+                return result;
+            }
         }
-      }
-      return null;
+        return null;
     } catch (error) {
-      console.error('Error fetching SUINS:', error);
-      if (error.message.includes('429')) {
-        // If rate limited, try again after a longer delay
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        return getSuiNSName(walletAddress);
-      }
-      return null;
+        console.error('Error fetching SUINS:', error);
+        if (error.message.includes('429')) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            return getSuiNSName(walletAddress);
+        }
+        return null;
     }
-  };
+};
 
   // Update SUINS for current user
   useEffect(() => {
@@ -1001,7 +977,6 @@ const GameApp = () => {
     setPaying(true);
     
     try {
-        // Store selected game type for after payment confirmation
         window.selectedGameType = type;
 
         const tierConfig = gameMode === 'free' ? 
@@ -1023,52 +998,58 @@ const GameApp = () => {
         
         const txb = new TransactionBlock();
         
-        // Split the coins for all recipients
+        // Split the coins for all recipients using the updated API
         const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
             txb.gas,
             [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
         );
 
-        // Transfer to all recipients
-        txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
-        txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
-        txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
-        txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+        // Transfer to all recipients using the updated API
+        txb.transferObjects([primaryCoin], recipients.primary);
+        txb.transferObjects([secondaryCoin], recipients.secondary);
+        txb.transferObjects([tertiaryCoin], recipients.tertiary);
+        txb.transferObjects([rewardsCoin], recipients.rewards);
 
-        // Execute transaction
+        // Execute transaction with the updated API
         const response = await wallet.signAndExecuteTransactionBlock({
             transactionBlock: txb,
+            chain: 'mainnet',
             options: { 
                 showEffects: true,
-                showEvents: true
+                showEvents: true,
+                showInput: true,
+                showObjectChanges: true
             }
         });
 
-        if (!response.digest) {
+        if (!response?.digest) {
             throw new Error('Transaction failed - no digest received');
         }
 
-        console.log('Transaction initiated:', response.digest);
+        console.log('Transaction completed:', response);
 
-        // Set initial payment status
         const paymentDetails = {
-            verified: false, // Will be set to true after confirmation
+            verified: true,
             transactionId: response.digest,
             amount: totalAmount,
             timestamp: Date.now(),
             recipient: recipients.primary
         };
 
-        // Update payment status - other states will be updated after confirmation
         setPaymentStatus(paymentDetails);
         setMaxAttempts(tierConfig.plays);
+        setPaidGameAttempts(0);
+        setGameState(prev => ({
+            ...prev,
+            hasValidPayment: true
+        }));
 
     } catch (error) {
         console.error('Payment error:', error);
         alert(`Payment failed: ${error.message}`);
         setTransactionInProgress(false);
         setPaying(false);
-        window.selectedGameType = null; // Clear selected game type on error
+        window.selectedGameType = null;
     }
 };
 

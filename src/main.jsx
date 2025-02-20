@@ -7,7 +7,11 @@ import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <WalletProvider>
+    <WalletProvider 
+      defaultWallets={[]}
+      autoConnect={true}
+      chain="mainnet"
+    >
       <App />
     </WalletProvider>
   </React.StrictMode>
