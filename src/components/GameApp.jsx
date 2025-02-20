@@ -16,13 +16,13 @@ import {
   ErrorCode,
   formatSUI,
   useSuiClient,
-  } from '@suiet/wallet-kit';
+} from '@suiet/wallet-kit';
 import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
-import { TransactionBlock } from '@mysten/sui/transactions';
-import { SuinsClient } from '@mysten/suins';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { TransactionBlock } from '@mysten/sui/dist/cjs/builder';
+import { SuiClient } from '@mysten/sui/dist/cjs/client';
+import { getFullnodeUrl } from '@mysten/sui/dist/cjs/utils';
 // import { JsonRpcProvider } from "@mysten/sui.js";
 
 // Helper function to format a wallet address by truncating it
