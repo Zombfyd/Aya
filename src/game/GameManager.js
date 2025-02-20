@@ -74,6 +74,20 @@ class GameManager {
     
     // Add point multiplier tracking
     this.pointMultiplierActive = false;
+
+    // Separate particle systems for top and bottom flames
+    this.topParticles = [];
+    this.bottomParticles = [];
+    this.lastTopParticleSpawn = 0;
+    this.lastBottomParticleSpawn = 0;
+    this.particleSpawnDelay = 50;
+
+    // Add flame intensity properties
+    this.flameIntensity = {
+      size: 1,
+      speed: 1,
+      brightness: 1
+    };
   }
 
   // Image Loading Method
@@ -512,7 +526,7 @@ drawUI() {
     this.ctx.font = this.UI_SIZES.LEGEND_FONT;
 
     const legends = [
-      { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
+      { text: 'Blue Tear = 1 point', color: '#ADD8E6', y: 50 },
       { text: 'Gold Tear = 15 points', color: '#FFD04D', y: 70 },
       { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
       { text: 'Green Tear = +1 life', color: '#39B037', y: 110 }
@@ -837,7 +851,7 @@ class FloatingText {
  */
 class HealthBar {
   constructor() {
-    this.x = 5;  // Keep close to left edge
+    this.x = 20;  // Keep close to left edge
     this.y = 650;
     this.width = 30;
     this.height = 200;
@@ -853,10 +867,19 @@ class HealthBar {
       max: '#ffaa00'        // Bright orange (21-25)
     };
     
-    // Fire effect properties
-    this.particles = [];
-    this.lastParticleSpawn = 0;
-    this.particleSpawnDelay = 50; // ms between particle spawns
+    // Separate particle systems for top and bottom flames
+    this.topParticles = [];
+    this.bottomParticles = [];
+    this.lastTopParticleSpawn = 0;
+    this.lastBottomParticleSpawn = 0;
+    this.particleSpawnDelay = 50;
+
+    // Add flame intensity properties
+    this.flameIntensity = {
+      size: 1,
+      speed: 1,
+      brightness: 1
+    };
   }
 
   getColorForLives(lives) {
@@ -867,48 +890,95 @@ class HealthBar {
     return this.colors.max;
   }
 
-  createFireParticle() {
+  createFireParticle(isTop) {
+    const intensity = this.flameIntensity;
+    const baseSize = isTop ? 15 : 10 * intensity.size;
+    const baseSpeed = isTop ? 3 : 2 * intensity.speed;
+    
     return {
       x: this.x + Math.random() * this.width,
-      y: this.y - this.height,
-      vx: (Math.random() - 0.5) * 2,
-      vy: -Math.random() * 3 - 2,
-      size: Math.random() * 15 + 5,
-      life: 1.0
+      y: isTop ? this.y - this.height : this.y,
+      vx: (Math.random() - 0.5) * 2 * intensity.speed,
+      vy: isTop ? -Math.random() * baseSpeed - 2 : -Math.random() * baseSpeed - 1,
+      size: Math.random() * baseSize + 5,
+      life: 1.0,
+      hue: Math.min(30 + (intensity.brightness * 15), 60) // Adjust flame color based on intensity
     };
   }
 
-  updateFireEffect() {
+  updateFireEffects(lives) {
     const now = Date.now();
     
-    // Spawn new particles
-    if (now - this.lastParticleSpawn > this.particleSpawnDelay) {
-      this.particles.push(this.createFireParticle());
-      this.lastParticleSpawn = now;
+    // Update flame intensity based on lives
+    const lifeRatio = Math.min(lives / this.maxLives, 1);
+    this.flameIntensity = {
+      size: 1 + (lifeRatio * 1.5),
+      speed: 1 + (lifeRatio * 0.5),
+      brightness: lifeRatio
+    };
+
+    // Update bottom flames (always active, intensity based on lives)
+    if (now - this.lastBottomParticleSpawn > this.particleSpawnDelay) {
+      this.bottomParticles.push(this.createFireParticle(false));
+      this.lastBottomParticleSpawn = now;
     }
 
-    // Update existing particles
-    this.particles = this.particles.filter(particle => {
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-      particle.life -= 0.02;
-      particle.size *= 0.95;
-      return particle.life > 0;
+    // Update top flames (only at max lives)
+    if (lives >= this.maxLives && now - this.lastTopParticleSpawn > this.particleSpawnDelay) {
+      this.topParticles.push(this.createFireParticle(true));
+      this.lastTopParticleSpawn = now;
+    }
+
+    // Update particle physics
+    const updateParticles = (particles) => {
+      return particles.filter(particle => {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.life -= 0.02;
+        particle.size *= 0.95;
+        return particle.life > 0;
+      });
+    };
+
+    this.bottomParticles = updateParticles(this.bottomParticles);
+    this.topParticles = updateParticles(this.topParticles);
+  }
+
+  drawFireParticles(ctx, particles, intensity) {
+    particles.forEach(particle => {
+      const gradient = ctx.createRadialGradient(
+        particle.x, particle.y, 0,
+        particle.x, particle.y, particle.size
+      );
+      
+      // Create more vibrant colors based on intensity and particle hue
+      const alpha = particle.life * intensity.brightness;
+      gradient.addColorStop(0, `hsla(${particle.hue}, 100%, 50%, ${alpha})`);
+      gradient.addColorStop(0.5, `hsla(${particle.hue - 20}, 100%, 30%, ${alpha * 0.5})`);
+      gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
     });
   }
 
   draw(ctx, lives) {
-    // Save context state
     ctx.save();
     
+    // Update fire effects
+    this.updateFireEffects(lives);
+
+    // Draw bottom flames first
+    this.drawFireParticles(ctx, this.bottomParticles, this.flameIntensity);
+
     // Draw health bar
     ctx.fillStyle = '#333333';
     ctx.fillRect(this.x, this.y, this.width, -this.height);
 
     // Draw life segments
-    const filledHeight = (Math.min(lives, this.maxLives) / this.maxLives) * this.height;
     const segments = Math.ceil(lives / 5);
-    
     for (let i = 0; i < segments; i++) {
       const segmentLives = Math.min(5, lives - (i * 5));
       const segmentHeight = (segmentLives / 5) * (this.height / 5);
@@ -928,23 +998,9 @@ class HealthBar {
       ctx.stroke();
     }
 
-    // Draw fire effect if at max lives
+    // Draw top flames last (only at max lives)
     if (lives >= this.maxLives) {
-      this.updateFireEffect();
-      this.particles.forEach(particle => {
-        const gradient = ctx.createRadialGradient(
-          particle.x, particle.y, 0,
-          particle.x, particle.y, particle.size
-        );
-        gradient.addColorStop(0, `rgba(255, 170, 0, ${particle.life})`);
-        gradient.addColorStop(0.5, `rgba(255, 68, 0, ${particle.life * 0.5})`);
-        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      this.drawFireParticles(ctx, this.topParticles, { brightness: 1, size: 1, speed: 1 });
     }
 
     // Draw lives number
@@ -955,7 +1011,6 @@ class HealthBar {
     const centerY = this.y - this.height / 2;
     ctx.fillText(lives.toString(), this.x + this.width / 2, centerY);
 
-    // Restore context state when done
     ctx.restore();
   }
 }
