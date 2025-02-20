@@ -20,9 +20,8 @@ import {
 import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
-import { TransactionBlock } from '@mysten/sui.js/builder';
-import { SuiClient } from '@mysten/sui.js/client';
-import { getFullnodeUrl } from '@mysten/sui.js/utils';
+import { Transaction as TransactionBlock } from '@mysten/sui/transactions';
+import { SuiClient } from '@mysten/sui/client';
 // import { JsonRpcProvider } from "@mysten/sui.js";
 
 // Helper function to format a wallet address by truncating it
@@ -124,7 +123,7 @@ const GameApp = () => {
   
   // At the top of your component, add this log
   const client = new SuiClient({
-    url: getFullnodeUrl('mainnet')
+    url: 'https://fullnode.mainnet.sui.io:443'
   });
   
   // Add this state near the top of your file
@@ -192,9 +191,12 @@ const GameApp = () => {
     };
     
     return (
-      <div className="token-amount" title={`${getFullAmount(amount, symbol)} ${symbol}`}>
+      <span 
+        className="token-amount"
+        title={getFullAmount(amount, symbol)}
+      >
         {formatLargeNumber(amount, symbol)}
-      </div>
+      </span>
     );
   };
 
@@ -579,7 +581,7 @@ const GameApp = () => {
     const initializeSuinsClient = async () => {
       try {
         const suiClient = new SuiClient({ 
-          url: getFullnodeUrl('mainnet')
+          url: 'https://fullnode.mainnet.sui.io:443'
         });
         
         const newSuinsClient = new SuinsClient({
@@ -615,15 +617,11 @@ const GameApp = () => {
         }
 
         console.log('Fetching SUINS for wallet:', walletAddress);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
+        
         const { data: objects } = await client.getOwnedObjects({
             owner: walletAddress,
             filter: {
-                MatchAll: [
-                    { Package: SUINS_REGISTRY },
-                    { Module: "suins_registration" }
-                ]
+                StructType: `${SUINS_REGISTRY}::suins_registration::SuinsRegistration`
             },
             options: {
                 showType: true,
@@ -634,30 +632,46 @@ const GameApp = () => {
 
         if (objects && objects.length > 0) {
             const suinsObject = objects[0];
-            const fields = suinsObject.data?.content?.fields;
-
-            if (fields && fields.domain_name) {
+            if (suinsObject.data?.content?.fields) {
+                const fields = suinsObject.data.content.fields;
                 const result = {
-                    name: fields.domain_name,
-                    imageUrl: `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}`
+                    name: fields.domain_name ? `${fields.domain_name}` : null,
+                    imageUrl: fields.domain_name ? 
+                        `https://api-mainnet.suins.io/nfts/${fields.domain_name}/${fields.expiration_timestamp_ms}` : 
+                        null
                 };
                 
-                setSuinsCache(prev => ({
-                    ...prev,
-                    [walletAddress]: result
-                }));
-                
-                return result;
+                if (result.name) {
+                    setSuinsCache(prev => ({
+                        ...prev,
+                        [walletAddress]: result
+                    }));
+                    return result;
+                }
             }
         }
-        return null;
+        
+        // If no SUINS found, cache the wallet address format
+        const truncatedAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+        const result = {
+            name: truncatedAddress,
+            imageUrl: null
+        };
+        
+        setSuinsCache(prev => ({
+            ...prev,
+            [walletAddress]: result
+        }));
+        
+        return result;
     } catch (error) {
         console.error('Error fetching SUINS:', error);
-        if (error.message.includes('429')) {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            return getSuiNSName(walletAddress);
-        }
-        return null;
+        // Return truncated address on error
+        const truncatedAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+        return {
+            name: truncatedAddress,
+            imageUrl: null
+        };
     }
 };
 
@@ -988,23 +1002,29 @@ const GameApp = () => {
         }
 
         const recipients = config.getCurrentRecipients();
-        const totalAmount = tierConfig.amount;
+        const totalAmount = BigInt(tierConfig.amount);
         
-        // Calculate amounts based on shares
-        const primaryAmount = Math.floor(totalAmount * (config.shares.primary / 10000));
-        const secondaryAmount = Math.floor(totalAmount * (config.shares.secondary / 10000));
-        const tertiaryAmount = Math.floor(totalAmount * (config.shares.tertiary / 10000));
-        const rewardsAmount = Math.floor(totalAmount * (config.shares.rewards / 10000));
+        // Calculate amounts based on shares using BigInt
+        const primaryShare = BigInt(config.shares.primary);
+        const secondaryShare = BigInt(config.shares.secondary);
+        const tertiaryShare = BigInt(config.shares.tertiary);
+        const rewardsShare = BigInt(config.shares.rewards);
+        const totalShares = BigInt(10000);
+        
+        const primaryAmount = totalAmount * primaryShare / totalShares;
+        const secondaryAmount = totalAmount * secondaryShare / totalShares;
+        const tertiaryAmount = totalAmount * tertiaryShare / totalShares;
+        const rewardsAmount = totalAmount * rewardsShare / totalShares;
         
         const txb = new TransactionBlock();
         
-        // Split the coins for all recipients using the updated API
+        // Split the coins for all recipients
         const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
             txb.gas,
-            [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount]
+            [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount].map(amount => Number(amount))
         );
 
-        // Transfer to all recipients using the updated API
+        // Transfer to all recipients - Using direct transfer like in handleGamePayment
         txb.transferObjects([primaryCoin], recipients.primary);
         txb.transferObjects([secondaryCoin], recipients.secondary);
         txb.transferObjects([tertiaryCoin], recipients.tertiary);
@@ -1031,7 +1051,7 @@ const GameApp = () => {
         const paymentDetails = {
             verified: true,
             transactionId: response.digest,
-            amount: totalAmount,
+            amount: Number(totalAmount),
             timestamp: Date.now(),
             recipient: recipients.primary
         };
@@ -1544,14 +1564,11 @@ const handleSuinsChange = (e) => {
           
           <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
             <div className="balance-list">
-              {Object.entries(allBalances).map(([symbol, balance]) => {
-               
-                return (
-                  <p key={symbol} className="balance-item">
-                    <TokenAmount amount={balance} symbol={symbol} /> {symbol}
-                  </p>
-                );
-              })}
+              {Object.entries(allBalances).map(([symbol, balance]) => (
+                <div key={symbol} className="balance-item">
+                  <TokenAmount amount={balance} symbol={symbol} /> {symbol}
+                </div>
+              ))}
             </div>
             {nfts.length > 0 && (
               <>
@@ -1703,55 +1720,62 @@ const handleSuinsChange = (e) => {
                           const currentGameType = window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB';
                           const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
                           const recipients = config.getCurrentRecipients();
-                          const totalAmount = tierConfig.amount;
-                          
+                          const totalAmount = BigInt(tierConfig.amount);
+
+                          // Calculate shares using BigInt
+                          const primaryShare = BigInt(config.shares.primary);
+                          const secondaryShare = BigInt(config.shares.secondary);
+                          const tertiaryShare = BigInt(config.shares.tertiary);
+                          const rewardsShare = BigInt(config.shares.rewards);
+                          const totalShares = BigInt(10000);
+
+                          const primaryAmount = totalAmount * primaryShare / totalShares;
+                          const secondaryAmount = totalAmount * secondaryShare / totalShares;
+                          const tertiaryAmount = totalAmount * tertiaryShare / totalShares;
+                          const rewardsAmount = totalAmount * rewardsShare / totalShares;
+
                           const txb = new TransactionBlock();
+
+                          // Split the coins for all recipients
                           const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
                             txb.gas,
-                            [
-                              Math.floor(totalAmount * (config.shares.primary / 10000)),
-                              Math.floor(totalAmount * (config.shares.secondary / 10000)),
-                              Math.floor(totalAmount * (config.shares.tertiary / 10000)),
-                              Math.floor(totalAmount * (config.shares.rewards / 10000))
-                            ]
+                            [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount].map(amount => Number(amount))
                           );
 
-                          txb.transferObjects([primaryCoin], txb.pure(recipients.primary));
-                          txb.transferObjects([secondaryCoin], txb.pure(recipients.secondary));
-                          txb.transferObjects([tertiaryCoin], txb.pure(recipients.tertiary));
-                          txb.transferObjects([rewardsCoin], txb.pure(recipients.rewards));
+                          // Transfer to all recipients - Using direct transfer like in handleGamePayment
+                          txb.transferObjects([primaryCoin], recipients.primary);
+                          txb.transferObjects([secondaryCoin], recipients.secondary);
+                          txb.transferObjects([tertiaryCoin], recipients.tertiary);
+                          txb.transferObjects([rewardsCoin], recipients.rewards);
 
-                          const response = await wallet.signAndExecuteTransaction({
-                            transaction: txb,
-                            options: { showEffects: true }
+                          const response = await wallet.signAndExecuteTransactionBlock({
+                            transactionBlock: txb,
+                            options: { 
+                              showEffects: true,
+                              showEvents: true,
+                              showInput: true,
+                              showObjectChanges: true
+                            }
                           });
 
                           if (!response.digest) {
                             throw new Error('Transaction failed - no digest received');
                           }
 
-                          console.log('Transaction successful:', response.digest);
+                          console.log('Transaction successful:', response);
 
-                          // Add payment status update here
+                          // Create payment details for score submission
                           const paymentDetails = {
                             verified: true,
                             transactionId: response.digest,
-                            amount: totalAmount,
+                            amount: Number(totalAmount),
                             timestamp: Date.now(),
                             recipient: recipients.primary
                           };
 
-                          // Update state
-                          setPaymentStatus(paymentDetails);
-
-                          // Wait for a moment to ensure state is updated
-                          await new Promise(resolve => setTimeout(resolve, 100));
-
-                          // Submit score with the same payment details
+                          // Submit score with payment verification
                           await handleScoreSubmit(scoreToSubmit, 'paid', currentGameType, paymentDetails);
                           
-                          setQualifiedForPaid(false);
-                          setQualifyingTier(null);
                           alert('Score successfully submitted to paid leaderboard!');
                         } catch (error) {
                           console.error('Error in paid submission process:', error);
@@ -1759,14 +1783,14 @@ const handleSuinsChange = (e) => {
                         } finally {
                           setTransactionInProgress(false);
                           setPaying(false);
-                          }
-                        resetGameState();
-                        restartGame();
+                          resetGameState();
+                          restartGame();
+                        }
                       }}
                       className="submit-paid-button"
                       disabled={transactionInProgress}
                     >
-                      Submit to Paid Leaderboard and Play Again - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
+                      Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
                       ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
                     </button>
                     <button 
@@ -1774,37 +1798,21 @@ const handleSuinsChange = (e) => {
                         try {
                           await handleScoreSubmit(gameState.score, 'free', 
                             window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+                          resetGameState();
+                          restartGame();
                         } catch (error) {
                           console.error('Error submitting to free leaderboard:', error);
+                          alert(`Failed to submit score: ${error.message}`);
                         }
-                        resetGameState();
-                        restartGame();
                       }}
                       className="submit-free-button"
                       disabled={transactionInProgress}
                     >
-                      Submit to Free Leaderboard and Play Again
+                      Submit Score to Free leaderboard and Play Again
                     </button>
                   </div>
                 </div>
-              ) : (
-                <button 
-                  onClick={async () => {
-                    try {
-                      await handleScoreSubmit(gameState.score, 'free', 
-                        window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-                    } catch (error) {
-                      console.error('Error submitting to free leaderboard:', error);
-                    }
-                    resetGameState();
-                    restartGame();
-                  }}
-                  className="submit-free-button"
-                  disabled={transactionInProgress}
-                >
-                  Submit to Free Leaderboard and Play Again
-                </button>
-              )}
+              ) : null}
             </div>
           )}
 

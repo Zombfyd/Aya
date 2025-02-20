@@ -16,7 +16,9 @@ app.use(cors({
     'https://www.ayaonsui.xyz', 
     'https://aya-3i9c.onrender.com', 
     'https://www.tears-of-aya.webflow.io',
-    'https://aya-1.onrender.com'  // Added new URL
+    'https://aya-1.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:3001'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -36,7 +38,9 @@ app.use((req, res, next) => {
     'https://www.ayaonsui.xyz',
     'https://aya-3i9c.onrender.com',
     'https://www.tears-of-aya.webflow.io',
-    'https://aya-1.onrender.com'
+    'https://aya-1.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:3001'
   ];
   
   const origin = req.headers.origin;
@@ -145,7 +149,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
