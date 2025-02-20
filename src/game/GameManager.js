@@ -68,6 +68,12 @@ class GameManager {
 
     // Add floating text array
     this.floatingTexts = [];
+
+    // Add health bar
+    this.healthBar = new HealthBar();
+    
+    // Add point multiplier tracking
+    this.pointMultiplierActive = false;
   }
 
   // Image Loading Method
@@ -362,22 +368,30 @@ class GameManager {
     const splashX = entity.x + entity.width / 2;
     const splashY = this.bucket.y;
 
-    // Create floating text based on tear type
     if (isGold) {
-      this.score += 15;
-      this.floatingTexts.push(new FloatingText(splashX, splashY, '15', '#FFD700'));
+      const points = this.lives >= this.healthBar.maxLives ? 75 : 15;
+      this.score += points;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, 
+        this.lives >= this.healthBar.maxLives ? '75!' : '15', '#FFD700'));
       this.splashes.push(new GoldSplash(splashX, splashY));
     } else if (isRed) {
       this.lives--;
       this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
       this.splashes.push(new RedSplash(splashX, splashY));
     } else if (isBlack) {
-      this.lives++;
-      this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
+      if (this.lives >= this.healthBar.maxLives) {
+        this.score += 25;
+        this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
+      } else {
+        this.lives++;
+        this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
+      }
       this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
-      this.score += 1;
-      this.floatingTexts.push(new FloatingText(splashX, splashY, '1', '#f9f9f9'));
+      const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
+      this.score += points;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, 
+        this.lives >= this.healthBar.maxLives ? '5!' : '1', '#f9f9f9'));
       this.splashes.push(new BlueSplash(splashX, splashY));
     }
   }
@@ -464,33 +478,17 @@ drawUI() {
   this.ctx.fillStyle = "#f9f9f9";
   this.ctx.fillText(`Score: ${this.score}`, 20, 30);
 
-  // Draw lives (centered in bucket)
-  if (this.bucket) {
-    this.ctx.font = this.UI_SIZES.LIVES_FONT;
-    const livesText = (`${this.lives}`, '#2054c9');
-    const textMetrics = this.ctx.measureText(livesText);
-    const textX = this.bucket.x + (this.bucket.width / 2) - (textMetrics.width / 2);
-    const textY = this.bucket.y + (this.bucket.height / 2) + 6; // +6 for better vertical centering
-    this.ctx.fillText(livesText, textX, textY);
-    
-    // Draw warning message when lives are low
-    if (this.lives <= 5) {
-      this.ctx.fillStyle = "#FF4D6D"; // Red warning color
-      
-      // Draw warning text
-      this.ctx.font = this.UI_SIZES.SCORE_FONT;
-      const warningText = "Lives remaining!";
-      const warningMetrics = this.ctx.measureText(warningText);
-      const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-      this.ctx.fillText(warningText, warningX, 140);
-      
-      // Draw lives number bigger below
-      this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
-      const livesCountText = `${this.lives}`;
-      const livesMetrics = this.ctx.measureText(livesCountText);
-      const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
-      this.ctx.fillText(livesCountText, livesX, 190);
-    }
+  // Draw health bar
+  this.healthBar.draw(this.ctx, this.lives);
+  
+  // Draw warning message when lives are low
+  if (this.lives <= 5) {
+    this.ctx.fillStyle = "#FF4D6D";
+    this.ctx.font = this.UI_SIZES.SCORE_FONT;
+    const warningText = "Lives remaining!";
+    const warningMetrics = this.ctx.measureText(warningText);
+    const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
+    this.ctx.fillText(warningText, warningX, 140);
   }
 
   // Draw speed
@@ -827,6 +825,128 @@ class FloatingText {
     ctx.textAlign = 'center';
     ctx.fillText(this.text, this.x, this.y);
     ctx.restore();
+  }
+}
+
+/**
+ * HealthBar class for visualizing lives
+ */
+class HealthBar {
+  constructor() {
+    this.x = 30;  // Distance from left edge
+    this.y = 650; // Distance from top
+    this.width = 30;
+    this.height = 200;
+    this.segmentHeight = this.height / 25; // Height per life segment
+    this.maxLives = 25;
+    
+    // Colors for different life ranges
+    this.colors = {
+      low: '#ff0000',      // Red (1-5)
+      medium: '#ff4400',    // Orange-red (6-10)
+      high: '#ff6600',      // Light orange (11-15)
+      very_high: '#ff8800', // Orange (16-20)
+      max: '#ffaa00'        // Bright orange (21-25)
+    };
+    
+    // Fire effect properties
+    this.particles = [];
+    this.lastParticleSpawn = 0;
+    this.particleSpawnDelay = 50; // ms between particle spawns
+  }
+
+  getColorForLives(lives) {
+    if (lives <= 5) return this.colors.low;
+    if (lives <= 10) return this.colors.medium;
+    if (lives <= 15) return this.colors.high;
+    if (lives <= 20) return this.colors.very_high;
+    return this.colors.max;
+  }
+
+  createFireParticle() {
+    return {
+      x: this.x + Math.random() * this.width,
+      y: this.y,
+      vx: (Math.random() - 0.5) * 2,
+      vy: -Math.random() * 3 - 2,
+      size: Math.random() * 15 + 5,
+      life: 1.0
+    };
+  }
+
+  updateFireEffect() {
+    const now = Date.now();
+    
+    // Spawn new particles
+    if (now - this.lastParticleSpawn > this.particleSpawnDelay) {
+      this.particles.push(this.createFireParticle());
+      this.lastParticleSpawn = now;
+    }
+
+    // Update existing particles
+    this.particles = this.particles.filter(particle => {
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+      particle.life -= 0.02;
+      particle.size *= 0.95;
+      return particle.life > 0;
+    });
+  }
+
+  draw(ctx, lives) {
+    // Draw background
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(this.x, this.y, this.width, -this.height);
+
+    // Draw life segments
+    const filledHeight = (Math.min(lives, this.maxLives) / this.maxLives) * this.height;
+    const segments = Math.ceil(lives / 5);
+    
+    for (let i = 0; i < segments; i++) {
+      const segmentLives = Math.min(5, lives - (i * 5));
+      const segmentHeight = (segmentLives / 5) * (this.height / 5);
+      const segmentY = this.y - (i * (this.height / 5));
+      
+      ctx.fillStyle = this.getColorForLives((i * 5) + segmentLives);
+      ctx.fillRect(this.x, segmentY, this.width, -segmentHeight);
+    }
+
+    // Draw segment lines
+    ctx.strokeStyle = '#ffffff33';
+    for (let i = 1; i < 5; i++) {
+      const lineY = this.y - (this.height * (i / 5));
+      ctx.beginPath();
+      ctx.moveTo(this.x, lineY);
+      ctx.lineTo(this.x + this.width, lineY);
+      ctx.stroke();
+    }
+
+    // Draw fire effect if at max lives
+    if (lives >= this.maxLives) {
+      this.updateFireEffect();
+      this.particles.forEach(particle => {
+        const gradient = ctx.createRadialGradient(
+          particle.x, particle.y, 0,
+          particle.x, particle.y, particle.size
+        );
+        gradient.addColorStop(0, `rgba(255, 170, 0, ${particle.life})`);
+        gradient.addColorStop(0.5, `rgba(255, 68, 0, ${particle.life * 0.5})`);
+        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // Draw lives number
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px Inconsolata';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const centerY = this.y - this.height / 2;
+    ctx.fillText(lives.toString(), this.x + this.width / 2, centerY);
   }
 }
 
