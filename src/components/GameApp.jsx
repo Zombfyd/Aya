@@ -45,7 +45,6 @@ const GameApp = () => {
   const [walletInitialized, setWalletInitialized] = useState(false);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [transactionInProgress, setTransactionInProgress] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [gameState, setGameState] = useState({
     gameStarted: false,
     score: 0,
@@ -135,16 +134,6 @@ const GameApp = () => {
   // First, add a new state for the checkbox
   const [neverShowTutorial, setNeverShowTutorial] = useState(false);
   
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      setIsMobile(mobile);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
   // Utility function for chain name
   const chainName = (chainId) => {
     switch (chainId) {
@@ -158,74 +147,58 @@ const GameApp = () => {
         return "Unknown";
     }
   };
-  // Add this component near the top of your file
-const TokenAmount = ({ amount, symbol }) => {
+
+  // Add TokenAmount component
+  const TokenAmount = ({ amount, symbol }) => {
     const formatLargeNumber = (num, tokenSymbol) => {
-        // Different conversion rates for different tokens
-        let convertedAmount;
-        if (tokenSymbol === 'SUI') {
-            convertedAmount = Number(num) / 1e9; // SUI uses 9 decimals
-        } else {
-            convertedAmount = Number(num) / 1e6; // Default no conversion
-        }
+      // Different conversion rates for different tokens
+      let convertedAmount;
+      if (tokenSymbol === 'SUI') {
+        convertedAmount = Number(num) / 1e9; // SUI uses 9 decimals
+      } else {
+        convertedAmount = Number(num) / 1e6; // Default no conversion
+      }
 
-        const absNum = Math.abs(convertedAmount);
-        
-        // Show full number with appropriate decimals if less than 1000
-        if (absNum < 1000) {
-            return convertedAmount.toFixed(2);
-        }
+      const absNum = Math.abs(convertedAmount);
+      
+      // Show full number with appropriate decimals if less than 1000
+      if (absNum < 1000) {
+        return convertedAmount.toFixed(2);
+      }
 
-        const trillion = 1e12;
-        const billion = 1e9;
-        const million = 1e6;
-        const thousand = 1e3;
+      const trillion = 1e12;
+      const billion = 1e9;
+      const million = 1e6;
+      const thousand = 1e3;
 
-        if (absNum >= trillion) {
-            return (convertedAmount / trillion).toFixed(2) + 'T';
-        } else if (absNum >= billion) {
-            return (convertedAmount / billion).toFixed(2) + 'B';
-        } else if (absNum >= million) {
-            return (convertedAmount / million).toFixed(2) + 'M';
-        } else if (absNum >= thousand) {
-            return (convertedAmount / thousand).toFixed(2) + 'K';
-        }
+      if (absNum >= trillion) {
+        return (convertedAmount / trillion).toFixed(2) + 'T';
+      } else if (absNum >= billion) {
+        return (convertedAmount / billion).toFixed(2) + 'B';
+      } else if (absNum >= million) {
+        return (convertedAmount / million).toFixed(2) + 'M';
+      } else if (absNum >= thousand) {
+        return (convertedAmount / thousand).toFixed(2) + 'K';
+      }
     };
 
     // Format the full amount for the tooltip with appropriate conversion
     const getFullAmount = (num, tokenSymbol) => {
-        if (tokenSymbol === 'SUI') {
-            return (Number(num) / 1e9).toFixed(2);
-        } else if (tokenSymbol === 'AYA') {
-            return (Number(num) / 1e6).toFixed(2); // Adjusted from 1e3 to 1e6
-        }
-        return Number(num).toFixed(2);
+      if (tokenSymbol === 'SUI') {
+        return (Number(num) / 1e9).toFixed(2);
+      } else if (tokenSymbol === 'AYA') {
+        return (Number(num) / 1e6).toFixed(2); // Adjusted from 1e3 to 1e6
+      }
+      return Number(num).toFixed(2);
     };
     
     return (
-        <div className="token-amount" title={`${getFullAmount(amount, symbol)} ${symbol}`}>
-            {formatLargeNumber(amount, symbol)}
-        </div>
+      <div className="token-amount" title={`${getFullAmount(amount, symbol)} ${symbol}`}>
+        {formatLargeNumber(amount, symbol)}
+      </div>
     );
-};
+  };
 
-// Add this CSS to your stylesheet
-
-
-
-  // Add mobile detection on component mount
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      setIsMobile(mobile);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  // Utility function for chain name
-  
   useEffect(() => {
     const initializeGame = async () => {
       try {
