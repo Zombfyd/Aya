@@ -20,9 +20,9 @@ import {
 import '@suiet/wallet-kit/style.css';
 // import './App.css';
 import config from '../config/config';
-import { TransactionBlock } from '@mysten/sui/dist/cjs/builder';
-import { SuiClient } from '@mysten/sui/dist/cjs/client';
-import { getFullnodeUrl } from '@mysten/sui/dist/cjs/utils';
+import { TransactionBlock } from '@mysten/sui.js/builder';
+import { SuiClient } from '@mysten/sui.js/client';
+import { getFullnodeUrl } from '@mysten/sui.js/utils';
 // import { JsonRpcProvider } from "@mysten/sui.js";
 
 // Helper function to format a wallet address by truncating it
