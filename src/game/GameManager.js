@@ -954,11 +954,11 @@ class HealthBar {
         particle.x, particle.y, particle.size
       );
       
-      // Create more vibrant colors based on intensity and particle hue
-      const alpha = particle.life * intensity.brightness;
+      // Increase base alpha values for more opaque flames
+      const alpha = Math.min(particle.life * intensity.brightness * 1.5, 1.0); // Increased from 1.0 to 1.5
       gradient.addColorStop(0, `hsla(${particle.hue}, 100%, 50%, ${alpha})`);
-      gradient.addColorStop(0.5, `hsla(${particle.hue - 20}, 100%, 30%, ${alpha * 0.5})`);
-      gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+      gradient.addColorStop(0.5, `hsla(${particle.hue - 20}, 100%, 30%, ${alpha * 0.8})`); // Increased from 0.5 to 0.8
+      gradient.addColorStop(1, `rgba(255, 0, 0, ${alpha * 0.3})`); // Added some opacity to outer edge
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
