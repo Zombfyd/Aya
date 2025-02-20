@@ -218,10 +218,31 @@ header.scrolled {
 }
 
 .balance-item {
-   margin: 0;
+  margin: 0.5rem;
   min-width: 150px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(32, 84, 201, 0.05);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: transform 0.2s ease;
 }
+
+.balance-item:hover {
+  transform: translateY(-2px);
+  background: rgba(32, 84, 201, 0.1);
+}
+
+.token-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .nft-list {
   display: flex;
   justify-content: center;
@@ -1396,14 +1417,14 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 
 .user-info-section .assets-content {
   max-height: 0;
-  overflow: hidden;
+  overflow: scroll;
   transition: max-height 0.3s ease-out;
   background: rgba(255, 255, 255, 0.05);
 }
 
 .user-info-section .assets-content.expanded {
-  max-height: 1000px;
-  padding: 1rem;
+  max-height: 300px;
+  padding: 3rem;
 }
 
 .username-container {
@@ -1504,4 +1525,29 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 
 .username-form button:hover {
   background: #1643a0;
+}
+
+.nft-link {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.2s ease;
+}
+
+.nft-link:hover {
+  transform: scale(1.05);
+}
+
+.nft-link h4 {
+  color: #2054c9;
+  margin: 8px 0;
+  text-decoration: none;
+}
+
+.nft-link:hover h4 {
+  text-decoration: underline;
 }
