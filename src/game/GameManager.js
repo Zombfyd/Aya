@@ -476,7 +476,7 @@ drawUI() {
   // Draw score
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
   this.ctx.fillStyle = "#f9f9f9";
-  this.ctx.fillText(`Score: ${this.score}`, 20, 30);
+  this.ctx.fillText(`Score: ${this.score}`, 45, 30);
 
   // Draw health bar
   this.healthBar.draw(this.ctx, this.lives);
@@ -502,10 +502,11 @@ drawUI() {
   drawLegend() {
     if (!this.ctx) return;
 
-    // Reset transform before drawing legend
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     
     this.ctx.font = this.UI_SIZES.LEGEND_FONT;
+
+    const legendX = 45;
 
     const legends = [
       { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
@@ -516,7 +517,7 @@ drawUI() {
 
     legends.forEach(({ text, color, y }) => {
       this.ctx.fillStyle = color;
-      this.ctx.fillText(text, 20, y);
+      this.ctx.fillText(text, legendX, y);
     });
 }
 
@@ -833,11 +834,11 @@ class FloatingText {
  */
 class HealthBar {
   constructor() {
-    this.x = 30;  // Distance from left edge
-    this.y = 650; // Distance from top
+    this.x = 5;  // Changed from 30 to 5
+    this.y = 650;
     this.width = 30;
     this.height = 200;
-    this.segmentHeight = this.height / 25; // Height per life segment
+    this.segmentHeight = this.height / 25;
     this.maxLives = 25;
     
     // Colors for different life ranges
@@ -866,7 +867,7 @@ class HealthBar {
   createFireParticle() {
     return {
       x: this.x + Math.random() * this.width,
-      y: this.y,
+      y: this.y - this.height,
       vx: (Math.random() - 0.5) * 2,
       vy: -Math.random() * 3 - 2,
       size: Math.random() * 15 + 5,
