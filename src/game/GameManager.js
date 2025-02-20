@@ -470,17 +470,22 @@ class GameManager {
 drawUI() {
   if (!this.ctx) return;
 
-  // Reset transform before drawing text
+  // Save the current canvas state
+  this.ctx.save();
+  
+  // Reset transform for UI elements
   this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Draw score
+  // Draw score at original position
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
   this.ctx.fillStyle = "#f9f9f9";
-  this.ctx.fillText(`Score: ${this.score}`, 45, 30);
+  this.ctx.fillText(`Score: ${this.score}`, 20, 30);  // Back to original position
 
-  // Draw health bar
-  this.healthBar.draw(this.ctx, this.lives);
-  
+  // Draw speed
+  this.ctx.fillStyle = "#2054c9";
+  this.ctx.font = this.UI_SIZES.SCORE_FONT;
+  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+
   // Draw warning message when lives are low
   if (this.lives <= 5) {
     this.ctx.fillStyle = "#FF4D6D";
@@ -491,22 +496,20 @@ drawUI() {
     this.ctx.fillText(warningText, warningX, 140);
   }
 
-  // Draw speed
-  this.ctx.fillStyle = "#2054c9";
-  this.ctx.font = this.UI_SIZES.SCORE_FONT;
-  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
-
+  // Draw legend at original position
   this.drawLegend();
+
+  // Restore canvas state before drawing health bar
+  this.ctx.restore();
+
+  // Draw health bar last, so it's on top
+  this.healthBar.draw(this.ctx, this.lives);
 }
 
   drawLegend() {
     if (!this.ctx) return;
-
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     
     this.ctx.font = this.UI_SIZES.LEGEND_FONT;
-
-    const legendX = 45;
 
     const legends = [
       { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
@@ -517,7 +520,7 @@ drawUI() {
 
     legends.forEach(({ text, color, y }) => {
       this.ctx.fillStyle = color;
-      this.ctx.fillText(text, legendX, y);
+      this.ctx.fillText(text, 20, y);  // Back to original position
     });
 }
 
@@ -834,7 +837,7 @@ class FloatingText {
  */
 class HealthBar {
   constructor() {
-    this.x = 5;  // Changed from 30 to 5
+    this.x = 5;  // Keep close to left edge
     this.y = 650;
     this.width = 30;
     this.height = 200;
@@ -895,7 +898,10 @@ class HealthBar {
   }
 
   draw(ctx, lives) {
-    // Draw background
+    // Save context state
+    ctx.save();
+    
+    // Draw health bar
     ctx.fillStyle = '#333333';
     ctx.fillRect(this.x, this.y, this.width, -this.height);
 
@@ -948,6 +954,9 @@ class HealthBar {
     ctx.textBaseline = 'middle';
     const centerY = this.y - this.height / 2;
     ctx.fillText(lives.toString(), this.x + this.width / 2, centerY);
+
+    // Restore context state when done
+    ctx.restore();
   }
 }
 
