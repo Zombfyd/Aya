@@ -858,14 +858,17 @@ class HealthBar {
     this.segmentHeight = this.height / 25;
     this.maxLives = 25;
     
-    // Colors for different life ranges
+    // Colors for different life ranges with transparency
     this.colors = {
-      low: '#ff0000',      // Red (1-5)
-      medium: '#ff4400',    // Orange-red (6-10)
-      high: '#ff6600',      // Light orange (11-15)
-      very_high: '#ff8800', // Orange (16-20)
-      max: '#ffaa00'        // Bright orange (21-25)
+      low: 'rgba(255, 0, 0, 0.6)',      // Red (1-5)
+      medium: 'rgba(255, 68, 0, 0.6)',   // Orange-red (6-10)
+      high: 'rgba(255, 102, 0, 0.6)',    // Light orange (11-15)
+      very_high: 'rgba(255, 136, 0, 0.6)', // Orange (16-20)
+      max: 'rgba(255, 170, 0, 0.6)'      // Bright orange (21-25)
     };
+    
+    // Make background more transparent too
+    this.backgroundColor = 'rgba(51, 51, 51, 0.4)';
     
     // Separate particle systems for top and bottom flames
     this.topParticles = [];
@@ -973,8 +976,8 @@ class HealthBar {
     // Draw bottom flames first
     this.drawFireParticles(ctx, this.bottomParticles, this.flameIntensity);
 
-    // Draw health bar
-    ctx.fillStyle = '#333333';
+    // Draw health bar background with transparency
+    ctx.fillStyle = this.backgroundColor;
     ctx.fillRect(this.x, this.y, this.width, -this.height);
 
     // Draw life segments
