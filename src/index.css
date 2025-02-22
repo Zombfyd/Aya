@@ -239,11 +239,15 @@ header.scrolled {
 
 .balance-list {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-  padding: 1rem;
-  font-weight: 800;
+      gap: 1rem;
+      padding: 1rem;
+      font-weight: 800;
+      max-width: 102%;
+      align-items: center;
+      flex-wrap: wrap;
+      flex-direction: row;
+      justify-content: center;
+      margin-left: 4rem;
 }
 
 .balance-item {
