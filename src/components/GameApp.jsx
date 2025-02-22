@@ -7,7 +7,7 @@ const gameManager2 = new BloodGameManager();
 
 window.gameManager = gameManager1;
 window.GameManager2 = gameManager2;
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ConnectButton,
   useAccountBalance,
@@ -140,6 +140,9 @@ const GameApp = () => {
   const [isNFTVerified, setIsNFTVerified] = useState(false);
   const [isCheckingNFTs, setIsCheckingNFTs] = useState(false);
   
+  // Add this near the top of the file with other state declarations
+  const [showDistribution, setShowDistribution] = useState(false);
+  
   // Utility function for chain name
   const chainName = (chainId) => {
     switch (chainId) {
@@ -154,7 +157,20 @@ const GameApp = () => {
     }
   };
 
-  // Add TokenAmount component
+  // Remove the old PrizeDistributionToggle component and replace with this
+  const PrizeDistributionToggle = ({ showDistribution, setShowDistribution }) => (
+    <div className="prize-pool-header">
+      <label className="prize-distribution-toggle">
+        <input
+          type="checkbox"
+          checked={showDistribution}
+          onChange={(e) => setShowDistribution(e.target.checked)}
+        />
+        Show Prize Distribution
+      </label>
+    </div>
+  );
+
   const TokenAmount = ({ amount, symbol }) => {
     const formatLargeNumber = (num, tokenSymbol) => {
       // Different conversion rates for different tokens
@@ -162,12 +178,11 @@ const GameApp = () => {
       if (tokenSymbol === 'SUI') {
         convertedAmount = Number(num) / 1e9; // SUI uses 9 decimals
       } else {
-        convertedAmount = Number(num) / 1e6; // Default no conversion
+        convertedAmount = Number(num) / 1e6; // Default 6 decimals
       }
 
       const absNum = Math.abs(convertedAmount);
       
-      // Show full number with appropriate decimals if less than 1000
       if (absNum < 1000) {
         return convertedAmount.toFixed(2);
       }
@@ -188,23 +203,46 @@ const GameApp = () => {
       }
     };
 
-    // Format the full amount for the tooltip with appropriate conversion
-    const getFullAmount = (num, tokenSymbol) => {
-      if (tokenSymbol === 'SUI') {
-        return (Number(num) / 1e9).toFixed(2);
-      } else if (tokenSymbol === 'AYA') {
-        return (Number(num) / 1e6).toFixed(2); // Adjusted from 1e3 to 1e6
-      }
-      return Number(num).toFixed(2);
-    };
-    
     return (
-      <span 
-        className="token-amount"
-        title={getFullAmount(amount, symbol)}
-      >
-        {formatLargeNumber(amount, symbol)}
-      </span>
+      <div className="balance-item">
+        {formatLargeNumber(amount, symbol)} {symbol}
+        {showDistribution && (
+          <div className="token-distribution">
+            <div className="distribution-row">
+              <span>1st Place:</span>
+              <span>({formatLargeNumber(BigInt(amount) * BigInt(30) / BigInt(100), symbol)} {symbol})</span>
+            </div>
+            <div className="distribution-row">
+              <span>2nd Place:</span>
+              <span>({formatLargeNumber(BigInt(amount) * BigInt(20) / BigInt(100), symbol)} {symbol})</span>
+            </div>
+            <div className="distribution-row">
+              <span>3rd Place:</span>
+              <span>({formatLargeNumber(BigInt(amount) * BigInt(15) / BigInt(100), symbol)} {symbol})</span>
+            </div>
+            <div className="distribution-row">
+              <span>4th Place:</span>
+              <span>({formatLargeNumber(BigInt(amount) * BigInt(10) / BigInt(100), symbol)} {symbol})</span>
+            </div>
+            <div className="distribution-row">
+              <span>5th Place:</span>
+              <span>({formatLargeNumber(BigInt(amount) * BigInt(8) / BigInt(100), symbol)} {symbol})</span>
+            </div>
+            <div className="distribution-row">
+              <span>6th Place:</span>
+              <span>({formatLargeNumber(BigInt(amount) * BigInt(7) / BigInt(100), symbol)} {symbol})</span>
+            </div>
+            <div className="distribution-row">
+              <span>7th Place:</span>
+              <span>({formatLargeNumber(BigInt(amount) * BigInt(6) / BigInt(100), symbol)} {symbol})</span>
+            </div>
+            <div className="distribution-row">
+              <span>8th Place:</span>
+              <span>({formatLargeNumber(BigInt(amount) * BigInt(4) / BigInt(100), symbol)} {symbol})</span>
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -979,87 +1017,96 @@ const GameApp = () => {
 
   // Modify handleGamePayment
   const handleGamePayment = async (type = 'aya') => {
-    console.log('Payment handler state:', {
-        walletConnected: wallet.connected,
-        walletAccount: wallet.account,
-        selectedTier: selectedTier,
-        qualifyingTier: qualifyingTier,
-        gameMode: gameMode,
-        gameType: type
-    });
-
-    const tierToUse = selectedTier || qualifyingTier;
-    
-    if (!wallet.connected || !tierToUse) {
+    if (!wallet.connected || !selectedTier) {
         alert('Please connect wallet and select a payment tier');
         return;
     }
 
-    setTransactionInProgress(true);
-    setPaying(true);
-    
     try {
         window.selectedGameType = type;
+        setTransactionInProgress(true);
+        setPaying(true);
 
-        const tierConfig = gameMode === 'free' ? 
-            config.scoreSubmissionTiers[qualifyingTier] : 
-            config.paymentTiers[selectedTier];
+        // Get configuration
+        const tierConfig = config.paymentTiers[selectedTier];
+        const recipients = config.getCurrentRecipients();
+        const shares = config.shares;
 
-        if (!tierConfig) {
-            throw new Error('Invalid tier configuration');
+        // Calculate total amount with NFT discount if applicable
+        const baseAmount = BigInt(tierConfig.amount);
+        const totalAmount = isNFTVerified ? baseAmount / BigInt(2) : baseAmount;
+
+        // Calculate share amounts in a single pass
+        const shareAmounts = {
+            primary: (totalAmount * BigInt(shares.primary)) / BigInt(10000),
+            secondary: (totalAmount * BigInt(shares.secondary)) / BigInt(10000),
+            tertiary: (totalAmount * BigInt(shares.tertiary)) / BigInt(10000),
+            rewards: (totalAmount * BigInt(shares.rewards)) / BigInt(10000)
+        };
+
+        // Verify total matches sum of shares
+        const sumOfShares = shareAmounts.primary + shareAmounts.secondary + 
+                          shareAmounts.tertiary + shareAmounts.rewards;
+
+        // Log exact amounts for verification
+        console.log('Payment Verification:', {
+            tier: selectedTier,
+            baseAmount: baseAmount.toString(),
+            nftDiscount: isNFTVerified,
+            totalAmount: totalAmount.toString(),
+            shares: {
+                primary: `${shareAmounts.primary.toString()} (${shares.primary/100}%)`,
+                secondary: `${shareAmounts.secondary.toString()} (${shares.secondary/100}%)`,
+                tertiary: `${shareAmounts.tertiary.toString()} (${shares.tertiary/100}%)`,
+                rewards: `${shareAmounts.rewards.toString()} (${shares.rewards/100}%)`
+            },
+            sumOfShares: sumOfShares.toString(),
+            matchesTotal: sumOfShares === totalAmount ? 'Yes' : 'No'
+        });
+
+        // Verify amounts match before proceeding
+        if (sumOfShares !== totalAmount) {
+            const difference = totalAmount - sumOfShares;
+            console.warn(`Share total mismatch. Difference: ${difference.toString()} MIST`);
+            // Adjust primary share to account for any rounding
+            shareAmounts.primary = shareAmounts.primary + difference;
+            console.log('Adjusted primary share:', shareAmounts.primary.toString());
         }
 
-        const recipients = config.getCurrentRecipients();
-        // Apply 50% discount if user has verified NFTs
-        const totalAmount = BigInt(isNFTVerified ? 
-          Math.floor(tierConfig.amount * 0.5) : 
-          tierConfig.amount
-        );
-        
-        // Calculate amounts based on shares using BigInt
-        const primaryShare = BigInt(config.shares.primary);
-        const secondaryShare = BigInt(config.shares.secondary);
-        const tertiaryShare = BigInt(config.shares.tertiary);
-        const rewardsShare = BigInt(config.shares.rewards);
-        const totalShares = BigInt(10000);
-        
-        const primaryAmount = totalAmount * primaryShare / totalShares;
-        const secondaryAmount = totalAmount * secondaryShare / totalShares;
-        const tertiaryAmount = totalAmount * tertiaryShare / totalShares;
-        const rewardsAmount = totalAmount * rewardsShare / totalShares;
-        
+        // Create and execute transaction
         const txb = new TransactionBlock();
-        
-        // Split the coins for all recipients using the updated API
-        const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
-            txb.gas,
-            [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount].map(amount => Number(amount))
-        );
+        const [primary, secondary, tertiary, rewards] = txb.splitCoins(txb.gas, [
+            shareAmounts.primary.toString(),
+            shareAmounts.secondary.toString(),
+            shareAmounts.tertiary.toString(),
+            shareAmounts.rewards.toString()
+        ]);
 
-        // Transfer to all recipients using the updated API
-        txb.transferObjects([primaryCoin], recipients.primary);
-        txb.transferObjects([secondaryCoin], recipients.secondary);
-        txb.transferObjects([tertiaryCoin], recipients.tertiary);
-        txb.transferObjects([rewardsCoin], recipients.rewards);
+        // Transfer all shares in a single block
+        txb.transferObjects([primary], recipients.primary);
+        txb.transferObjects([secondary], recipients.secondary);
+        txb.transferObjects([tertiary], recipients.tertiary);
+        txb.transferObjects([rewards], recipients.rewards);
 
-        // Execute transaction with the updated API
+        // Log transaction details
+        console.log('Transaction Recipients:', {
+            primary: recipients.primary,
+            secondary: recipients.secondary,
+            tertiary: recipients.tertiary,
+            rewards: recipients.rewards
+        });
+
+        // Execute transaction with all necessary options
         const response = await wallet.signAndExecuteTransactionBlock({
             transactionBlock: txb,
-            chain: 'mainnet',
-            options: { 
-                showEffects: true,
-                showEvents: true,
-                showInput: true,
-                showObjectChanges: true
-            }
+            options: { showEffects: true, showEvents: true }
         });
 
         if (!response?.digest) {
             throw new Error('Transaction failed - no digest received');
         }
 
-        console.log('Transaction completed:', response);
-
+        // Update game state
         const paymentDetails = {
             verified: true,
             transactionId: response.digest,
@@ -1071,19 +1118,18 @@ const GameApp = () => {
         setPaymentStatus(paymentDetails);
         setMaxAttempts(tierConfig.plays);
         setPaidGameAttempts(0);
-        setGameState(prev => ({
-            ...prev,
-            hasValidPayment: true
-        }));
+        setGameState(prev => ({ ...prev, hasValidPayment: true }));
 
     } catch (error) {
         console.error('Payment error:', error);
         alert(`Payment failed: ${error.message}`);
+    } finally {
         setTransactionInProgress(false);
         setPaying(false);
         window.selectedGameType = null;
     }
 };
+
 
   // Add useEffect for periodic leaderboard updates
   useEffect(() => {
@@ -1111,13 +1157,13 @@ const GameApp = () => {
   const renderPaymentTiers = () => (
     <div className="payment-tiers">
       {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
-        const originalSuiAmount = tier.amount / 1000000000;
-        const discountedSuiAmount = isNFTVerified ? originalSuiAmount * 0.5 : originalSuiAmount;
+        const suiAmount = tier.amount / 1000000000;
+        const discountedSuiAmount = isNFTVerified ? suiAmount * 0.5 : suiAmount;
         const usdAmount = suiPrice ? (discountedSuiAmount * suiPrice).toFixed(2) : '---';
-        const canAfford = canAffordTier(isNFTVerified ? Math.floor(tier.amount * 0.5) : tier.amount);
+        const canAfford = canAffordTier(tier.amount);
         
         return (
-        <button 
+          <button 
             key={tierId}
             className={`tier-button ${selectedTier === tierId ? 'selected' : ''} ${canAfford ? '' : 'disabled'}`}
             onClick={() => setSelectedTier(tierId)}
@@ -1125,15 +1171,12 @@ const GameApp = () => {
           >
             <div className="tier-label">{tier.label}</div>
             <div className="tier-price">
-              {isNFTVerified && (
-                <> </>
-              )}
               {discountedSuiAmount} SUI (${usdAmount})
             </div>
             <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
             {isNFTVerified && <div className="discount-badge">50% OFF</div>}
             {!canAfford && <div className="insufficient-funds">Insufficient Balance</div>}
-        </button>
+          </button>
         );
       })}
     </div>
@@ -1251,7 +1294,7 @@ const fetchPrimaryWalletBalance = async () => {
             if (coinType === '0x2::sui::SUI') {
                 totalSuiBalance += balance;
                 // Add SUI icon
-                tokenIconsMap['SUI'] = 'https://raw.githubusercontent.com/suiet/suiet/main/packages/chrome/src/assets/sui-token.png';
+                tokenIconsMap['SUI'] = "https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png";  // Use the Blue Tear image URL
             }
             
             const parts = coinType.split('::');
@@ -1612,6 +1655,14 @@ const handleSuinsChange = (e) => {
     return url;
   };
 
+  // Replace everything from here until the useEffect for token icons
+  useEffect(() => {
+    // Initialize token icons with the imported SUI logo
+    setTokenIcons({
+      SUI: 'https://cdn.prod.website-files.com/6425f546844727ce5fb9e5ab/65690e5e73e9e2a416e3502f_sui-mark.svg'
+    });
+  }, []);
+
   // Render method
   return (
     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
@@ -1644,7 +1695,18 @@ const handleSuinsChange = (e) => {
 
       {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
         <header>
-          <div className="title">Tears of Aya</div>
+          <div className="title-section">
+            <div className="tears-container">
+              <img src="https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png" loading="lazy" alt="Blue Tear" className="tear-image" />
+              <img src="https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b225c9f972035e5189e4b_GreenTear.2.png" loading="lazy" alt="Green Tear" className="tear-image" />
+              <img src="https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256456275e1857d4646_RedTear.2.png" loading="lazy" alt="Red Tear" className="tear-image" />
+              <img src="https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256f3bb96192df8af03_GoldTear.2.png" loading="lazy" alt="Gold Tear" className="tear-image" />
+            </div>
+            <h1 className="game-title">
+              <a href="/tears-of-aya">Tears of Aya</a>
+            </h1>
+            
+          </div>
           
           {/* User Profile Section */}
           <div className="user-info-section">
@@ -1656,7 +1718,7 @@ const handleSuinsChange = (e) => {
                 document.querySelector('.user-info-section .dropdown-arrow').classList.toggle('expanded');
               }}
             >
-              <h3>User Profile</h3>
+              <h3>{useSuins && suinsData ? suinsData.name : playerName}'s' Profile</h3>
               <span className="dropdown-arrow">▼</span>
             </div>
             <div className="assets-content">
@@ -1775,18 +1837,23 @@ const handleSuinsChange = (e) => {
           <div className="wallet-info">
             <div 
               className="assets-header" 
-              onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}
+             
             >
               <h3>Prize Pool Assets</h3>
-              <span className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
+              <PrizeDistributionToggle 
+                  showDistribution={showDistribution}
+                  setShowDistribution={setShowDistribution}
+                />
+              <span onClick={() => setIsAssetsExpanded(!isAssetsExpanded)}className={`dropdown-arrow ${isAssetsExpanded ? 'expanded' : ''}`}>
                 ▼
               </span>
             </div>
             
             <div className={`assets-content ${isAssetsExpanded ? 'expanded' : ''}`}>
               <div className="balance-list">
+                
                 {Object.entries(allBalances).map(([symbol, balance]) => (
-                  <div key={symbol} className="balance-item">
+                  <div key={symbol} className="token-wrapper">
                     {tokenIcons[symbol] && (
                       <img 
                         src={tokenIcons[symbol]} 
@@ -1798,10 +1865,44 @@ const handleSuinsChange = (e) => {
                         }}
                       />
                     )}
-                    <TokenAmount amount={balance} symbol={symbol} /> {symbol}
+                    <TokenAmount amount={balance} symbol={symbol} />
                   </div>
                 ))}
               </div>
+
+              {/* Prize Pool NFTs Section */}
+              {nfts.length > 0 && (
+                <div className="prize-pool-nfts">
+                  <h4>Prize Pool NFTs</h4>
+                  <div className="prize-pool-nft-grid">
+                    {nfts.map((nft, index) => (
+                      <div 
+                        key={index} 
+                        className="prize-pool-nft-item"
+                        onClick={() => {
+                          if (nft.project_url) {
+                            window.open(nft.project_url, '_blank');
+                          }
+                        }}
+                        title={nft.description || nft.name}
+                      >
+                        {nft.url && (
+                          <img 
+                            src={nft.url} 
+                            alt={nft.name} 
+                            className="prize-pool-nft-image"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              console.error('Failed to load NFT image:', nft.url);
+                            }}
+                          />
+                        )}
+                        <div className="prize-pool-nft-name">{nft.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1867,11 +1968,14 @@ const handleSuinsChange = (e) => {
                           onChange={(e) => setSelectedTier(e.target.value)}
                         >
                           <option value="">Select Payment Tier</option>
-                          {Object.entries(config.paymentTiers).map(([tierId, tier]) => (
-                            <option key={tierId} value={tierId}>
-                              {tier.label} - {tier.amount / 1_000_000_000} SUI ({tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'})
-                            </option>
-                          ))}
+                          {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
+                            const suiAmount = tier.amount / 1_000_000_000;
+                            return (
+                              <option key={tierId} value={tierId}>
+                                {tier.label} - {suiAmount} SUI ({tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'})
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
 
@@ -1950,7 +2054,7 @@ const handleSuinsChange = (e) => {
                             // Split the coins for all recipients
                             const [primaryCoin, secondaryCoin, tertiaryCoin, rewardsCoin] = txb.splitCoins(
                               txb.gas,
-                              [primaryAmount, secondaryAmount, tertiaryAmount, rewardsAmount].map(amount => Number(amount))
+                              [primaryAmount.toString(), secondaryAmount.toString(), tertiaryAmount.toString(), rewardsAmount.toString()]
                             );
 
                             // Transfer to all recipients - Using direct transfer like in handleGamePayment

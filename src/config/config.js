@@ -65,7 +65,7 @@ const config = {
     
     paymentConfig: {
         totalAmount: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT),
-        minBalance: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) + 50000000, // Adding 0.05 SUI for gas
+        minBalance: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT),
     },
     // Regular payment tiers for paid mode
     paymentTiers: {

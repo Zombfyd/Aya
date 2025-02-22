@@ -119,6 +119,7 @@ header {
   color: #2054c9;
   top: 50%;
   left: 50%;
+  max-height: 75%;
   transform: translate(-50%, -50%);
   width: auto;
   display: flex;
@@ -194,6 +195,8 @@ header.scrolled {
 
 .dropdown-arrow {
   transition: transform 0.3s ease;
+  cursor: pointer;
+  font-size: 2.0rem;
 }
 
 .dropdown-arrow.expanded {
@@ -202,45 +205,98 @@ header.scrolled {
 
 .assets-content {
   max-height: 0;
-  overflow: hidden;
+  overflow: scroll;
   transition: max-height 0.3s ease-out;
 }
 
 .assets-content.expanded {
-  max-height: 1000px; /* Adjust this value based on your content */
+  max-height: 200px; /* Adjust this value based on your content */
 }
 
-.balance-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin: 0.5rem 0;
-}
-
-.balance-item {
-  margin: 0.5rem;
-  min-width: 150px;
-  text-align: center;
+.token-wrapper {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background: rgba(32, 84, 201, 0.05);
-  padding: 0.5rem 1rem;
+  
+  min-width: 200px;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  transition: transform 0.2s ease;
-}
-
-.balance-item:hover {
-  transform: translateY(-2px);
-  background: rgba(32, 84, 201, 0.1);
+  
 }
 
 .token-icon {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  object-fit: cover;
+  margin-right: 12px;
+  margin-top: 8px;
+  object-fit: contain;
+  background: white;
+  padding: 2px;
+}
+
+/* Specific styling for SUI logo */
+
+
+.balance-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  font-weight: 800;
+}
+
+.balance-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin: 5px 0;
+  transition: background-color 0.2s ease;
+}
+
+.balance-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.prize-distribution {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: rgba(32, 84, 201, 0.95);
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 5px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.balance-item.expanded .prize-distribution {
+  display: block;
+}
+
+.prize-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prize-row:last-child {
+  border-bottom: none;
+}
+
+.prize-place {
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.prize-amount {
+  color: #ffffff;
+  font-family: monospace;
 }
 
 .nft-list {
@@ -1550,4 +1606,211 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 
 .nft-link:hover h4 {
   text-decoration: underline;
+}
+
+.prize-pool-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prize-distribution-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #2054c9;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 800;
+}
+
+.prize-distribution-toggle input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: #2054c9;
+}
+
+.token-distribution {
+  font-size: 12px;
+  color: #2054c9;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  
+}
+
+.distribution-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+}
+
+/* Title section styles */
+.title-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.tears-container {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 5rem;
+}
+
+.tear-image {
+  width: auto;
+  height: 40px;
+  object-fit: contain;
+  animation: float 2s ease-in-out infinite;
+}
+
+/* Apply different delays to each tear */
+.tear-image[alt="Blue Tear"] {
+  animation-delay: 0s;
+}
+
+.tear-image[alt="Green Tear"] {
+  animation-delay: 0.2s;
+}
+
+.tear-image[alt="Red Tear"] {
+  animation-delay: 0.4s;
+}
+
+.tear-image[alt="Gold Tear"] {
+  animation-delay: 0.6s;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(80px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes blink-and-grow {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.game-title {
+  text-align: center;
+  margin: 0;
+}
+
+.game-title a {
+  color: #2054c9;
+  text-decoration: none;
+  font-size: 2.5rem;
+  font-weight: 1000;
+  transition: all 0.3s ease;
+}
+
+.game-title a:hover {
+  color: #1643a0;
+}
+
+.game-subtitle {
+  color: #2054c9;
+  font-size: 1.5rem;
+  margin: 0;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .tear-image {
+    height: 30px;
+  }
+  
+  .game-title a {
+    font-size: 2rem;
+  }
+  
+  .game-subtitle {
+    font-size: 1.2rem;
+  }
+}
+
+.prize-pool-nfts {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prize-pool-nfts h4 {
+  color: #2054c9;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.prize-pool-nft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 15px;
+  justify-items: center;
+}
+
+.prize-pool-nft-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  width: 100%;
+  transition: transform 0.2s ease;
+  cursor: pointer;
+}
+
+.prize-pool-nft-item:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.prize-pool-nft-image {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.prize-pool-nft-name {
+  color: #2054c9;
+  font-size: 12px;
+  text-align: center;
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+@media (max-width: 768px) {
+  .prize-pool-nft-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
 }

@@ -27,6 +27,7 @@ class BloodGameManager {
       this.redtears = [];
       this.blacktears = [];
       this.splashes = [];
+      this.floatingTexts = [];
       this.bucket = null;
       
       // Game progression variables
@@ -41,6 +42,9 @@ class BloodGameManager {
         blacktear: null,
         shield: null
       };
+  
+      // Add health bar
+      this.healthBar = new HealthBar();
   
       // Load and manage game images - using direct URLs for now
       // In production, these should be moved to your CDN or static hosting
@@ -137,12 +141,21 @@ class BloodGameManager {
       this.redtears = [];
       this.blacktears = [];
       this.splashes = [];
+      this.floatingTexts = []; // Initialize floating texts array
+  
+      // Reset shield state
+      this.shield = null;
+      this.shieldActive = false;
+      if (this.shieldTimer) {
+        clearTimeout(this.shieldTimer);
+        this.shieldTimer = null;
+      }
   
       // Keep your existing timer clearing code
       Object.values(this.spawnTimers).forEach(timer => {
         if (timer) clearTimeout(timer);
       });
-  }
+    }
   
     // Game Control Methods
     startGame(mode = 'free') {
@@ -198,7 +211,16 @@ class BloodGameManager {
       this.redtears = [];
       this.blacktears = [];
       this.splashes = [];
+      this.floatingTexts = []; // Clear floating texts
       this.gameActive = false;
+  
+      // Clear shield state
+      this.shield = null;
+      this.shieldActive = false;
+      if (this.shieldTimer) {
+        clearTimeout(this.shieldTimer);
+        this.shieldTimer = null;
+      }
   
       // Clear canvas if context exists
       if (this.ctx && this.canvas) {
@@ -310,6 +332,9 @@ class BloodGameManager {
         return splash.opacity > 0;
       });
   
+      // Update floating texts
+      this.floatingTexts = this.floatingTexts.filter(text => text.update());
+  
       if (this.score >= this.lastCheckpoint + 100) {
         this.speedMultiplier *= 1.1;
         this.lastCheckpoint = this.score;
@@ -327,6 +352,12 @@ class BloodGameManager {
         this.shield.update();
         if (this.checkCollision(this.shield, this.bucket)) {
           this.activateShield();
+          this.floatingTexts.push(new FloatingText(
+            this.shield.x + this.shield.width / 2,
+            this.shield.y,
+            '🛡️',
+            '#FFC0CB'
+          ));
           this.shield = null;
         } else if (this.shield.y > this.canvas.height) {
           this.shield = null;
@@ -392,21 +423,36 @@ class BloodGameManager {
     const splashY = this.bucket.y;
   
     if (isGold) {
-        this.score += 25;
+        const points = this.lives >= this.healthBar.maxLives ? 125 : 25;
+        this.score += points;
+        this.floatingTexts.push(new FloatingText(splashX, splashY, 
+            this.lives >= this.healthBar.maxLives ? '125!' : '25', '#FFD700'));
         this.splashes.push(new GoldSplash(splashX, splashY));
     } else if (isRed) {
         if (this.shieldActive) {
-            this.score += 1;  // Award 1 point when shield is active
-            this.splashes.push(new RedSplash(splashX, splashY));
+            const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
+            this.score += points;
+            this.floatingTexts.push(new FloatingText(splashX, splashY, 
+                this.lives >= this.healthBar.maxLives ? '5!' : '1', '#FFC0CB'));
         } else {
-            this.lives--;  // Only reduce lives if shield is not active
-            this.splashes.push(new RedSplash(splashX, splashY));
+            this.lives--;
+            this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
         }
+        this.splashes.push(new RedSplash(splashX, splashY));
     } else if (isBlack) {
-        this.lives++;
+        if (this.lives >= this.healthBar.maxLives) {
+            this.score += 25;
+            this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
+        } else {
+            this.lives++;
+            this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
+        }
         this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
-        this.score += 1;
+        const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
+        this.score += points;
+        this.floatingTexts.push(new FloatingText(splashX, splashY, 
+            this.lives >= this.healthBar.maxLives ? '5!' : '1', '#2054c9'));
         this.splashes.push(new BlueSplash(splashX, splashY));
     }
 }
@@ -484,9 +530,15 @@ class BloodGameManager {
         this.drawShieldEffect();
       }
   
+      // Draw floating texts
+      this.floatingTexts.forEach(text => text.draw(this.ctx));
+  
       // Draw UI with fixed fonts
       this.drawUI();
-  }
+  
+      // Draw health bar last so it's on top
+      this.healthBar.draw(this.ctx, this.lives);
+    }
   
   
   drawUI() {
@@ -922,16 +974,18 @@ class BloodGameManager {
   class Shield extends Entity {
     constructor(canvasWidth) {
       super(
-        Math.random() * (canvasWidth - 100), // Adjusted for larger size
+        Math.random() * (canvasWidth - 50), // Use tear width for positioning
         20,
-        120, // 2x larger (40 * 5)
-        120, // 2x larger
+        50, // Match tear width for hitbox
+        50, // Match tear height for hitbox
         2
       );
       this.active = false;
       this.duration = 7500;
       this.particles = [];
       this.heartShape = this.createHeartPath();
+      // Visual size multiplier (smaller than before)
+      this.visualScale = 0.8;
     }
 
     createHeartPath() {
@@ -949,11 +1003,15 @@ class BloodGameManager {
 
     draw(ctx) {
       ctx.save();
-      ctx.translate(this.x, this.y);
-      ctx.scale(1.5, 1.5); // Increased scale for larger heart
+      // Center the heart in the hitbox
+      ctx.translate(
+        this.x + (this.width - (40 * this.visualScale)) / 2,
+        this.y + (this.height - (35 * this.visualScale)) / 2
+      );
+      ctx.scale(this.visualScale, this.visualScale); // Smaller visual scale
 
       // Brighter gradient for the shield
-      const gradient = ctx.createRadialGradient(40, 40, 0, 40, 40, 80);
+      const gradient = ctx.createRadialGradient(20, 20, 0, 20, 20, 40);
       gradient.addColorStop(0, 'rgba(255, 182, 193, 0.9)'); // Brighter pink core
       gradient.addColorStop(0.6, 'rgba(255, 192, 203, 0.7)'); // Mid pink
       gradient.addColorStop(1, 'rgba(255, 105, 180, 0.4)'); // Outer edge
@@ -995,6 +1053,213 @@ class BloodGameManager {
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
       });
+    }
+  }
+  
+  /**
+   * FloatingText class for score/life indicators
+   */
+  class FloatingText {
+    constructor(x, y, text, color) {
+      this.x = x;
+      this.y = y;
+      this.text = text;
+      this.color = color;
+      this.opacity = 1;
+      this.scale = 1;
+      // Speed of floating upward
+      this.vy = -2;
+      // How quickly it fades
+      this.fadeSpeed = 0.02;
+    }
+
+    update() {
+      this.y += this.vy;
+      this.opacity -= this.fadeSpeed;
+      this.scale += 0.01;
+      return this.opacity > 0;
+    }
+
+    draw(ctx) {
+      ctx.save();
+      ctx.globalAlpha = this.opacity;
+      ctx.fillStyle = this.color;
+      ctx.font = `${Math.floor(25 * this.scale)}px Inconsolata`;
+      ctx.textAlign = 'center';
+      ctx.fillText(this.text, this.x, this.y);
+      ctx.restore();
+    }
+  }
+  
+  /**
+   * HealthBar class for visualizing lives
+   */
+  class HealthBar {
+    constructor() {
+      this.x = 20;  // Keep close to left edge
+      this.y = 650;
+      this.width = 30;
+      this.height = 200;
+      this.segmentHeight = this.height / 25;
+      this.maxLives = 25;
+      
+      // Colors for different life ranges with transparency
+      this.colors = {
+        low: 'rgba(255, 0, 0, 0.6)',      // Red (1-5)
+        medium: 'rgba(255, 68, 0, 0.6)',   // Orange-red (6-10)
+        high: 'rgba(255, 102, 0, 0.6)',    // Light orange (11-15)
+        very_high: 'rgba(255, 136, 0, 0.6)', // Orange (16-20)
+        max: 'rgba(255, 170, 0, 0.6)'      // Bright orange (21-25)
+      };
+      
+      // Make background more transparent too
+      this.backgroundColor = 'rgba(51, 51, 51, 0.4)';
+      
+      // Separate particle systems for top and bottom flames
+      this.topParticles = [];
+      this.bottomParticles = [];
+      this.lastTopParticleSpawn = 0;
+      this.lastBottomParticleSpawn = 0;
+      this.particleSpawnDelay = 50;
+
+      // Add flame intensity properties
+      this.flameIntensity = {
+        size: 1,
+        speed: 1,
+        brightness: 1
+      };
+    }
+
+    getColorForLives(lives) {
+      if (lives <= 5) return this.colors.low;
+      if (lives <= 10) return this.colors.medium;
+      if (lives <= 15) return this.colors.high;
+      if (lives <= 20) return this.colors.very_high;
+      return this.colors.max;
+    }
+
+    createFireParticle(isTop) {
+      const intensity = this.flameIntensity;
+      const baseSize = isTop ? 15 : 10 * intensity.size;
+      const baseSpeed = isTop ? 3 : 2 * intensity.speed;
+      
+      return {
+        x: this.x + Math.random() * this.width,
+        y: isTop ? this.y - this.height : this.y,
+        vx: (Math.random() - 0.5) * 2 * intensity.speed,
+        vy: isTop ? -Math.random() * baseSpeed - 2 : -Math.random() * baseSpeed - 1,
+        size: Math.random() * baseSize + 5,
+        life: 1.0,
+        hue: Math.min(30 + (intensity.brightness * 15), 60) // Adjust flame color based on intensity
+      };
+    }
+
+    updateFireEffects(lives) {
+      const now = Date.now();
+      
+      // Update flame intensity based on lives
+      const lifeRatio = Math.min(lives / this.maxLives, 1);
+      this.flameIntensity = {
+        size: 1 + (lifeRatio * 1.5),
+        speed: 1 + (lifeRatio * 0.5),
+        brightness: lifeRatio
+      };
+
+      // Update bottom flames (always active, intensity based on lives)
+      if (now - this.lastBottomParticleSpawn > this.particleSpawnDelay) {
+        this.bottomParticles.push(this.createFireParticle(false));
+        this.lastBottomParticleSpawn = now;
+      }
+
+      // Update top flames (only at max lives)
+      if (lives >= this.maxLives && now - this.lastTopParticleSpawn > this.particleSpawnDelay) {
+        this.topParticles.push(this.createFireParticle(true));
+        this.lastTopParticleSpawn = now;
+      }
+
+      // Update particle physics
+      const updateParticles = (particles) => {
+        return particles.filter(particle => {
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+          particle.life -= 0.02;
+          particle.size *= 0.95;
+          return particle.life > 0;
+        });
+      };
+
+      this.bottomParticles = updateParticles(this.bottomParticles);
+      this.topParticles = updateParticles(this.topParticles);
+    }
+
+    drawFireParticles(ctx, particles, intensity) {
+      particles.forEach(particle => {
+        const gradient = ctx.createRadialGradient(
+          particle.x, particle.y, 0,
+          particle.x, particle.y, particle.size
+        );
+        
+        // Increase base alpha values for more opaque flames
+        const alpha = Math.min(particle.life * intensity.brightness * 1.5, 1.0);
+        gradient.addColorStop(0, `hsla(${particle.hue}, 100%, 50%, ${alpha})`);
+        gradient.addColorStop(0.5, `hsla(${particle.hue - 20}, 100%, 30%, ${alpha * 0.8})`);
+        gradient.addColorStop(1, `rgba(255, 0, 0, ${alpha * 0.3})`);
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    draw(ctx, lives) {
+      ctx.save();
+      
+      // Update fire effects
+      this.updateFireEffects(lives);
+
+      // Draw bottom flames first
+      this.drawFireParticles(ctx, this.bottomParticles, this.flameIntensity);
+
+      // Draw health bar background with transparency
+      ctx.fillStyle = this.backgroundColor;
+      ctx.fillRect(this.x, this.y, this.width, -this.height);
+
+      // Draw life segments
+      const segments = Math.ceil(lives / 5);
+      for (let i = 0; i < segments; i++) {
+        const segmentLives = Math.min(5, lives - (i * 5));
+        const segmentHeight = (segmentLives / 5) * (this.height / 5);
+        const segmentY = this.y - (i * (this.height / 5));
+        
+        ctx.fillStyle = this.getColorForLives((i * 5) + segmentLives);
+        ctx.fillRect(this.x, segmentY, this.width, -segmentHeight);
+      }
+
+      // Draw segment lines
+      ctx.strokeStyle = '#ffffff33';
+      for (let i = 1; i < 5; i++) {
+        const lineY = this.y - (this.height * (i / 5));
+        ctx.beginPath();
+        ctx.moveTo(this.x, lineY);
+        ctx.lineTo(this.x + this.width, lineY);
+        ctx.stroke();
+      }
+
+      // Draw top flames last (only at max lives)
+      if (lives >= this.maxLives) {
+        this.drawFireParticles(ctx, this.topParticles, { brightness: 1, size: 1, speed: 1 });
+      }
+
+      // Draw lives number
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '16px Inconsolata';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const centerY = this.y - this.height / 2;
+      ctx.fillText(lives.toString(), this.x + this.width / 2, centerY);
+
+      ctx.restore();
     }
   }
   
