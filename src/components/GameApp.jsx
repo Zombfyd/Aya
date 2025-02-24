@@ -2137,6 +2137,95 @@ const handleSuinsChange = (e) => {
               )}
             </>
           )}
+          {!gameState.gameStarted && (
+        <div className="leaderboards-container">
+          {isLeaderboardLoading ? (
+            <div className="leaderboard-loading">Loading leaderboards...</div>
+          ) : (
+              <>
+                  <div className="leaderboard-section">
+                      <h2>Free Leaderboards</h2>
+                      <select 
+                          className="leaderboard-type-selector"
+                          value={selectedLeaderboards.free}
+                          onChange={(e) => setSelectedLeaderboards(prev => ({
+                              ...prev,
+                              free: e.target.value
+                          }))}
+                      >
+                          <option value="mainFreeTOA">TOA All Time Leaderboard</option>
+                          <option value="secondaryFreeTOA">TOA Weekly Leaderboard</option>
+                          <option value="web2TOA">TOA Normal Players</option>
+                          <option value="mainFreeTOB">TOB All Time Leaderboard</option>
+                          <option value="secondaryFreeTOB">TOB Weekly Leaderboard</option>
+                          <option value="web2TOB">TOB Normal Players</option>
+                      </select>
+                      <table className="leaderboard-table">
+                          <thead>
+                              <tr>
+                                  <th>Rank</th>
+                                  <th>Player Name</th>
+                                  <th>Wallet</th>
+                                  <th>Score</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {leaderboardData[selectedLeaderboards.free]?.map((entry, index) => (
+                                  <tr key={index} className={`rank-${index + 1}`}>
+                                      <td>{index + 1}</td>
+                                      <td className="playername-cell">{entry.playerName}</td>
+                                      <td className="wallet-cell">
+                                          {entry.playerWallet ? getDisplayName(entry.playerWallet) : 'N/A'}
+                                      </td>
+                                      <td className="score-cell">{entry.score}</td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+
+                  <div className="leaderboard-section">
+                      <h2>Paid Leaderboards</h2>
+                      <select 
+                          className="leaderboard-type-selector"
+                          value={selectedLeaderboards.paid}
+                          onChange={(e) => setSelectedLeaderboards(prev => ({
+                              ...prev,
+                              paid: e.target.value
+                          }))}
+                      >
+                          <option value="mainPaidTOA">TOA All Time Leaderboard</option>
+                          <option value="secondaryPaidTOA">TOA Weekly Leaderboard</option>
+                          <option value="mainPaidTOB">TOB All Time Leaderboard</option>
+                          <option value="secondaryPaidTOB">TOB Weekly Leaderboard</option>
+                      </select>
+                      <table className="leaderboard-table">
+                          <thead>
+                              <tr>
+                                  <th>Rank</th>
+                                  <th>Player Name</th>
+                                  <th>Wallet</th>
+                                  <th>Score</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {leaderboardData[selectedLeaderboards.paid]?.map((entry, index) => (
+                                  <tr key={index} className={`rank-${index + 1}`}>
+                                      <td>{index + 1}</td>
+                                      <td className="playername-cell">{entry.playerName}</td>
+                                      <td className="wallet-cell">
+                                          {entry.playerWallet ? getDisplayName(entry.playerWallet) : 'N/A'}
+                                      </td>
+                                      <td className="score-cell">{entry.score}</td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+              </>
+          )}
+        </div>
+      )}
         </header>
       )}
 
@@ -2315,95 +2404,7 @@ const handleSuinsChange = (e) => {
         </div>
       )}
 
-      {!gameState.gameStarted && (
-        <div className="leaderboards-container">
-          {isLeaderboardLoading ? (
-            <div className="leaderboard-loading">Loading leaderboards...</div>
-          ) : (
-              <>
-                  <div className="leaderboard-section">
-                      <h2>Free Leaderboards</h2>
-                      <select 
-                          className="leaderboard-type-selector"
-                          value={selectedLeaderboards.free}
-                          onChange={(e) => setSelectedLeaderboards(prev => ({
-                              ...prev,
-                              free: e.target.value
-                          }))}
-                      >
-                          <option value="mainFreeTOA">TOA All Time Leaderboard</option>
-                          <option value="secondaryFreeTOA">TOA Weekly Leaderboard</option>
-                          <option value="web2TOA">TOA Normal Players</option>
-                          <option value="mainFreeTOB">TOB All Time Leaderboard</option>
-                          <option value="secondaryFreeTOB">TOB Weekly Leaderboard</option>
-                          <option value="web2TOB">TOB Normal Players</option>
-                      </select>
-                      <table className="leaderboard-table">
-                          <thead>
-                              <tr>
-                                  <th>Rank</th>
-                                  <th>Player Name</th>
-                                  <th>Wallet</th>
-                                  <th>Score</th>
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {leaderboardData[selectedLeaderboards.free]?.map((entry, index) => (
-                                  <tr key={index} className={`rank-${index + 1}`}>
-                                      <td>{index + 1}</td>
-                                      <td className="playername-cell">{entry.playerName}</td>
-                                      <td className="wallet-cell">
-                                          {entry.playerWallet ? getDisplayName(entry.playerWallet) : 'N/A'}
-                                      </td>
-                                      <td className="score-cell">{entry.score}</td>
-                                  </tr>
-                              ))}
-                          </tbody>
-                      </table>
-                  </div>
-
-                  <div className="leaderboard-section">
-                      <h2>Paid Leaderboards</h2>
-                      <select 
-                          className="leaderboard-type-selector"
-                          value={selectedLeaderboards.paid}
-                          onChange={(e) => setSelectedLeaderboards(prev => ({
-                              ...prev,
-                              paid: e.target.value
-                          }))}
-                      >
-                          <option value="mainPaidTOA">TOA All Time Leaderboard</option>
-                          <option value="secondaryPaidTOA">TOA Weekly Leaderboard</option>
-                          <option value="mainPaidTOB">TOB All Time Leaderboard</option>
-                          <option value="secondaryPaidTOB">TOB Weekly Leaderboard</option>
-                      </select>
-                      <table className="leaderboard-table">
-                          <thead>
-                              <tr>
-                                  <th>Rank</th>
-                                  <th>Player Name</th>
-                                  <th>Wallet</th>
-                                  <th>Score</th>
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {leaderboardData[selectedLeaderboards.paid]?.map((entry, index) => (
-                                  <tr key={index} className={`rank-${index + 1}`}>
-                                      <td>{index + 1}</td>
-                                      <td className="playername-cell">{entry.playerName}</td>
-                                      <td className="wallet-cell">
-                                          {entry.playerWallet ? getDisplayName(entry.playerWallet) : 'N/A'}
-                                      </td>
-                                      <td className="score-cell">{entry.score}</td>
-                                  </tr>
-                              ))}
-                          </tbody>
-                      </table>
-                  </div>
-              </>
-          )}
-        </div>
-      )}
+      
 
       {countdown !== null && (
         <div className="countdown-overlay">
