@@ -1,20 +1,30 @@
+// Helper function to determine environment based on vite mode
+const getEnvironmentFromMode = () => {
+    const mode = import.meta.env.MODE;
+    console.log('Current MODE:', mode);
+    return mode === 'testnet' ? 'testnet' : 'mainnet';
+};
+
 // Helper function to determine environment based on wallet network
 const getEnvironmentFromNetwork = (walletNetwork) => {
+    console.log('Wallet Network:', walletNetwork);
     switch (walletNetwork?.toLowerCase()) {
         case 'testnet':
             return 'testnet';
         case 'mainnet':
             return 'mainnet';
         default:
-            console.warn('Unknown network, defaulting to mainnet:', walletNetwork);
-            return 'mainnet';
+            // Use the environment from Vite mode as fallback
+            const modeEnv = getEnvironmentFromMode();
+            console.log('Falling back to mode environment:', modeEnv);
+            return modeEnv;
     }
 };
 
 const config = {
     apiBaseUrl: 'https://ayagame.onrender.com',
-    // Initialize with mainnet as default
-    network: 'mainnet',
+    // Initialize with environment from Vite mode
+    network: getEnvironmentFromMode(),
     
     // Package IDs for different networks
     packageId: {
@@ -46,23 +56,31 @@ const config = {
     
     // Payment Shares (same for both networks)
     shares: {
-        primary: parseInt(import.meta.env.VITE_APP_PRIMARY_SHARE),
-        secondary: parseInt(import.meta.env.VITE_APP_SECONDARY_SHARE),
-        tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE),
-        rewards: parseInt(import.meta.env.VITE_APP_REWARDS_SHARE)
+        primary: parseInt(import.meta.env.VITE_APP_PRIMARY_SHARE) || 4000,
+        secondary: parseInt(import.meta.env.VITE_APP_SECONDARY_SHARE) || 3000,
+        tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE) || 2000,
+        rewards: parseInt(import.meta.env.VITE_APP_REWARDS_SHARE) || 1000
     },
     
-    api: {
-        scores: {
-            submit: (gameMode) => `https://ayagame.onrender.com/api/scores/submit/${gameMode}`,
-            leaderboard: (type, mode) => `https://ayagame.onrender.com/api/scores/leaderboard/${type}/${mode}`
-        }
+    // API endpoints as methods to avoid circular reference
+    getApiEndpoints: function() {
+        return {
+            scores: {
+                submit: (gameMode) => `${this.apiBaseUrl}/api/scores/submit/${gameMode}`,
+                leaderboard: (type, mode) => `${this.apiBaseUrl}/api/scores/leaderboard/${type}/${mode}`,
+                web2: {
+                    leaderboard: `${this.apiBaseUrl}/api/web2/leaderboard`,
+                    submit: `${this.apiBaseUrl}/api/web2/scores`
+                }
+            }
+        };
     },
     
     paymentConfig: {
-        totalAmount: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT),
-        minBalance: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) + 50000000, // Adding 0.05 SUI for gas
+        totalAmount: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) || 100000000,
+        minBalance: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) || 100000000,
     },
+
     // Regular payment tiers for paid mode
     paymentTiers: {
         tier3: {
@@ -102,20 +120,24 @@ const config = {
     },
     
     debug: {
-        enabled: import.meta.env.VITE_APP_DEBUG_MODE === 'true',
-        logLevel: import.meta.env.VITE_APP_LOG_LEVEL
+        enabled: true, // Always enable debug for testnet
+        logLevel: import.meta.env.VITE_APP_LOG_LEVEL || 'debug'
     },
     
     // Function to update config based on wallet network
     updateNetwork: function(walletNetwork) {
         const newNetwork = getEnvironmentFromNetwork(walletNetwork);
         if (this.network !== newNetwork) {
+            console.log(`Updating network from ${this.network} to ${newNetwork}`);
             this.network = newNetwork;
             if (this.debug.enabled) {
-                console.log(`Network updated to ${this.network}`);
-                console.log('Using Package ID:', this.getCurrentPackageId());
-                console.log('Using Payment Config ID:', this.getCurrentPaymentConfigId());
-                console.log('Using Recipients:', this.getCurrentRecipients());
+                console.log('Current configuration:', {
+                    environment: this.network,
+                    network: this.network,
+                    packageId: this.getCurrentPackageId(),
+                    paymentConfigId: this.getCurrentPaymentConfigId(),
+                    recipients: this.getCurrentRecipients()
+                });
             }
         }
     },
@@ -134,33 +156,17 @@ const config = {
     }
 };
 
-// Validate configuration in development
-if (import.meta.env.DEV) {
-    console.log('Current configuration:', {
-        environment: config.network,
-        network: config.network,
-        hasPackageId: !!config.getCurrentPackageId(),
-        hasPaymentConfigId: !!config.getCurrentPaymentConfigId(),
-        totalAmount: config.paymentConfig.totalAmount,
-        debug: config.debug
-    });
+// Initialize api property after config object is created
+config.api = config.getApiEndpoints();
 
-    // Validate required configuration
-    const requiredConfig = [
-        'getCurrentPackageId',
-        'getCurrentPaymentConfigId',
-        'paymentConfig.recipients.primary',
-        'paymentConfig.recipients.secondary',
-        'paymentConfig.recipients.tertiary',
-        'paymentConfig.recipients.rewards'
-    ];
-
-    requiredConfig.forEach(path => {
-        const value = path.split('.').reduce((obj, key) => obj && obj[key], config);
-        if (!value) {
-            console.warn(`Missing required configuration: ${path}`);
-        }
-    });
-}
+// Debug logging for initial configuration
+console.log('Initial configuration:', {
+    mode: import.meta.env.MODE,
+    environment: config.network,
+    network: config.network,
+    hasPackageId: !!config.getCurrentPackageId(),
+    hasPaymentConfigId: !!config.getCurrentPaymentConfigId(),
+    debug: config.debug
+});
 
 export default config;

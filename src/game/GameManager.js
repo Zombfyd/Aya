@@ -1,4 +1,5 @@
 // GameManager.js - Main game controller class
+import AudioManager from './AudioManager';
 
 class GameManager {
   constructor() {
@@ -65,6 +66,29 @@ class GameManager {
     // Fixed sizes for game entities - these won't scale
     this.BUCKET_SIZE = 70;  // Fixed bucket size
     this.TEAR_SIZE = 50;    // Fixed tear size
+
+    // Add floating text array
+    this.floatingTexts = [];
+
+    // Add health bar
+    this.healthBar = new HealthBar();
+    
+    // Add point multiplier tracking
+    this.pointMultiplierActive = false;
+
+    // Separate particle systems for top and bottom flames
+    this.topParticles = [];
+    this.bottomParticles = [];
+    this.lastTopParticleSpawn = 0;
+    this.lastBottomParticleSpawn = 0;
+    this.particleSpawnDelay = 50;
+
+    // Add flame intensity properties
+    this.flameIntensity = {
+      size: 1,
+      speed: 1,
+      brightness: 1
+    };
   }
 
   // Image Loading Method
@@ -141,12 +165,30 @@ class GameManager {
 
   // Game Control Methods
   startGame(mode = 'free') {
-    // Force a canvas resize before starting the game
-    this.resizeCanvas();
-    
+    // First clean up any existing game state
     this.cleanup();
+    
+    // Initialize new game state
     this.initGame();
-    this.gameMode = mode;
+    
+    this.gameActive = true;
+    this.mode = mode;
+    this.score = 0;
+    this.lives = 10;
+    this.speedMultiplier = 1;
+    this.lastCheckpoint = 0;
+    
+    // Try to start audio only if context is unlocked
+    if (AudioManager.audioUnlocked) {
+      // Start ambient sound only if not already playing
+      if (!AudioManager.ambientSoundId) {
+        AudioManager.startRainAmbience();
+      }
+      // Always start background music
+      AudioManager.startBackgroundMusic();
+    } else {
+      console.warn('Audio context not unlocked yet - waiting for user interaction');
+    }
 
     // Start spawning tears with a delay
     setTimeout(() => {
@@ -167,6 +209,9 @@ class GameManager {
   }
 
   cleanup() {
+    // Stop only background music, keep ambient rain playing
+    AudioManager.stopBackgroundMusic();
+    
     // Clear any running game loops
     if (this.gameLoopId) {
       cancelAnimationFrame(this.gameLoopId);
@@ -242,18 +287,12 @@ class GameManager {
   // Spawn Methods
   spawnTeardrop() {
     if (!this.gameActive) return;
-    console.log('Spawning new teardrop');
     const tear = new Teardrop(this.canvas.width, this.speedMultiplier);
     // Explicitly set initial state
     tear.state = 'sliding';
     tear.formationProgress = 0;
     tear.scaleY = 0.2;
     tear.y = tear.initialY;
-    console.log('Teardrop spawned with properties:', {
-      state: tear.state,
-      scaleY: tear.scaleY,
-      y: tear.y
-    });
     this.teardrops.push(tear);
     this.spawnTimers.teardrop = setTimeout(() => this.spawnTeardrop(), Math.random() * 750 + 300);
   }
@@ -313,40 +352,46 @@ class GameManager {
         this.onGameOver(this.score);
       }
     }
+
+    // Update floating texts
+    this.floatingTexts = this.floatingTexts.filter(text => text.update());
   }
 
   updateEntities(entities, isGold, isRed, isBlack) {
-  for (let i = entities.length - 1; i >= 0; i--) {
-    const entity = entities[i];
-    entity.update();
+    for (let i = entities.length - 1; i >= 0; i--) {
+      const entity = entities[i];
+      entity.update();
 
-    if (this.checkCollision(entity, this.bucket)) {
-      entities.splice(i, 1);
-      this.handleCollision(entity, isGold, isRed, isBlack);
-    } else if (entity.y > this.canvas.height) {
-      entities.splice(i, 1);
-      
-      // Create ground splash effect
-      const splashX = entity.x + entity.width / 2;
-      const splashY = this.canvas.height;
-      
-      if (isGold) {
-        this.splashes.push(new GoldSplash(splashX, splashY));
-      } else if (isRed) {
-        this.splashes.push(new RedSplash(splashX, splashY));
-      } else if (isBlack) {
-        this.splashes.push(new GreenSplash(splashX, splashY));
-      } else {
-        this.splashes.push(new BlueSplash(splashX, splashY));
-      }
-      
-      // Handle life reduction for non-red tears
-      if (!isRed) {
-        this.lives--;
+      if (this.checkCollision(entity, this.bucket)) {
+        entities.splice(i, 1);
+        this.handleCollision(entity, isGold, isRed, isBlack);
+      } else if (entity.y > this.canvas.height) {
+        entities.splice(i, 1);
+        
+        // Play splash sound when tear hits ground
+        AudioManager.sounds.splash.play();
+        
+        // Create ground splash effect
+        const splashX = entity.x + entity.width / 2;
+        const splashY = this.canvas.height;
+        
+        if (isGold) {
+          this.splashes.push(new GoldSplash(splashX, splashY));
+        } else if (isRed) {
+          this.splashes.push(new RedSplash(splashX, splashY));
+        } else if (isBlack) {
+          this.splashes.push(new GreenSplash(splashX, splashY));
+        } else {
+          this.splashes.push(new BlueSplash(splashX, splashY));
+        }
+        
+        // Handle life reduction for non-red tears
+        if (!isRed) {
+          this.lives--;
+        }
       }
     }
   }
-}
 
   // Collision Detection
   checkCollision(entity, bucket) {
@@ -359,23 +404,47 @@ class GameManager {
   }
 
   handleCollision(entity, isGold, isRed, isBlack) {
-  const splashX = entity.x + entity.width / 2;
-  const splashY = this.bucket.y;
+    // Play tear drop sound based on type
+    if (isGold) {
+      AudioManager.playTearSound('gold');
+    } else if (isRed) {
+      AudioManager.playTearSound('red');
+    } else if (isBlack) {
+      AudioManager.playTearSound('black');
+    } else {
+      AudioManager.playTearSound('blue');
+    }
+    
+    const splashX = entity.x + entity.width / 2;
+    const splashY = this.bucket.y;
 
-  if (isGold) {
-    this.score += 15;
-    this.splashes.push(new GoldSplash(splashX, splashY));
-  } else if (isRed) {
-    this.lives--;
-    this.splashes.push(new RedSplash(splashX, splashY));
-  } else if (isBlack) {
-    this.lives++;
-    this.splashes.push(new GreenSplash(splashX, splashY));
-  } else {
-    this.score += 1;
-    this.splashes.push(new BlueSplash(splashX, splashY));  // Changed from base Splash to BlueSplash
+    if (isGold) {
+      const points = this.lives >= this.healthBar.maxLives ? 75 : 15;
+      this.score += points;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, 
+        this.lives >= this.healthBar.maxLives ? '75!' : '15', '#FFD700'));
+      this.splashes.push(new GoldSplash(splashX, splashY));
+    } else if (isRed) {
+      this.lives--;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
+      this.splashes.push(new RedSplash(splashX, splashY));
+    } else if (isBlack) {
+      if (this.lives >= this.healthBar.maxLives) {
+        this.score += 25;
+        this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
+      } else {
+        this.lives++;
+        this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
+      }
+      this.splashes.push(new GreenSplash(splashX, splashY));
+    } else {
+      const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
+      this.score += points;
+      this.floatingTexts.push(new FloatingText(splashX, splashY, 
+        this.lives >= this.healthBar.maxLives ? '5!' : '1', '#f9f9f9'));
+      this.splashes.push(new BlueSplash(splashX, splashY));
+    }
   }
-}
 
   // Drawing Methods
   drawGame() {
@@ -440,6 +509,9 @@ class GameManager {
       splash.draw(this.ctx);
     });
 
+    // Draw floating texts
+    this.floatingTexts.forEach(text => text.draw(this.ctx));
+
     // Draw UI with fixed fonts
     this.drawUI();
 }
@@ -448,61 +520,58 @@ class GameManager {
 drawUI() {
   if (!this.ctx) return;
 
-  // Reset transform before drawing text
+  // Save the current canvas state
+  this.ctx.save();
+  
+  // Reset transform for UI elements
   this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Draw score
+  // Draw score at original position
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
-  this.ctx.fillStyle = "#2054c9";
-  this.ctx.fillText(`Score: ${this.score}`, 20, 30);
-
-  // Draw lives (centered in bucket)
-  if (this.bucket) {
-    this.ctx.font = this.UI_SIZES.LIVES_FONT;
-    const livesText = `${this.lives}`;
-    const textMetrics = this.ctx.measureText(livesText);
-    const textX = this.bucket.x + (this.bucket.width / 2) - (textMetrics.width / 2);
-    const textY = this.bucket.y + (this.bucket.height / 2) + 6; // +6 for better vertical centering
-    this.ctx.fillText(livesText, textX, textY);
-    
-    // Draw warning message when lives are low
-    if (this.lives <= 5) {
-      this.ctx.fillStyle = "#FF4D6D"; // Red warning color
-      
-      // Draw warning text
-      this.ctx.font = this.UI_SIZES.SCORE_FONT;
-      const warningText = "Lives remaining!";
-      const warningMetrics = this.ctx.measureText(warningText);
-      const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-      this.ctx.fillText(warningText, warningX, 140);
-      
-      // Draw lives number bigger below
-      this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
-      const livesCountText = `${this.lives}`;
-      const livesMetrics = this.ctx.measureText(livesCountText);
-      const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
-      this.ctx.fillText(livesCountText, livesX, 190);
-    }
-  }
+  this.ctx.fillStyle = "#f9f9f9";
+  this.ctx.fillText(`Score: ${this.score}`, 20, 30);  // Back to original position
 
   // Draw speed
   this.ctx.fillStyle = "#2054c9";
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
   this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
 
+  // Draw warning message when lives are low
+  if (this.lives <= 5) {
+    this.ctx.fillStyle = "#FF4D6D"; // Red warning color
+    
+    // Draw warning text
+    this.ctx.font = this.UI_SIZES.SCORE_FONT;
+    const warningText = "Lives remaining!";
+    const warningMetrics = this.ctx.measureText(warningText);
+    const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
+    this.ctx.fillText(warningText, warningX, 140);
+    
+    // Draw lives number bigger below
+    this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
+    const livesCountText = `${this.lives}`;
+    const livesMetrics = this.ctx.measureText(livesCountText);
+    const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
+    this.ctx.fillText(livesCountText, livesX, 190);
+  }
+
+  // Draw legend at original position
   this.drawLegend();
+
+  // Restore canvas state before drawing health bar
+  this.ctx.restore();
+
+  // Draw health bar last, so it's on top
+  this.healthBar.draw(this.ctx, this.lives);
 }
 
   drawLegend() {
     if (!this.ctx) return;
-
-    // Reset transform before drawing legend
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     
     this.ctx.font = this.UI_SIZES.LEGEND_FONT;
 
     const legends = [
-      { text: 'Blue Tear = 1 point', color: '#2054c9', y: 50 },
+      { text: 'Blue Tear = 1 point', color: '#ADD8E6', y: 50 },
       { text: 'Gold Tear = 15 points', color: '#FFD04D', y: 70 },
       { text: 'Red Tear = -1 life', color: '#FF4D6D', y: 90 },
       { text: 'Green Tear = +1 life', color: '#39B037', y: 110 }
@@ -510,7 +579,7 @@ drawUI() {
 
     legends.forEach(({ text, color, y }) => {
       this.ctx.fillStyle = color;
-      this.ctx.fillText(text, 20, y);
+      this.ctx.fillText(text, 20, y);  // Back to original position
     });
 }
 
@@ -605,15 +674,6 @@ class Teardrop extends Entity {
         this.y += this.speed;
         break;
     }
-    
-    if (previousState !== this.state) {
-      console.log('Teardrop state changed:', {
-        from: previousState,
-        to: this.state,
-        scaleY: this.scaleY,
-        formationProgress: this.formationProgress
-      });
-    }
   }
 
   updateSliding() {
@@ -682,14 +742,6 @@ class Teardrop extends Entity {
 
   draw(ctx, image) {
     if (!ctx || !image) return;
-
-    // Log drawing state
-    console.log('Drawing tear:', {
-      state: this.state,
-      scaleY: this.scaleY,
-      x: this.x,
-      y: this.y
-    });
 
     const currentWidth = this.width * this.scaleX;
     const currentHeight = this.height * this.scaleY;
@@ -804,5 +856,215 @@ class GreenSplash extends BaseSplash {
   }
 }
 
+/**
+ * FloatingText class for score/life indicators
+ */
+class FloatingText {
+  constructor(x, y, text, color) {
+    this.x = x;
+    this.y = y;
+    this.text = text;
+    this.color = color;
+    this.opacity = 1;
+    this.scale = 1;
+    // Speed of floating upward
+    this.vy = -2;
+    // How quickly it fades
+    this.fadeSpeed = 0.02;
+  }
+
+  update() {
+    this.y += this.vy;
+    this.opacity -= this.fadeSpeed;
+    this.scale += 0.01;
+    return this.opacity > 0;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+    ctx.fillStyle = this.color;
+    ctx.font = `${Math.floor(25 * this.scale)}px Inconsolata`;
+    ctx.textAlign = 'center';
+    ctx.fillText(this.text, this.x, this.y);
+    ctx.restore();
+  }
+}
+
+/**
+ * HealthBar class for visualizing lives
+ */
+class HealthBar {
+  constructor() {
+    this.x = 20;  // Keep close to left edge
+    this.y = 650;
+    this.width = 30;
+    this.height = 200;
+    this.segmentHeight = this.height / 25;
+    this.maxLives = 25;
+    
+    // Colors for different life ranges with transparency
+    this.colors = {
+      low: 'rgba(255, 0, 0, 0.6)',      // Red (1-5)
+      medium: 'rgba(255, 68, 0, 0.6)',   // Orange-red (6-10)
+      high: 'rgba(255, 102, 0, 0.6)',    // Light orange (11-15)
+      very_high: 'rgba(255, 136, 0, 0.6)', // Orange (16-20)
+      max: 'rgba(255, 170, 0, 0.6)'      // Bright orange (21-25)
+    };
+    
+    // Make background more transparent too
+    this.backgroundColor = 'rgba(51, 51, 51, 0.4)';
+    
+    // Separate particle systems for top and bottom flames
+    this.topParticles = [];
+    this.bottomParticles = [];
+    this.lastTopParticleSpawn = 0;
+    this.lastBottomParticleSpawn = 0;
+    this.particleSpawnDelay = 50;
+
+    // Add flame intensity properties
+    this.flameIntensity = {
+      size: 1,
+      speed: 1,
+      brightness: 1
+    };
+  }
+
+  getColorForLives(lives) {
+    if (lives <= 5) return this.colors.low;
+    if (lives <= 10) return this.colors.medium;
+    if (lives <= 15) return this.colors.high;
+    if (lives <= 20) return this.colors.very_high;
+    return this.colors.max;
+  }
+
+  createFireParticle(isTop) {
+    const intensity = this.flameIntensity;
+    const baseSize = isTop ? 15 : 10 * intensity.size;
+    const baseSpeed = isTop ? 3 : 2 * intensity.speed;
+    
+    return {
+      x: this.x + Math.random() * this.width,
+      y: isTop ? this.y - this.height : this.y,
+      vx: (Math.random() - 0.5) * 2 * intensity.speed,
+      vy: isTop ? -Math.random() * baseSpeed - 2 : -Math.random() * baseSpeed - 1,
+      size: Math.random() * baseSize + 5,
+      life: 1.0,
+      hue: Math.min(30 + (intensity.brightness * 15), 60) // Adjust flame color based on intensity
+    };
+  }
+
+  updateFireEffects(lives) {
+    const now = Date.now();
+    
+    // Update flame intensity based on lives
+    const lifeRatio = Math.min(lives / this.maxLives, 1);
+    this.flameIntensity = {
+      size: 1 + (lifeRatio * 1.5),
+      speed: 1 + (lifeRatio * 0.5),
+      brightness: lifeRatio
+    };
+
+    // Update bottom flames (always active, intensity based on lives)
+    if (now - this.lastBottomParticleSpawn > this.particleSpawnDelay) {
+      this.bottomParticles.push(this.createFireParticle(false));
+      this.lastBottomParticleSpawn = now;
+    }
+
+    // Update top flames (only at max lives)
+    if (lives >= this.maxLives && now - this.lastTopParticleSpawn > this.particleSpawnDelay) {
+      this.topParticles.push(this.createFireParticle(true));
+      this.lastTopParticleSpawn = now;
+    }
+
+    // Update particle physics
+    const updateParticles = (particles) => {
+      return particles.filter(particle => {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.life -= 0.02;
+        particle.size *= 0.95;
+        return particle.life > 0;
+      });
+    };
+
+    this.bottomParticles = updateParticles(this.bottomParticles);
+    this.topParticles = updateParticles(this.topParticles);
+  }
+
+  drawFireParticles(ctx, particles, intensity) {
+    particles.forEach(particle => {
+      const gradient = ctx.createRadialGradient(
+        particle.x, particle.y, 0,
+        particle.x, particle.y, particle.size
+      );
+      
+      // Increase base alpha values for more opaque flames
+      const alpha = Math.min(particle.life * intensity.brightness * 1.5, 1.0); // Increased from 1.0 to 1.5
+      gradient.addColorStop(0, `hsla(${particle.hue}, 100%, 50%, ${alpha})`);
+      gradient.addColorStop(0.5, `hsla(${particle.hue - 20}, 100%, 30%, ${alpha * 0.8})`); // Increased from 0.5 to 0.8
+      gradient.addColorStop(1, `rgba(255, 0, 0, ${alpha * 0.3})`); // Added some opacity to outer edge
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  draw(ctx, lives) {
+    ctx.save();
+    
+    // Update fire effects
+    this.updateFireEffects(lives);
+
+    // Draw bottom flames first
+    this.drawFireParticles(ctx, this.bottomParticles, this.flameIntensity);
+
+    // Draw health bar background with transparency
+    ctx.fillStyle = this.backgroundColor;
+    ctx.fillRect(this.x, this.y, this.width, -this.height);
+
+    // Draw life segments
+    const segments = Math.ceil(lives / 5);
+    for (let i = 0; i < segments; i++) {
+      const segmentLives = Math.min(5, lives - (i * 5));
+      const segmentHeight = (segmentLives / 5) * (this.height / 5);
+      const segmentY = this.y - (i * (this.height / 5));
+      
+      ctx.fillStyle = this.getColorForLives((i * 5) + segmentLives);
+      ctx.fillRect(this.x, segmentY, this.width, -segmentHeight);
+    }
+
+    // Draw segment lines
+    ctx.strokeStyle = '#ffffff33';
+    for (let i = 1; i < 5; i++) {
+      const lineY = this.y - (this.height * (i / 5));
+      ctx.beginPath();
+      ctx.moveTo(this.x, lineY);
+      ctx.lineTo(this.x + this.width, lineY);
+      ctx.stroke();
+    }
+
+    // Draw top flames last (only at max lives)
+    if (lives >= this.maxLives) {
+      this.drawFireParticles(ctx, this.topParticles, { brightness: 1, size: 1, speed: 1 });
+    }
+
+    // Draw lives number
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px Inconsolata';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const centerY = this.y - this.height / 2;
+    ctx.fillText(lives.toString(), this.x + this.width / 2, centerY);
+
+    ctx.restore();
+  }
+}
+
 // Create and export the game manager instance
 export const gameManager = new GameManager();
+
+AudioManager.setVolume('rainAmbience', 0.2); // Increase volume to 50%
+AudioManager.setVolume('splash', 0.3); // Decrease splash volume to 30%
