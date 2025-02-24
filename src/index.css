@@ -1460,7 +1460,7 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   margin: 1rem 0;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .user-info-section .assets-header {
@@ -1486,22 +1486,21 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 }
 
 .user-info-section .assets-content {
-  max-height: 0px;
-  overflow: scroll;
+  max-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   transition: max-height 0.3s ease-out;
   background: rgba(255, 255, 255, 0.05);
-  
 }
 
 .user-info-section .assets-content.expanded {
-  max-height: 100%;
-  width: 100%;
+  max-height: 80vh;
+  padding: 1rem;
+  
   @media (max-width: 768px) {
-
-    max-height: 100%;
-
+    max-height: 60vh;
+    padding: 0.5rem;
     width: 100%;
-    padding: 1rem;
   }
 }
 
@@ -1573,21 +1572,26 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   width: 100%;
   max-width: 300px;
   margin: 0 auto;
+  padding: 1rem;
+  
   @media (max-width: 768px) {
-    max-width: 200px;
-    width: fit-content;
+    max-width: 100%;
+    padding: 0.5rem;
   }
 }
 
 .username-input {
   width: 100%;
+  max-width: 100%;
   padding: 0.75rem;
   border: 2px solid #2054c9;
   border-radius: 6px;
-  font-size: 1rem;
-  background: white;
-  color: #2054c9;
-  outline: none;
+  font-size: 16px;
+  
+  @media (max-width: 768px) {
+    padding: 0.5rem;
+    font-size: 14px;
+  }
 }
 
 .username-input:focus {
