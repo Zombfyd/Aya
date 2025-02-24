@@ -7,8 +7,9 @@ class AudioManager {
         this.ambientSoundId = null;
         this.backgroundMusicId = null;
         
-        // Get the base URL dynamically
-        const BASE_URL = import.meta.env.PROD ? 'https://aya-3i9c.onrender.com/' : '/';
+
+        const BASE_URL = 'https://aya-3i9c.onrender.com/';
+
         
         this.sounds = {
             blueTear: new Howl({
