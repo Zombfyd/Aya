@@ -7,45 +7,60 @@ class AudioManager {
         this.ambientSoundId = null;
         this.backgroundMusicId = null;
         
+        // Get the base URL dynamically
+        const BASE_URL = import.meta.env.PROD ? 'https://aya-3i9c.onrender.com/' : '/';
+        
         this.sounds = {
             blueTear: new Howl({
-                src: ['/game/assets/sounds/tear_drop_1.wav'],
+                src: [`${BASE_URL}game/assets/sounds/tear_drop_1.wav`],
                 volume: 0.5,
                 onload: () => {
                     console.log('Loaded blue tear sound');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading blue tear sound:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading blue tear sound:', err);
+                    this.checkInitialization(); // Still check initialization even if load fails
+                }
             }),
             redTear: new Howl({
-                src: ['/game/assets/sounds/tear_drop_2.wav'],
+                src: [`${BASE_URL}game/assets/sounds/tear_drop_2.wav`],
                 volume: 0.5,
                 onload: () => {
                     console.log('Loaded gold tear sound');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading gold tear sound:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading gold tear sound:', err);
+                    this.checkInitialization();
+                }
             }),
             goldTear: new Howl({
-                src: ['/game/assets/sounds/tear_drop_3.mp3'],
+                src: [`${BASE_URL}game/assets/sounds/tear_drop_3.mp3`],
                 volume: 0.5,
                 onload: () => {
                     console.log('Loaded red tear sound');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading red tear sound:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading red tear sound:', err);
+                    this.checkInitialization();
+                }
             }),
             splash: new Howl({
-                src: ['/game/assets/sounds/splash.mp3'],
+                src: [`${BASE_URL}game/assets/sounds/splash.mp3`],
                 volume: 0.5,
                 onload: () => {
                     console.log('Loaded splash sound');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading splash sound:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading splash sound:', err);
+                    this.checkInitialization();
+                }
             }),
             rainAmbience: new Howl({
-                src: ['/game/assets/sounds/rain_ambience.wav'],
+                src: [`${BASE_URL}game/assets/sounds/rain_ambience.wav`],
                 volume: 0.2,
                 loop: true,
                 autoplay: false,
@@ -54,10 +69,13 @@ class AudioManager {
                     console.log('Loaded rain ambience');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading rain ambience:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading rain ambience:', err);
+                    this.checkInitialization();
+                }
             }),
             backgroundMusic: new Howl({
-                src: ['/game/assets/sounds/Background1.mp3'],
+                src: [`${BASE_URL}game/assets/sounds/Background1.mp3`],
                 volume: 0.3,
                 loop: true,
                 autoplay: false,
@@ -66,7 +84,10 @@ class AudioManager {
                     console.log('Loaded background music');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading background music:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading background music:', err);
+                    this.checkInitialization();
+                }
             })
         };
 
