@@ -7,9 +7,11 @@ class AudioManager {
         this.ambientSoundId = null;
         this.backgroundMusicId = null;
         
+        const BASE_URL = 'https://aya-3i9c.onrender.com/';
+        
         this.sounds = {
             blueTear: new Howl({
-                src: ['/game/assets/sounds/tear_drop_1.wav'],
+                src: [`${BASE_URL}game/assets/sounds/tear_drop_1.wav`],
                 volume: 0.5,
                 onload: () => {
                     console.log('Loaded blue tear sound');
@@ -18,7 +20,7 @@ class AudioManager {
                 onloaderror: (id, err) => console.error('Error loading blue tear sound:', err)
             }),
             redTear: new Howl({
-                src: ['/game/assets/sounds/tear_drop_2.wav'],
+                src: [`${BASE_URL}game/assets/sounds/tear_drop_2.wav`],
                 volume: 0.5,
                 onload: () => {
                     console.log('Loaded gold tear sound');
@@ -27,7 +29,7 @@ class AudioManager {
                 onloaderror: (id, err) => console.error('Error loading gold tear sound:', err)
             }),
             goldTear: new Howl({
-                src: ['/game/assets/sounds/tear_drop_3.mp3'],
+                src: [`${BASE_URL}game/assets/sounds/tear_drop_3.mp3`],
                 volume: 0.5,
                 onload: () => {
                     console.log('Loaded red tear sound');
@@ -36,7 +38,7 @@ class AudioManager {
                 onloaderror: (id, err) => console.error('Error loading red tear sound:', err)
             }),
             splash: new Howl({
-                src: ['/game/assets/sounds/splash.mp3'],
+                src: [`${BASE_URL}game/assets/sounds/splash.mp3`],
                 volume: 0.5,
                 onload: () => {
                     console.log('Loaded splash sound');
@@ -45,7 +47,7 @@ class AudioManager {
                 onloaderror: (id, err) => console.error('Error loading splash sound:', err)
             }),
             rainAmbience: new Howl({
-                src: ['/game/assets/sounds/rain_ambience.wav'],
+                src: [`${BASE_URL}game/assets/sounds/rain_ambience.wav`],
                 volume: 0.2,
                 loop: true,
                 autoplay: false,
@@ -57,7 +59,7 @@ class AudioManager {
                 onloaderror: (id, err) => console.error('Error loading rain ambience:', err)
             }),
             backgroundMusic: new Howl({
-                src: ['/game/assets/sounds/Background1.mp3'],
+                src: [`${BASE_URL}game/assets/sounds/Background1.mp3`],
                 volume: 0.3,
                 loop: true,
                 autoplay: false,
