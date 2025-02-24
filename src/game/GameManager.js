@@ -1,4 +1,5 @@
 // GameManager.js - Main game controller class
+import AudioManager from './AudioManager';
 
 class GameManager {
   constructor() {
@@ -164,12 +165,30 @@ class GameManager {
 
   // Game Control Methods
   startGame(mode = 'free') {
-    // Force a canvas resize before starting the game
-    this.resizeCanvas();
-    
+    // First clean up any existing game state
     this.cleanup();
+    
+    // Initialize new game state
     this.initGame();
-    this.gameMode = mode;
+    
+    this.gameActive = true;
+    this.mode = mode;
+    this.score = 0;
+    this.lives = 10;
+    this.speedMultiplier = 1;
+    this.lastCheckpoint = 0;
+    
+    // Try to start audio only if context is unlocked
+    if (AudioManager.audioUnlocked) {
+      // Start ambient sound only if not already playing
+      if (!AudioManager.ambientSoundId) {
+        AudioManager.startRainAmbience();
+      }
+      // Always start background music
+      AudioManager.startBackgroundMusic();
+    } else {
+      console.warn('Audio context not unlocked yet - waiting for user interaction');
+    }
 
     // Start spawning tears with a delay
     setTimeout(() => {
@@ -190,6 +209,9 @@ class GameManager {
   }
 
   cleanup() {
+    // Stop only background music, keep ambient rain playing
+    AudioManager.stopBackgroundMusic();
+    
     // Clear any running game loops
     if (this.gameLoopId) {
       cancelAnimationFrame(this.gameLoopId);
@@ -336,37 +358,40 @@ class GameManager {
   }
 
   updateEntities(entities, isGold, isRed, isBlack) {
-  for (let i = entities.length - 1; i >= 0; i--) {
-    const entity = entities[i];
-    entity.update();
+    for (let i = entities.length - 1; i >= 0; i--) {
+      const entity = entities[i];
+      entity.update();
 
-    if (this.checkCollision(entity, this.bucket)) {
-      entities.splice(i, 1);
-      this.handleCollision(entity, isGold, isRed, isBlack);
-    } else if (entity.y > this.canvas.height) {
-      entities.splice(i, 1);
-      
-      // Create ground splash effect
-      const splashX = entity.x + entity.width / 2;
-      const splashY = this.canvas.height;
-      
-      if (isGold) {
-        this.splashes.push(new GoldSplash(splashX, splashY));
-      } else if (isRed) {
-        this.splashes.push(new RedSplash(splashX, splashY));
-      } else if (isBlack) {
-        this.splashes.push(new GreenSplash(splashX, splashY));
-      } else {
-        this.splashes.push(new BlueSplash(splashX, splashY));
-      }
-      
-      // Handle life reduction for non-red tears
-      if (!isRed) {
-        this.lives--;
+      if (this.checkCollision(entity, this.bucket)) {
+        entities.splice(i, 1);
+        this.handleCollision(entity, isGold, isRed, isBlack);
+      } else if (entity.y > this.canvas.height) {
+        entities.splice(i, 1);
+        
+        // Play splash sound when tear hits ground
+        AudioManager.sounds.splash.play();
+        
+        // Create ground splash effect
+        const splashX = entity.x + entity.width / 2;
+        const splashY = this.canvas.height;
+        
+        if (isGold) {
+          this.splashes.push(new GoldSplash(splashX, splashY));
+        } else if (isRed) {
+          this.splashes.push(new RedSplash(splashX, splashY));
+        } else if (isBlack) {
+          this.splashes.push(new GreenSplash(splashX, splashY));
+        } else {
+          this.splashes.push(new BlueSplash(splashX, splashY));
+        }
+        
+        // Handle life reduction for non-red tears
+        if (!isRed) {
+          this.lives--;
+        }
       }
     }
   }
-}
 
   // Collision Detection
   checkCollision(entity, bucket) {
@@ -379,6 +404,17 @@ class GameManager {
   }
 
   handleCollision(entity, isGold, isRed, isBlack) {
+    // Play tear drop sound based on type
+    if (isGold) {
+      AudioManager.playTearSound('gold');
+    } else if (isRed) {
+      AudioManager.playTearSound('red');
+    } else if (isBlack) {
+      AudioManager.playTearSound('black');
+    } else {
+      AudioManager.playTearSound('blue');
+    }
+    
     const splashX = entity.x + entity.width / 2;
     const splashY = this.bucket.y;
 
@@ -1029,3 +1065,6 @@ class HealthBar {
 
 // Create and export the game manager instance
 export const gameManager = new GameManager();
+
+AudioManager.setVolume('rainAmbience', 0.2); // Increase volume to 50%
+AudioManager.setVolume('splash', 0.3); // Decrease splash volume to 30%

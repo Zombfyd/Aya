@@ -48,7 +48,8 @@ const GameApp = () => {
     gameStarted: false,
     score: 0,
     isGameOver: false,
-    hasValidPayment: false
+    hasValidPayment: false,
+    selectedTierClicked: false
   });
   const [leaderboardData, setLeaderboardData] = useState({
     mainFreeTOA: [],
@@ -78,7 +79,7 @@ const GameApp = () => {
   // Add this to your state declarations
   const [countdown, setCountdown] = useState(null);
   // Add new state for selected tier
-  const [selectedTier, setSelectedTier] = useState(null);
+  const [selectedTier, setSelectedTier] = useState('tier3');
   // Add this to fetch SUI price (you might want to add this to your dependencies)
   const [suiPrice, setSuiPrice] = useState(null);
   const [suinsClient, setSuinsClient] = useState(null);
@@ -297,13 +298,8 @@ const GameApp = () => {
                             hasValidPayment: true
                         }));
                         
-                        
-                        
                         setTransactionInProgress(false);
                         setPaying(false);
-
-                        // Start game with type that was selected during payment
-                        startGame(window.selectedGameType || 'aya');
                     }
                 }
             } catch (error) {
@@ -319,20 +315,20 @@ const GameApp = () => {
     }
 }, [transactionInProgress, paymentStatus.transactionId]);
 
+  // Add environment constant at the top of the file
+  const environment = import.meta.env.MODE;
+  const isTestnet = environment === 'testnet';
+
   // Enhanced wallet connection monitoring
   useEffect(() => {
     const updateWalletState = async () => {
       if (wallet.connected && wallet.account) {
-        const requiredNetwork = process.env.NODE_ENV === 'development' ? 'Sui Testnet' : 'Sui Mainnet';
+        const requiredNetwork = isTestnet ? 'Sui Testnet' : 'Sui Mainnet';
         
         if (wallet.chain?.name !== requiredNetwork) {
           console.log(`Wrong network detected. Current: ${wallet.chain?.name}, Required: ${requiredNetwork}`);
           setWalletInitialized(false);
-          setGameState(prev => ({
-            ...prev,
-            gameStarted: false,
-            isGameOver: false
-          }));
+          alert(`Please switch to ${requiredNetwork} to continue playing.`);
           return;
         }
 
@@ -440,6 +436,7 @@ const GameApp = () => {
   // First, update handleScoreSubmit to submit to both main and secondary
   const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType, paymentDetails = null) => {
     const currentGame = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+    const environment = import.meta.env.VITE_APP_ENVIRONMENT || 'development';
     
     console.log('handleScoreSubmit received:', { 
         finalScore, 
@@ -447,10 +444,23 @@ const GameApp = () => {
         gameMode: submissionGameMode,
         game: currentGame,
         walletConnected: wallet.connected,
-        paymentStatus
+        paymentStatus,
+        environment,
+        isTestnet
     });
 
     try {
+        // For testnet environment, just log the score but don't submit to leaderboard
+        if (environment === 'development') {
+            console.log('Testnet environment detected - Score not submitted to leaderboard:', {
+                score: finalScore,
+                playerName,
+                game: currentGame,
+                mode: submissionGameMode
+            });
+            return { success: true, message: 'Score logged (testnet mode)' };
+        }
+
         let endpoint;
         let requestBody;
 
@@ -460,7 +470,7 @@ const GameApp = () => {
             requestBody = {
                 playerName,
                 score: finalScore,
-                game: currentGame // Ensures score goes to correct game leaderboard
+                game: currentGame
             };
 
             const response = await fetch(endpoint, {
@@ -477,57 +487,56 @@ const GameApp = () => {
             const result = await response.json();
             console.log(`Web2 score submitted successfully for ${currentGame}:`, result);
             return result;
+        }
 
-        } else {
-            // Enhanced verification for paid submissions
-            if (submissionGameMode === 'paid') {
-                // Check both state and passed payment details
-                const verifiedPayment = paymentDetails || paymentStatus;
-                if (!verifiedPayment.verified || !verifiedPayment.transactionId) {
-                    throw new Error('Payment verification failed - no valid payment found');
-                }
+        // Enhanced verification for paid submissions
+        if (submissionGameMode === 'paid') {
+            // Check both state and passed payment details
+            const verifiedPayment = paymentDetails || paymentStatus;
+            if (!verifiedPayment.verified || !verifiedPayment.transactionId) {
+                throw new Error('Payment verification failed - no valid payment found');
+            }
+        }
+
+        // Submit score with verification data
+        endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
+        
+        const submissions = ['main', 'secondary'].map(async (gameType) => {
+            const body = {
+                playerWallet: wallet.account?.address,
+                score: finalScore,
+                gameType: gameType,
+                playerName: playerName || null,
+                game: currentGame,
+                paymentVerification: submissionGameMode === 'paid' ? {
+                    transactionId: paymentDetails?.transactionId,
+                    amount: paymentDetails?.amount,
+                    timestamp: paymentDetails?.timestamp,
+                    recipient: paymentDetails?.recipient
+                } : null
+            };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
 
-            // Submit score with verification data
-            endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
-            
-            const submissions = ['main', 'secondary'].map(async (gameType) => {
-                const body = {
-                    playerWallet: wallet.account?.address,
-                    score: finalScore,
-                    gameType: gameType,
-                    playerName: playerName || null,
-                    game: currentGame,
-                    paymentVerification: submissionGameMode === 'paid' ? {
-                        transactionId: paymentDetails?.transactionId,
-                        amount: paymentDetails?.amount,
-                        timestamp: paymentDetails?.timestamp,
-                        recipient: paymentDetails?.recipient
-                    } : null
-                };
+            return response.json();
+        });
 
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                }
-
-                return response.json();
-            });
-
-            const [mainResult, secondaryResult] = await Promise.all(submissions);
-            console.log(`Scores submitted successfully for ${currentGame}:`, { 
-                main: mainResult, 
-                secondary: secondaryResult 
-            });
-            await fetchLeaderboards();
-            return { main: mainResult, secondary: secondaryResult };
-        }
+        const [mainResult, secondaryResult] = await Promise.all(submissions);
+        console.log(`Scores submitted successfully for ${currentGame}:`, { 
+            main: mainResult, 
+            secondary: secondaryResult 
+        });
+        await fetchLeaderboards();
+        return { main: mainResult, secondary: secondaryResult };
     } catch (error) {
         console.error(`Error submitting score for ${currentGame}:`, error);
         alert(`Failed to submit score for ${currentGame}: ${error.message}`);
@@ -827,6 +836,14 @@ const GameApp = () => {
       }
     }
 
+    // Clean up the active game manager first
+    if (window.activeGameManager) {
+      window.activeGameManager.cleanup();
+      // Re-initialize the game manager to ensure fresh state
+      window.activeGameManager.initGame();
+    }
+
+    // Reset game state
     setGameState(prev => ({
       ...prev,
       gameStarted: false,
@@ -837,96 +854,101 @@ const GameApp = () => {
     setTransactionInProgress(false);
     setPaying(false);
 
-    // Clean up the active game manager
-    if (window.activeGameManager) {
-      window.activeGameManager.cleanup();
-    }
-
-    setTimeout(() => {
-      setGameState(prev => ({
-        ...prev,
-        gameStarted: true
-      }));
-      
-      if (window.activeGameManager) {
-        console.log(`Restarting game in ${gameMode} mode, type: ${type}`);
-        startGame(type);
-      }
-    }, 100);
+    // Start the game with selected type
+    console.log(`Restarting game in ${gameMode} mode, type: ${type}`);
+    startGame(type);
   };
 
   // Update startGame to track bucket click state
   const startGame = async (type = 'aya') => {
     if (!window.gameManager1 && !window.gameManager2) {
-      console.error('Game managers not found');
-      alert('Game initialization failed. Please refresh the page and try again.');
-      return;
+        console.error('Game managers not found');
+        alert('Game initialization failed. Please refresh the page and try again.');
+        return;
     }
 
     // For paid mode, verify we have attempts left
     if (gameMode === 'paid') {
-      if (paidGameAttempts >= maxAttempts) {
-        alert('All paid attempts used. Please make a new payment to continue playing.');
-        setGameState(prev => ({ ...prev, hasValidPayment: false }));
-        return;
-      }
+        if (paidGameAttempts >= maxAttempts) {
+            alert('All paid attempts used. Please make a new payment to continue playing.');
+            setGameState(prev => ({ ...prev, hasValidPayment: false }));
+            return;
+        }
+        
+        // Log remaining attempts
+        console.log('Starting paid game:', {
+            currentAttempts: paidGameAttempts,
+            maxAttempts: maxAttempts,
+            remaining: maxAttempts - paidGameAttempts,
+            gameType: type
+        });
     }
 
     try {
-      setGameState(prev => ({
-        ...prev,
-        gameStarted: true,
-        score: 0,
-        isGameOver: false,
-      }));
+        // Choose which game manager to use based on type
+        const activeManager = type === 'aya' ? gameManager1 : gameManager2;
+        
+        // Clean up the previous game manager if it exists
+        if (window.activeGameManager) {
+            window.activeGameManager.cleanup();
+        }
+        
+        // Set and initialize the new active manager
+        window.activeGameManager = activeManager;
+        activeManager.cleanup(); // Clean up any previous state
+        activeManager.initGame(); // Initialize fresh state
 
-      // Track attempts for paid games
-      const canvas = document.getElementById('tearCatchGameCanvas');
-      if (canvas) {
-        const rect = canvas.getBoundingClientRect();
-        const scrollTop = rect.top + window.scrollY - (window.innerHeight - rect.height) / 2;
-        window.scrollTo({
-          top: scrollTop,
-          behavior: 'smooth'
+        setGameState(prev => ({
+            ...prev,
+            gameStarted: true,
+            score: 0,
+            isGameOver: false,
+        }));
+
+        // Handle canvas scrolling
+        const canvas = document.getElementById('tearCatchGameCanvas');
+        if (canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const scrollTop = rect.top + window.scrollY - (window.innerHeight - rect.height) / 2;
+            window.scrollTo({
+                top: scrollTop,
+                behavior: 'smooth'
+            });
+        }
+
+        console.log(`Starting game in ${gameMode} mode, type: ${type}`);
+        
+        // Start countdown from 3
+        setCountdown(3);
+        
+        // Wait for countdown to complete
+        await new Promise((resolve) => {
+            let count = 3;
+            const countdownInterval = setInterval(() => {
+                count--;
+                setCountdown(count);
+                
+                if (count <= 0) {
+                    clearInterval(countdownInterval);
+                    setCountdown(null);
+                    resolve();
+                }
+            }, 1000);
         });
-      }
 
-      // Choose which game manager to use based on type
-      const activeManager = type === 'aya' ? gameManager1 : gameManager2;
-      window.activeGameManager = activeManager;
-
-      console.log(`Starting game in ${gameMode} mode, type: ${type}`);
-      
-      // Start countdown from 3
-      setCountdown(3);
-      
-      // Wait for countdown to complete
-      await new Promise((resolve) => {
-        let count = 3;
-        const countdownInterval = setInterval(() => {
-          count--;
-          setCountdown(count);
-          
-          if (count <= 0) {
-            clearInterval(countdownInterval);
-            setCountdown(null);
-            resolve();
-          }
-        }, 1000);
-      });
-
-      // Start the game after countdown
-      activeManager.startGame(gameMode);
+        // Start the game after countdown
+        activeManager.startGame(gameMode);
+        
     } catch (error) {
-      console.error('Error starting game:', error);
-      setGameState(prev => ({
-        ...prev,
-        gameStarted: false,
-        isGameOver: false,
-      }));
-      alert('Failed to start game. Please try again.');
+        console.error('Error starting game:', error);
+        setGameState(prev => ({
+            ...prev,
+            gameStarted: false,
+            isGameOver: false,
+        }));
+        alert('Failed to start game. Please try again.');
     }
-  };
+};
 
   // Update the onGameOver callback to wait for user choice
   useEffect(() => {
@@ -1016,64 +1038,48 @@ const GameApp = () => {
   }, []);
 
   // Modify handleGamePayment
-  const handleGamePayment = async (type = 'aya') => {
-    if (!wallet.connected || !selectedTier) {
-        alert('Please connect wallet and select a payment tier');
+  const handleGamePayment = async (paymentTier) => {
+    if (!wallet.connected) {
+        alert('Please connect wallet to continue');
         return;
     }
 
     try {
-        window.selectedGameType = type;
+        console.log('Starting payment process for tier:', paymentTier);
         setTransactionInProgress(true);
         setPaying(true);
 
-        // Get configuration
-        const tierConfig = config.paymentTiers[selectedTier];
+        const tierConfig = config.paymentTiers[paymentTier];
+        if (!tierConfig) {
+            throw new Error('Invalid tier selected');
+        }
+        console.log('Selected tier configuration:', {
+            tierId: paymentTier,
+            amount: tierConfig.amount,
+            plays: tierConfig.plays,
+            label: tierConfig.label
+        });
+
         const recipients = config.getCurrentRecipients();
         const shares = config.shares;
 
-        // Calculate total amount with NFT discount if applicable
         const baseAmount = BigInt(tierConfig.amount);
         const totalAmount = isNFTVerified ? baseAmount / BigInt(2) : baseAmount;
+        console.log('Payment details:', {
+            baseAmount: baseAmount.toString(),
+            isNFTVerified,
+            finalAmount: totalAmount.toString(),
+            plays: tierConfig.plays
+        });
 
-        // Calculate share amounts in a single pass
         const shareAmounts = {
             primary: (totalAmount * BigInt(shares.primary)) / BigInt(10000),
             secondary: (totalAmount * BigInt(shares.secondary)) / BigInt(10000),
             tertiary: (totalAmount * BigInt(shares.tertiary)) / BigInt(10000),
             rewards: (totalAmount * BigInt(shares.rewards)) / BigInt(10000)
         };
+        console.log('Share distribution:', shareAmounts);
 
-        // Verify total matches sum of shares
-        const sumOfShares = shareAmounts.primary + shareAmounts.secondary + 
-                          shareAmounts.tertiary + shareAmounts.rewards;
-
-        // Log exact amounts for verification
-        console.log('Payment Verification:', {
-            tier: selectedTier,
-            baseAmount: baseAmount.toString(),
-            nftDiscount: isNFTVerified,
-            totalAmount: totalAmount.toString(),
-            shares: {
-                primary: `${shareAmounts.primary.toString()} (${shares.primary/100}%)`,
-                secondary: `${shareAmounts.secondary.toString()} (${shares.secondary/100}%)`,
-                tertiary: `${shareAmounts.tertiary.toString()} (${shares.tertiary/100}%)`,
-                rewards: `${shareAmounts.rewards.toString()} (${shares.rewards/100}%)`
-            },
-            sumOfShares: sumOfShares.toString(),
-            matchesTotal: sumOfShares === totalAmount ? 'Yes' : 'No'
-        });
-
-        // Verify amounts match before proceeding
-        if (sumOfShares !== totalAmount) {
-            const difference = totalAmount - sumOfShares;
-            console.warn(`Share total mismatch. Difference: ${difference.toString()} MIST`);
-            // Adjust primary share to account for any rounding
-            shareAmounts.primary = shareAmounts.primary + difference;
-            console.log('Adjusted primary share:', shareAmounts.primary.toString());
-        }
-
-        // Create and execute transaction
         const txb = new TransactionBlock();
         const [primary, secondary, tertiary, rewards] = txb.splitCoins(txb.gas, [
             shareAmounts.primary.toString(),
@@ -1082,21 +1088,12 @@ const GameApp = () => {
             shareAmounts.rewards.toString()
         ]);
 
-        // Transfer all shares in a single block
         txb.transferObjects([primary], recipients.primary);
         txb.transferObjects([secondary], recipients.secondary);
         txb.transferObjects([tertiary], recipients.tertiary);
         txb.transferObjects([rewards], recipients.rewards);
 
-        // Log transaction details
-        console.log('Transaction Recipients:', {
-            primary: recipients.primary,
-            secondary: recipients.secondary,
-            tertiary: recipients.tertiary,
-            rewards: recipients.rewards
-        });
-
-        // Execute transaction with all necessary options
+        console.log('Executing transaction...');
         const response = await wallet.signAndExecuteTransactionBlock({
             transactionBlock: txb,
             options: { showEffects: true, showEvents: true }
@@ -1105,28 +1102,58 @@ const GameApp = () => {
         if (!response?.digest) {
             throw new Error('Transaction failed - no digest received');
         }
+        console.log('Transaction successful:', {
+            digest: response.digest,
+            tier: paymentTier,
+            maxAttempts: tierConfig.plays
+        });
 
-        // Update game state
-        const paymentDetails = {
+        // Update states after successful payment
+        setPaymentStatus({
             verified: true,
             transactionId: response.digest,
             amount: Number(totalAmount),
             timestamp: Date.now(),
             recipient: recipients.primary
-        };
-
-        setPaymentStatus(paymentDetails);
+        });
+        
         setMaxAttempts(tierConfig.plays);
         setPaidGameAttempts(0);
-        setGameState(prev => ({ ...prev, hasValidPayment: true }));
+        
+        // Set hasValidPayment to true and ensure game is not started
+        setGameState(prev => ({
+            ...prev,
+            hasValidPayment: true,
+            gameStarted: false,
+            isGameOver: false,
+            score: 0,
+            selectedTierClicked: true  // Add this to track that a tier was selected
+        }));
 
+        console.log('Game state updated after payment:', {
+            hasValidPayment: true,
+            gameStarted: false,
+            isGameOver: false,
+            score: 0,
+            selectedTierClicked: true
+        });
+
+        // Add a success message that instructs the user to select a game type
+        
     } catch (error) {
         console.error('Payment error:', error);
         alert(`Payment failed: ${error.message}`);
+        
+        // Reset states on failure
+        setGameState(prev => ({
+            ...prev,
+            hasValidPayment: false,
+            gameStarted: false,
+            selectedTierClicked: false
+        }));
     } finally {
         setTransactionInProgress(false);
         setPaying(false);
-        window.selectedGameType = null;
     }
 };
 
@@ -1157,37 +1184,94 @@ const GameApp = () => {
   const renderPaymentTiers = () => (
     <div className="payment-tiers">
       {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
-        const suiAmount = tier.amount / 1000000000;
-        const discountedSuiAmount = isNFTVerified ? suiAmount * 0.5 : suiAmount;
-        const usdAmount = suiPrice ? (discountedSuiAmount * suiPrice).toFixed(2) : '---';
-        const canAfford = canAffordTier(tier.amount);
+        const originalAmount = tier.amount / 1_000_000_000;
+        const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
+        const canAfford = canAffordTier(isNFTVerified ? BigInt(tier.amount) / BigInt(2) : BigInt(tier.amount));
+        const isSelected = selectedTier === tierId;
         
         return (
-          <button 
+          <button
             key={tierId}
-            className={`tier-button ${selectedTier === tierId ? 'selected' : ''} ${canAfford ? '' : 'disabled'}`}
-            onClick={() => setSelectedTier(tierId)}
-            disabled={!canAfford}
+            className={`tier-button ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`}
+            onClick={async () => {
+              const selectedTierId = tierId;
+              console.log('Desktop tier button clicked:', {
+                tier: selectedTierId,
+                amount: finalAmount,
+                plays: tier.plays,
+                canAfford
+              });
+              
+              setSelectedTier(selectedTierId);
+              await new Promise(resolve => setTimeout(resolve, 100));
+              await handleGamePayment(selectedTierId);
+            }}
+            disabled={!canAfford || paying}
           >
             <div className="tier-label">{tier.label}</div>
-            <div className="tier-price">
-              {discountedSuiAmount} SUI (${usdAmount})
-            </div>
+            <div className="tier-price">{finalAmount} SUI</div>
             <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
-            {isNFTVerified && <div className="discount-badge">50% OFF</div>}
-            {!canAfford && <div className="insufficient-funds">Insufficient Balance</div>}
+            {!canAfford && <div className="insufficient-funds">Insufficient funds</div>}
           </button>
         );
       })}
     </div>
   );
+
+  const renderMobilePaymentTiers = () => (
+    <div className="payment-tiers-mobile">
+      <select
+        className="tier-select"
+        value={selectedTier}
+        onChange={async (e) => {
+          const selectedTierId = e.target.value;
+          if (selectedTierId) {
+            const tier = config.paymentTiers[selectedTierId];
+            const originalAmount = tier.amount / 1_000_000_000;
+            const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
+            
+            console.log('Mobile tier selected:', {
+              tier: selectedTierId,
+              finalAmount,
+              isNFTVerified
+            });
+            
+            setSelectedTier(selectedTierId);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await handleGamePayment(selectedTierId);
+          }
+        }}
+      >
+        <option value="">Select Payment Tier</option>
+        {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
+          const originalAmount = tier.amount / 1_000_000_000;
+          const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
+          const canAfford = canAffordTier(isNFTVerified ? BigInt(tier.amount) / BigInt(2) : BigInt(tier.amount));
+          
+          return (
+            <option 
+              key={tierId} 
+              value={tierId}
+              disabled={!canAfford || paying}
+            >
+              {`${tier.label} - ${finalAmount} SUI (${tier.plays} ${tier.plays === 1 ? 'Play' : 'Plays'})`}
+              {!canAfford ? ' (Insufficient funds)' : ''}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
+
 useEffect(() => {
     const handleScroll = () => {
       const header = document.querySelector('header');
-      if (window.scrollY > window.innerHeight * 0.3) { // Adjust this value as needed
-        header.classList.add('scrolled');
-      } else {
-        header.classList.remove('scrolled');
+      if (header) {  // Add check for header existence
+        if (window.scrollY > window.innerHeight * 0.3) {
+          header.classList.add('scrolled');
+        } else {
+          header.classList.remove('scrolled');
+        }
       }
     };
 
@@ -1244,9 +1328,6 @@ const fetchPrimaryWalletBalance = async () => {
     console.log('fetchPrimaryWalletBalance called');
 
     try {
-        // Set default network context
-        config.updateNetwork('mainnet');
-        
         const recipients = config.getCurrentRecipients();
         console.log('Recipients from config:', recipients);
         
@@ -1374,33 +1455,62 @@ const resetGameState = () => {
         window.gameManager1.initGame(); // Reinitialize the game manager
     }
     
-    setGameState({
+    // Only reset game-specific state, preserve payment and attempts state
+    setGameState(prev => ({
+        ...prev,
         gameStarted: false,
         score: 0,
         isGameOver: false,
-        hasValidPayment: false
-    });
+        // Preserve hasValidPayment from previous state
+    }));
     
     setQualifyingTier(null);
     setQualifiedForPaid(false);
-    setPaidGameAttempts(0);
-    setMaxAttempts(0);
-    setSelectedTier(null);
+    
+    // Do not reset attempts or payment state here
+    // The attempts should only be incremented in handlePaidGameAttempt
+    // which is called after game over
 };
 
 const handlePaidGameAttempt = () => {
     const newAttempts = paidGameAttempts + 1;
+    console.log('Updating paid attempts:', { current: paidGameAttempts, new: newAttempts, max: maxAttempts });
+    
     setPaidGameAttempts(newAttempts);
     
-    // Only show the warning after their last game is finished
-    if (newAttempts === maxAttempts) {
-        setTimeout(() => {
-            alert('You have used all your paid attempts. Please make a new payment to continue playing.');
-            setGameState(prev => ({
-                ...prev,
-                hasValidPayment: false
-            }));
-        }, 1000); // Small delay to ensure game over screen shows first
+    // Only show alert and reset state after their last game is finished
+    if (newAttempts >= maxAttempts) {
+        alert('You have used all your paid attempts. Please make a new payment to continue playing.');
+        
+        // Reset all game and payment related states
+        setGameState(prev => ({
+            ...prev,
+            hasValidPayment: false,
+            selectedTierClicked: false,  // Reset the tier selection state
+            gameStarted: false,          // Ensure game is stopped
+            isGameOver: false            // Reset game over state
+        }));
+        
+        // Reset attempts counters
+        setPaidGameAttempts(0);
+        setMaxAttempts(0);
+        
+        // Reset payment status to prevent further verification attempts
+        setPaymentStatus({
+            verified: false,
+            transactionId: null,
+            error: null,
+            amount: null,
+            timestamp: null,
+            recipient: null
+        });
+        
+        // Reset transaction states
+        setTransactionInProgress(false);
+        setPaying(false);
+        
+        // Reset game state
+        resetGameState();
     }
 };
 
@@ -1439,10 +1549,20 @@ const handleSuinsChange = (e) => {
       // Cleanup event listeners for both game managers
       if (window.gameManager1) {
         window.gameManager1.cleanup();
+        window.gameManager1.initGame();
       }
       if (window.gameManager2) {
         window.gameManager2.cleanup();
+        window.gameManager2.initGame();
       }
+      
+      // Reset game state
+      setGameState(prev => ({
+        ...prev,
+        gameStarted: false,
+        score: 0,
+        isGameOver: false
+      }));
       
       // Remove window references
       window.gameManager1 = null;
@@ -1459,9 +1579,19 @@ const handleSuinsChange = (e) => {
     }
 
     if (gameMode === 'free' || gameState.hasValidPayment) {
+      // Initialize game state before starting
+      setGameState(prev => ({
+        ...prev,
+        gameStarted: false,
+        isGameOver: false,
+        score: 0
+      }));
+
+      // Start the game with selected type
       startGame(type);
     } else {
       alert('Please complete payment to play in paid mode.');
+      return;
     }
   };
 
@@ -1670,6 +1800,13 @@ const handleSuinsChange = (e) => {
         <GameInfoPopup onClose={handlePopupClose} />
       )}
       
+      {/* Add testnet mode indicator */}
+      {isTestnet && (
+        <div className="testnet-indicator">
+          🧪 Testnet Mode - Scores will not be saved to leaderboard
+        </div>
+      )}
+      
       {playerName && playerName.length > 0 && (
         <div className={`player-display ${gameState.gameStarted ? 'fade-out' : ''}`}>
           Playing as: 
@@ -1693,7 +1830,7 @@ const handleSuinsChange = (e) => {
         </div>
       )}
 
-      {(!gameState.gameStarted && (paidGameAttempts >= maxAttempts || !gameState.hasValidPayment)) && (
+      {(!gameState.gameStarted && !gameState.isGameOver) && (
         <header>
           <div className="title-section">
             <div className="tears-container">
@@ -1935,7 +2072,17 @@ const handleSuinsChange = (e) => {
 
           {wallet.connected && gameMode === 'paid' && gameState.hasValidPayment && (
             <div className="attempts-info">
-              <p>Attempts remaining: {maxAttempts - paidGameAttempts}</p>
+              <p style={{
+                color: '#2054c9',
+                fontWeight: 'bold',
+                fontSize: '1.2rem',
+                padding: '10px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+              }}>
+                Attempts Remaining: <span style={{ fontSize: '1.4rem' }}>{maxAttempts - paidGameAttempts}</span>
+              </p>
             </div>
           )}
 
@@ -1955,51 +2102,36 @@ const handleSuinsChange = (e) => {
 
               {gameMode === 'paid' && wallet.connected && (
                 <div className="game-mode-selection">
-                  <h2>Select Your Game</h2>
-                  {!gameState.hasValidPayment && (
-                    <div className="payment-section">
-                      <h3>Select Payment Tier</h3>
-                      
-                      {/* Mobile dropdown */}
-                      <div className="payment-tiers-mobile">
-                        <select 
-                          className="tier-select"
-                          value={selectedTier || ''}
-                          onChange={(e) => setSelectedTier(e.target.value)}
-                        >
-                          <option value="">Select Payment Tier</option>
-                          {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
-                            const suiAmount = tier.amount / 1_000_000_000;
-                            return (
-                              <option key={tierId} value={tierId}>
-                                {tier.label} - {suiAmount} SUI ({tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'})
-                              </option>
-                            );
-                          })}
-                        </select>
+                  {(!gameState.hasValidPayment || paidGameAttempts >= maxAttempts) ? (
+                    <>
+                      <h2>Select Payment Tier</h2>
+                      <div className="payment-section">
+                        {/* Mobile dropdown */}
+                        <div className="payment-tiers-mobile">
+                          {renderMobilePaymentTiers()}
+                        </div>
+                        {/* Desktop payment tiers */}
+                        {renderPaymentTiers()}
                       </div>
-
-                      {/* Desktop payment tiers */}
-                      {renderPaymentTiers()}
-
-                      {/* Game type buttons */}
+                    </>
+                  ) : (
+                    <>
+                      <h2>Select Your Game</h2>
                       <div className="game-type-buttons">
                         <button 
-                          onClick={() => handleGamePayment('aya')}
-                          disabled={paying || !selectedTier}
+                          onClick={() => handleGameTypeStart('aya')} 
                           className="start-button aya"
                         >
-                          {paying ? 'Processing...' : 'Start Tears of Aya'}
+                          Play Tears of Aya
                         </button>
                         <button 
-                          onClick={() => handleGamePayment('blood')}
-                          disabled={paying || !selectedTier}
+                          onClick={() => handleGameTypeStart('blood')} 
                           className="start-button blood"
                         >
-                          {paying ? 'Processing...' : 'Start Tears of Blood'}
+                          Play Tears of Blood
                         </button>
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
               )}
@@ -2015,6 +2147,21 @@ const handleSuinsChange = (e) => {
           <div className="game-over-popup">
             <h2>Game Over!</h2>
             <p>Final Score: {gameState.score}</p>
+            
+            {/* Add attempts counter for paid mode */}
+            {gameMode === 'paid' && (
+              <div className="attempts-counter" style={{
+                marginTop: '10px',
+                padding: '10px',
+                background: 'rgba(32, 84, 201, 0.1)',
+                borderRadius: '8px',
+                color: '#2054c9',
+                fontWeight: 'bold'
+              }}>
+                <p>Attempts Used: {paidGameAttempts} / {maxAttempts}</p>
+                <p>Remaining: {maxAttempts - paidGameAttempts}</p>
+              </div>
+            )}
             
             {/* Show qualification notice and choices for free mode with connected wallet */}
             {gameMode === 'free' && wallet.connected && (
@@ -2277,6 +2424,8 @@ const handleSuinsChange = (e) => {
           </div>
         </div>
       )}
+
+      
     </div>
   );
 };

@@ -127,3 +127,6 @@ __tests__/
 .vercel
 .netlify
 stats.html
+
+# Keep example env file
+!.env.example

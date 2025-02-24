@@ -1,4 +1,5 @@
 // BloodGameManager.js - Second game type game controller class
+import AudioManager from '../AudioManager';
 
 class BloodGameManager {
     constructor() {
@@ -166,6 +167,20 @@ class BloodGameManager {
       this.initGame();
       this.gameMode = mode;
   
+      // Try to start audio only if context is unlocked
+      if (AudioManager.audioUnlocked) {
+        // Start ambient sound only if not already playing
+        if (!AudioManager.ambientSoundId) {
+          AudioManager.startRainAmbience();
+        }
+        // Always start background music with slower rate
+        AudioManager.startBackgroundMusic();
+        // Set slower playback rate (0.75 = 75% speed)
+        AudioManager.sounds.backgroundMusic.rate(0.75);
+      } else {
+        console.warn('Audio context not unlocked yet - waiting for user interaction');
+      }
+  
       // Start spawning tears with a delay
       setTimeout(() => {
         if (this.gameActive) {
@@ -186,6 +201,11 @@ class BloodGameManager {
     }
   
     cleanup() {
+      // Stop only background music, keep ambient rain playing
+      AudioManager.stopBackgroundMusic();
+      // Reset playback rate to normal speed
+      AudioManager.sounds.backgroundMusic.rate(1.0);
+      
       // Clear any running game loops
       if (this.gameLoopId) {
         cancelAnimationFrame(this.gameLoopId);
@@ -366,32 +386,40 @@ class BloodGameManager {
     }
   
     updateEntities(entities, isGold, isRed, isBlack) {
-    for (let i = entities.length - 1; i >= 0; i--) {
-      const entity = entities[i];
-      entity.update();
+      for (let i = entities.length - 1; i >= 0; i--) {
+        const entity = entities[i];
+        entity.update();
   
-      if (this.checkCollision(entity, this.bucket)) {
-        entities.splice(i, 1);
-        this.handleCollision(entity, isGold, isRed, isBlack);
-      } else if (entity.y > this.canvas.height) {
-        entities.splice(i, 1);
-        
-        // Create ground splash effect
-        const splashX = entity.x + entity.width / 2;
-        const splashY = this.canvas.height;
-        
-        if (isGold) {
-          this.splashes.push(new GoldSplash(splashX, splashY));
-        } else if (isRed) {
-          this.splashes.push(new RedSplash(splashX, splashY));
-        } else if (isBlack) {
-          this.splashes.push(new GreenSplash(splashX, splashY));
-        } else {
-          this.splashes.push(new BlueSplash(splashX, splashY));
+        if (this.checkCollision(entity, this.bucket)) {
+          entities.splice(i, 1);
+          this.handleCollision(entity, isGold, isRed, isBlack);
+        } else if (entity.y > this.canvas.height) {
+          entities.splice(i, 1);
+          
+          // Play splash sound when tear hits ground
+          AudioManager.sounds.splash.play();
+          
+          // Create ground splash effect
+          const splashX = entity.x + entity.width / 2;
+          const splashY = this.canvas.height;
+          
+          if (isGold) {
+            this.splashes.push(new GoldSplash(splashX, splashY));
+          } else if (isRed) {
+            this.splashes.push(new RedSplash(splashX, splashY));
+          } else if (isBlack) {
+            this.splashes.push(new GreenSplash(splashX, splashY));
+          } else {
+            this.splashes.push(new BlueSplash(splashX, splashY));
+          }
+          
+          // Handle life reduction for non-red tears
+          if (!isRed) {
+            this.lives--;
+          }
         }
       }
     }
-  }
   
     // Collision Detection
     checkCollision(entity, bucket) {
@@ -419,43 +447,54 @@ class BloodGameManager {
     }
   
     handleCollision(entity, isGold, isRed, isBlack) {
-    const splashX = entity.x + entity.width / 2;
-    const splashY = this.bucket.y;
-  
-    if (isGold) {
+      // Play tear drop sound based on type
+      if (isGold) {
+        AudioManager.playTearSound('gold');
+      } else if (isRed) {
+        AudioManager.playTearSound('red');
+      } else if (isBlack) {
+        AudioManager.playTearSound('black');
+      } else {
+        AudioManager.playTearSound('blue');
+      }
+
+      const splashX = entity.x + entity.width / 2;
+      const splashY = this.bucket.y;
+
+      if (isGold) {
         const points = this.lives >= this.healthBar.maxLives ? 125 : 25;
         this.score += points;
         this.floatingTexts.push(new FloatingText(splashX, splashY, 
-            this.lives >= this.healthBar.maxLives ? '125!' : '25', '#FFD700'));
+          this.lives >= this.healthBar.maxLives ? '125!' : '25', '#FFD700'));
         this.splashes.push(new GoldSplash(splashX, splashY));
-    } else if (isRed) {
+      } else if (isRed) {
         if (this.shieldActive) {
-            const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
-            this.score += points;
-            this.floatingTexts.push(new FloatingText(splashX, splashY, 
-                this.lives >= this.healthBar.maxLives ? '5!' : '1', '#FFC0CB'));
+          const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
+          this.score += points;
+          this.floatingTexts.push(new FloatingText(splashX, splashY, 
+            this.lives >= this.healthBar.maxLives ? '5!' : '1', '#FFC0CB'));
         } else {
-            this.lives--;
-            this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
+          this.lives--;
+          this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
         }
         this.splashes.push(new RedSplash(splashX, splashY));
-    } else if (isBlack) {
+      } else if (isBlack) {
         if (this.lives >= this.healthBar.maxLives) {
-            this.score += 25;
-            this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
+          this.score += 25;
+          this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
         } else {
-            this.lives++;
-            this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
+          this.lives++;
+          this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
         }
         this.splashes.push(new GreenSplash(splashX, splashY));
-    } else {
+      } else {
         const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
         this.score += points;
         this.floatingTexts.push(new FloatingText(splashX, splashY, 
-            this.lives >= this.healthBar.maxLives ? '5!' : '1', '#2054c9'));
+          this.lives >= this.healthBar.maxLives ? '5!' : '1', '#2054c9'));
         this.splashes.push(new BlueSplash(splashX, splashY));
+      }
     }
-}
   
     // Drawing Methods
     drawGame() {
@@ -553,14 +592,7 @@ class BloodGameManager {
     this.ctx.fillText(`Score: ${this.score}`, 20, 30);
   
     // Draw lives (centered in bucket)
-    if (this.bucket) {
-      this.ctx.font = this.UI_SIZES.LIVES_FONT;
-      const livesText = `${this.lives}`;
-      const textMetrics = this.ctx.measureText(livesText);
-      const textX = this.bucket.x + (this.bucket.width / 2) - (textMetrics.width / 2);
-      const textY = this.bucket.y + (this.bucket.height / 2) + 6; // +6 for better vertical centering
-      this.ctx.fillText(livesText, textX, textY);
-      
+       
       // Draw warning message when lives are low
       if (this.lives <= 5) {
         this.ctx.fillStyle = "#FF4D6D"; // Red warning color
@@ -579,8 +611,7 @@ class BloodGameManager {
         const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
         this.ctx.fillText(livesCountText, livesX, 190);
       }
-    }
-  
+    
     // Draw speed
     this.ctx.fillStyle = "#2054c9";
     this.ctx.font = this.UI_SIZES.SCORE_FONT;
@@ -631,10 +662,14 @@ class BloodGameManager {
     // Add shield activation method
     activateShield() {
       this.shieldActive = true;
+      this.shieldStartTime = Date.now();
+      this.shieldDuration = 7500; // 7.5 seconds
+      
       if (this.shieldTimer) clearTimeout(this.shieldTimer);
       this.shieldTimer = setTimeout(() => {
         this.shieldActive = false;
-      }, 10000); // 5 seconds of shield
+        this.shieldStartTime = null;
+      }, this.shieldDuration);
     }
   
     // Add shield effect drawing method
@@ -643,18 +678,35 @@ class BloodGameManager {
       const bucketCenterY = this.bucket.y + this.bucket.height / 2;
       
       this.ctx.save();
-      // Adjust translation to position heart up and to the right of bucket
+      
+      // Draw particle effects at original position
       this.ctx.translate(
-          bucketCenterX,  // Move left by half bucket width
-          bucketCenterY - (this.bucket.height / 2)    // Move up by full bucket height
+          bucketCenterX,
+          bucketCenterY - (this.bucket.height / 2)
       );
       
-      // Increased scale for active shield (3x larger)
-      const scale = 1.5; // 3x larger than original 1.5
+      // Add particles for active shield
+      this.updateActiveShieldParticles();
+      this.drawActiveShieldParticles();
+      
+      // Move to heart position (shifted right)
+      this.ctx.translate(this.bucket.width / 2, 0);
+      
+      // Calculate remaining shield time
+      const timeLeft = this.shieldStartTime ? 
+        Math.max(0, this.shieldDuration - (Date.now() - this.shieldStartTime)) : 0;
+      
+      // Add flashing effect in last 1.5 seconds
+      if (timeLeft <= 2000) {
+        this.ctx.globalAlpha = 0.5 + (Math.sin(Date.now() / 100) * 0.5);
+      }
+      
+      // Scale for heart
+      const scale = 1.5;
       this.ctx.scale(scale, scale);
       
       // Brighter gradient for active shield
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, this.bucket.width / 4);
+      const gradient = this.ctx.createRadialGradient(20, 17.5, 0, 20, 17.5, this.bucket.width / 4);
       gradient.addColorStop(0, 'rgba(255, 182, 193, 0.63)');
       gradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.77)');
       gradient.addColorStop(0.8, 'rgba(255, 105, 180, 0.53)');
@@ -662,10 +714,6 @@ class BloodGameManager {
       
       this.ctx.fillStyle = gradient;
       this.ctx.fill(new Shield(0).createHeartPath());
-
-      // Add particles for active shield
-      this.updateActiveShieldParticles();
-      this.drawActiveShieldParticles();
       
       this.ctx.restore();
     }
