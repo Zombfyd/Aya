@@ -119,9 +119,9 @@ header {
   color: #2054c9;
   top: 50%;
   left: 50%;
-  max-height: 75%;
+  height: 95%;
   transform: translate(-50%, -50%);
-  width: auto;
+  width: 95%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -133,7 +133,7 @@ header {
   z-index: 1000;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
    @media (max-width: 768px) {
-    min-width: unset;
+    min-width: 300px;
     padding: 0.75rem;
     gap: 0rem;
     margin-bottom: 0.5rem;
@@ -143,7 +143,7 @@ header.scrolled {
   position: absolute;  /* Change from fixed to relative */
   width: auto;
   top: auto;
-  display: flex;
+  display: none;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
@@ -1490,7 +1490,7 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   width: 100%;
   @media (max-width: 768px) {
     max-height: 200px;
-    width: fit-content;
+    width: 100%;
     padding: 1rem;
   }
 }

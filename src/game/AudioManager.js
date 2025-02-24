@@ -7,7 +7,9 @@ class AudioManager {
         this.ambientSoundId = null;
         this.backgroundMusicId = null;
         
+
         const BASE_URL = 'https://aya-3i9c.onrender.com/';
+
         
         this.sounds = {
             blueTear: new Howl({
@@ -17,7 +19,10 @@ class AudioManager {
                     console.log('Loaded blue tear sound');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading blue tear sound:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading blue tear sound:', err);
+                    this.checkInitialization(); // Still check initialization even if load fails
+                }
             }),
             redTear: new Howl({
                 src: [`${BASE_URL}game/assets/sounds/tear_drop_2.wav`],
@@ -26,7 +31,10 @@ class AudioManager {
                     console.log('Loaded gold tear sound');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading gold tear sound:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading gold tear sound:', err);
+                    this.checkInitialization();
+                }
             }),
             goldTear: new Howl({
                 src: [`${BASE_URL}game/assets/sounds/tear_drop_3.mp3`],
@@ -35,7 +43,10 @@ class AudioManager {
                     console.log('Loaded red tear sound');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading red tear sound:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading red tear sound:', err);
+                    this.checkInitialization();
+                }
             }),
             splash: new Howl({
                 src: [`${BASE_URL}game/assets/sounds/splash.mp3`],
@@ -44,7 +55,10 @@ class AudioManager {
                     console.log('Loaded splash sound');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading splash sound:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading splash sound:', err);
+                    this.checkInitialization();
+                }
             }),
             rainAmbience: new Howl({
                 src: [`${BASE_URL}game/assets/sounds/rain_ambience.wav`],
@@ -56,7 +70,10 @@ class AudioManager {
                     console.log('Loaded rain ambience');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading rain ambience:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading rain ambience:', err);
+                    this.checkInitialization();
+                }
             }),
             backgroundMusic: new Howl({
                 src: [`${BASE_URL}game/assets/sounds/Background1.mp3`],
@@ -68,7 +85,10 @@ class AudioManager {
                     console.log('Loaded background music');
                     this.checkInitialization();
                 },
-                onloaderror: (id, err) => console.error('Error loading background music:', err)
+                onloaderror: (id, err) => {
+                    console.error('Error loading background music:', err);
+                    this.checkInitialization();
+                }
             })
         };
 

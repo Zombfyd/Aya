@@ -20,13 +20,21 @@ export default defineConfig(({ mode }) => {
         output: {
           entryFileNames: 'index.[hash].mjs',
           chunkFileNames: '[name].[hash].mjs',
-          assetFileNames: '[name].[hash][extname]'
+          assetFileNames: (assetInfo) => {
+            // Preserve the original path structure for audio files
+            if (assetInfo.name.match(/\.(wav|mp3)$/)) {
+              return assetInfo.name;
+            }
+            return '[name].[hash][extname]';
+          }
         }
       },
       assetsDir: '',
       manifest: true,
       outDir: 'dist',
-      emptyOutDir: true
+      emptyOutDir: true,
+      copyPublicDir: true, // Ensure public directory is copied
+      assetsInlineLimit: 0 // Never inline assets
     },
     publicDir: 'public',
     assetsInclude: ['**/*.wav', '**/*.mp3'], // Include audio files
