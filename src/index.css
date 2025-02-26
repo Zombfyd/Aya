@@ -1397,6 +1397,15 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   background: rgba(32, 84, 201, 0.05);
   border-radius: 10px;
   color: #2054c9;
+  width: 100%;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+    margin: 10px 0;
+  }
 }
 
 .nft-verification-section .assets-header {
@@ -1422,7 +1431,13 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 }
 
 .nft-verification-section .assets-content.expanded {
-  max-height: 2000px; /* Adjust this value based on your content */
+  max-height: 2000px;
+  overflow-y: auto;
+  padding: 10px;
+  
+  @media (max-width: 768px) {
+    padding: 5px;
+  }
 }
 
 .verified-nfts {
@@ -1431,6 +1446,12 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   gap: 15px;
   justify-content: center;
   margin-top: 15px;
+  padding: 10px;
+  
+  @media (max-width: 768px) {
+    gap: 10px;
+    padding: 5px;
+  }
 }
 
 .nft-item {
@@ -1439,20 +1460,27 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   padding: 20px;
   transition: all 0.3s ease;
   border: 1px solid rgba(32, 84, 201, 0.1);
-}
-
-.nft-item[style*="cursor: pointer"]:hover {
-  background: rgba(255, 255, 255, 0.12);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 160px;
+  
+  @media (max-width: 768px) {
+    width: calc(50% - 10px);
+    padding: 10px;
+    min-width: 140px;
+  }
 }
 
 .nft-image {
-  width: 120px;
-  height: 120px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
   object-fit: cover;
   border-radius: 8px;
   margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  
+  @media (max-width: 768px) {
+    margin-bottom: 5px;
+  }
 }
 
 .nft-status {
