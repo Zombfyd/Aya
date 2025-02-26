@@ -235,28 +235,28 @@ const GameApp = () => {
             <h3>Tears of Aya</h3>
             <div className="distribution-row">
               <span>1st Place:</span>
-              <span>({formatLargeNumber((BigInt(amount) / BigInt(4)) * BigInt(50) / BigInt(100), symbol)} {symbol})</span>
+              <span>({formatLargeNumber((BigInt(amount) * BigInt(50)) / BigInt(200), symbol)} {symbol})</span>
             </div>
             <div className="distribution-row">
               <span>2nd Place:</span>
-              <span>({formatLargeNumber((BigInt(amount) / BigInt(4)) * BigInt(30) / BigInt(100), symbol)} {symbol})</span>
+              <span>({formatLargeNumber((BigInt(amount) * BigInt(30)) / BigInt(200), symbol)} {symbol})</span>
             </div>
             <div className="distribution-row">
               <span>3rd Place:</span>
-              <span>({formatLargeNumber((BigInt(amount) / BigInt(4)) * BigInt(20) / BigInt(100), symbol)} {symbol})</span>
+              <span>({formatLargeNumber((BigInt(amount) * BigInt(20)) / BigInt(200), symbol)} {symbol})</span>
             </div>
             <h3>Tears of Blood</h3>
             <div className="distribution-row">
-              <span>1 Place:</span>
-              <span>({formatLargeNumber(BigInt(amount) / BigInt(4) * BigInt(50) / BigInt(100), symbol)} {symbol})</span>
+              <span>1st Place:</span>
+              <span>({formatLargeNumber((BigInt(amount) * BigInt(50)) / BigInt(200), symbol)} {symbol})</span>
             </div>
             <div className="distribution-row">
               <span>2nd Place:</span>
-              <span>({formatLargeNumber((BigInt(amount) / BigInt(4)) * BigInt(30) / BigInt(100), symbol)} {symbol})</span>
+              <span>({formatLargeNumber((BigInt(amount) * BigInt(30)) / BigInt(200), symbol)} {symbol})</span>
             </div>
             <div className="distribution-row">
-              <span>3rdth Place:</span>
-              <span>({formatLargeNumber((BigInt(amount) / BigInt(4)) * BigInt(20) / BigInt(100), symbol)} {symbol})</span>
+              <span>3rd Place:</span>
+              <span>({formatLargeNumber((BigInt(amount) * BigInt(20)) / BigInt(200), symbol)} {symbol})</span>
             </div>
           </div>
         )}
