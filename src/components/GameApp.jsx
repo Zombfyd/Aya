@@ -2408,7 +2408,9 @@ const handleSuinsChange = (e) => {
                             const currentGameType = window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB';
                             const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
                             const recipients = config.getCurrentRecipients();
-                            const totalAmount = BigInt(tierConfig.amount);
+                            const baseAmount = BigInt(tierConfig.amount);
+                            // Apply NFT discount if verified
+                            const totalAmount = isNFTVerified ? baseAmount / BigInt(2) : baseAmount;
 
                             // Calculate shares using BigInt
                             const primaryShare = BigInt(config.shares.primary);
