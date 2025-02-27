@@ -79,7 +79,7 @@ const GameApp = () => {
   // Add this to your state declarations
   const [countdown, setCountdown] = useState(null);
   // Add new state for selected tier
-  const [selectedTier, setSelectedTier] = useState('tier3');
+  const [selectedTier, setSelectedTier] = useState('');
   // Add this to fetch SUI price (you might want to add this to your dependencies)
   const [suiPrice, setSuiPrice] = useState(null);
   const [suinsClient, setSuinsClient] = useState(null);
@@ -1275,7 +1275,7 @@ const GameApp = () => {
           }
         }}
       >
-        <option value="">Select Payment Tier</option>
+        <option value="">-- Select Payment Tier --</option>
         {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
           const originalAmount = tier.amount / 1_000_000_000;
           const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;

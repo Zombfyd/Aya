@@ -16,6 +16,7 @@
   "dependencies": {
     "@mysten/sui": "^1.21.2",
     "@mysten/suins": "^0.3.0",
+    "@nightlylabs/wallet-selector-sui": "^0.4.2",
     "@suiet/wallet-kit": "^0.3.4",
     "cors": "^2.8.5",
     "express": "^4.17.1",
