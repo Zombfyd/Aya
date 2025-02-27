@@ -30,6 +30,25 @@ function formatWalletAddress(addr) {
   return addr.slice(0, 4) + '...' + addr.slice(-4);
 }
 
+// Add this utility function at the top of your file, before the component
+const isDev = import.meta.env.MODE === 'development' || import.meta.env.MODE === 'testnet';
+
+// Create a custom logger function
+const logger = {
+  log: (...args) => {
+    if (isDev) console.log(...args);
+  },
+  error: (...args) => {
+    if (isDev) console.error(...args);
+  },
+  warn: (...args) => {
+    if (isDev) console.warn(...args);
+  },
+  info: (...args) => {
+    if (isDev) console.info(...args);
+  }
+};
+
 const GameApp = () => {
   // Remove provider initialization
   // const provider = new JsonRpcProvider('https://fullnode.mainnet.sui.io:443');
@@ -211,7 +230,7 @@ const GameApp = () => {
       if (coinType) {
         // Ensure we use the exact format: packageId::module::TYPE
         const explorerUrl = `https://suivision.xyz/coin/${coinType}`;
-        console.log('Opening SuiVision URL:', explorerUrl);
+        logger.log('Opening SuiVision URL:', explorerUrl);
         // Example URL should look like:
         // https://suivision.xyz/coin/0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b::aya::AYA
         window.open(explorerUrl, '_blank');
@@ -276,10 +295,10 @@ const GameApp = () => {
           window.gameManager1 = gameManager1;
           window.gameManager2 = gameManager2;
         } else {
-          console.error('Failed to initialize game managers');
+          logger.error('Failed to initialize game managers');
         }
       } catch (error) {
-        console.error('Error initializing game:', error);
+        logger.error('Error initializing game:', error);
       }
     };
 
@@ -318,7 +337,7 @@ const GameApp = () => {
                     });
 
                     if (status && status.digest) {
-                        console.log('Transaction confirmed:', status);
+                        logger.log('Transaction confirmed:', status);
                         
                         // Update states only after confirmation
                         setPaymentStatus(prev => ({
@@ -336,7 +355,7 @@ const GameApp = () => {
                     }
                 }
             } catch (error) {
-                console.error('Payment status check failed:', error);
+                logger.error('Payment status check failed:', error);
                 setTransactionInProgress(false);
                 setPaying(false);
                 alert('Failed to verify payment. Please try again.');
@@ -359,13 +378,13 @@ const GameApp = () => {
         const requiredNetwork = isTestnet ? 'Sui Testnet' : 'Sui Mainnet';
         
         if (wallet.chain?.name !== requiredNetwork) {
-          console.log(`Wrong network detected. Current: ${wallet.chain?.name}, Required: ${requiredNetwork}`);
+          logger.log(`Wrong network detected. Current: ${wallet.chain?.name}, Required: ${requiredNetwork}`);
           setWalletInitialized(false);
           alert(`Please switch to ${requiredNetwork} to continue playing.`);
           return;
         }
 
-        console.log('Correct network detected:', wallet.chain?.name);
+        logger.log('Correct network detected:', wallet.chain?.name);
         window.currentWalletAddress = wallet.account.address;
         setWalletInitialized(true);
       } else {
@@ -386,13 +405,13 @@ const GameApp = () => {
 
   const checkWalletBalance = async () => {
     try {
-      console.log('Checking wallet balance...');
+      logger.log('Checking wallet balance...');
       
       // Use the balance from useAccountBalance hook
       const balanceInMist = BigInt(balance ?? 0);
       const balanceInSui = Number(balanceInMist) / 1_000_000_000;
       
-      console.log('Wallet balance details:', {
+      logger.log('Wallet balance details:', {
         balanceInSui,
         balanceInMist: balanceInMist.toString(),
         requiredBalance: config.paymentConfig.minBalance / 1_000_000_000
@@ -400,7 +419,7 @@ const GameApp = () => {
       
       return balanceInSui >= (config.paymentConfig.minBalance / 1_000_000_000);
     } catch (error) {
-      console.error('Balance check error:', error);
+      logger.error('Balance check error:', error);
       return false;
     }
   };
@@ -414,7 +433,7 @@ const GameApp = () => {
     // Paid mode flow
     if (!gameState.hasValidPayment) {
       try {
-        console.log('Starting payment process...');
+        logger.log('Starting payment process...');
         setPaying(true);
         setTransactionInProgress(true);
 
@@ -429,7 +448,7 @@ const GameApp = () => {
           }
         };
 
-        console.log('Transaction payload:', tx);
+        logger.log('Transaction payload:', tx);
 
         // Following Suiet example structure exactly
         const response = await wallet.signAndExecuteTransaction({
@@ -439,10 +458,10 @@ const GameApp = () => {
           }
         });
 
-        console.log('Transaction response:', response);
+        logger.log('Transaction response:', response);
 
         if (response.digest) {
-          console.log('Transaction successful');
+          logger.log('Transaction successful');
           setPaymentStatus(prev => ({
             ...prev,
             verified: true,
@@ -451,7 +470,7 @@ const GameApp = () => {
           }
 
       } catch (error) {
-        console.error('Payment process error:', error);
+        logger.error('Payment process error:', error);
         alert(`Payment failed: ${error.message}`);
       } finally {
         setPaying(false);
@@ -468,195 +487,196 @@ const GameApp = () => {
 
   // First, update handleScoreSubmit to submit to both main and secondary
   const handleScoreSubmit = async (finalScore, submissionGameMode = gameMode, gameType, paymentDetails = null) => {
-    const currentGame = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
-    const environment = import.meta.env.VITE_APP_ENVIRONMENT || 'development';
-    
-    console.log('handleScoreSubmit received:', { 
-        finalScore, 
-        playerName, 
-        gameMode: submissionGameMode,
-        game: currentGame,
-        walletConnected: wallet.connected,
-        paymentStatus,
-        environment,
-        isTestnet
-    });
-
     try {
-        // For testnet environment, just log the score but don't submit to leaderboard
-        if (environment === 'development') {
-            console.log('Testnet environment detected - Score not submitted to leaderboard:', {
-                score: finalScore,
-                playerName,
-                game: currentGame,
-                mode: submissionGameMode
-            });
-            return { success: true, message: 'Score logged (testnet mode)' };
-        }
+      logger.log('Submitting score:', { finalScore, submissionGameMode, gameType, paymentDetails });
+      const currentGame = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
+      const environment = import.meta.env.VITE_APP_ENVIRONMENT || 'development';
+      
+      logger.log('handleScoreSubmit received:', { 
+          finalScore, 
+          playerName, 
+          gameMode: submissionGameMode,
+          game: currentGame,
+          walletConnected: wallet.connected,
+          paymentStatus,
+          environment,
+          isTestnet
+      });
 
-        let endpoint;
-        let requestBody;
+      // For testnet environment, just log the score but don't submit to leaderboard
+      if (environment === 'development') {
+          logger.log('Testnet environment detected - Score not submitted to leaderboard:', {
+              score: finalScore,
+              playerName,
+              game: currentGame,
+              mode: submissionGameMode
+          });
+          return { success: true, message: 'Score logged (testnet mode)' };
+      }
 
-        if (!wallet.connected) {
-            // Web2 submission - specific to the game played
-            endpoint = `${config.apiBaseUrl}/api/web2/scores`;
-            requestBody = {
-                playerName,
-                score: finalScore,
-                game: currentGame
-            };
+      let endpoint;
+      let requestBody;
 
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
+      if (!wallet.connected) {
+          // Web2 submission - specific to the game played
+          endpoint = `${config.apiBaseUrl}/api/web2/scores`;
+          requestBody = {
+              playerName,
+              score: finalScore,
+              game: currentGame
+          };
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-            }
+          const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody)
+          });
 
-            const result = await response.json();
-            console.log(`Web2 score submitted successfully for ${currentGame}:`, result);
-            return result;
-        }
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          }
 
-        // Enhanced verification for paid submissions
-        if (submissionGameMode === 'paid') {
-            // Check both state and passed payment details
-            const verifiedPayment = paymentDetails || paymentStatus;
-            if (!verifiedPayment.verified || !verifiedPayment.transactionId) {
-                throw new Error('Payment verification failed - no valid payment found');
-            }
-        }
+          const result = await response.json();
+          logger.log(`Web2 score submitted successfully for ${currentGame}:`, result);
+          return result;
+      }
 
-        // Submit score with verification data
-        endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
-        
-        const submissions = ['main', 'secondary'].map(async (gameType) => {
-            const body = {
-                playerWallet: wallet.account?.address,
-                score: finalScore,
-                gameType: gameType,
-                playerName: playerName || null,
-                game: currentGame,
-                paymentVerification: submissionGameMode === 'paid' ? {
-                    transactionId: paymentDetails?.transactionId,
-                    amount: paymentDetails?.amount,
-                    timestamp: paymentDetails?.timestamp,
-                    recipient: paymentDetails?.recipient
-                } : null
-            };
+      // Enhanced verification for paid submissions
+      if (submissionGameMode === 'paid') {
+          // Check both state and passed payment details
+          const verifiedPayment = paymentDetails || paymentStatus;
+          if (!verifiedPayment.verified || !verifiedPayment.transactionId) {
+              throw new Error('Payment verification failed - no valid payment found');
+          }
+      }
 
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
+      // Submit score with verification data
+      endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
+      
+      const submissions = ['main', 'secondary'].map(async (gameType) => {
+          const body = {
+              playerWallet: wallet.account?.address,
+              score: finalScore,
+              gameType: gameType,
+              playerName: playerName || null,
+              game: currentGame,
+              paymentVerification: submissionGameMode === 'paid' ? {
+                  transactionId: paymentDetails?.transactionId,
+                  amount: paymentDetails?.amount,
+                  timestamp: paymentDetails?.timestamp,
+                  recipient: paymentDetails?.recipient
+              } : null
+          };
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-            }
+          const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+          });
 
-            return response.json();
-        });
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          }
 
-        const [mainResult, secondaryResult] = await Promise.all(submissions);
-        console.log(`Scores submitted successfully for ${currentGame}:`, { 
-            main: mainResult, 
-            secondary: secondaryResult 
-        });
-        await fetchLeaderboards();
-        return { main: mainResult, secondary: secondaryResult };
-    } catch (error) {
-        console.error(`Error submitting score for ${currentGame}:`, error);
-        alert(`Failed to submit score for ${currentGame}: ${error.message}`);
-        throw error;
-    }
+          return response.json();
+      });
+
+      const [mainResult, secondaryResult] = await Promise.all(submissions);
+      logger.log(`Scores submitted successfully for ${currentGame}:`, { 
+          main: mainResult, 
+          secondary: secondaryResult 
+      });
+      await fetchLeaderboards();
+      return { main: mainResult, secondary: secondaryResult };
+  } catch (error) {
+      logger.error(`Error submitting score for ${currentGame}:`, error);
+      alert(`Failed to submit score for ${currentGame}: ${error.message}`);
+      throw error;
+  }
 };
 
   // Update the fetchLeaderboards function
   const fetchLeaderboards = async () => {
-    console.log('Fetching leaderboards...');
-    setIsLeaderboardLoading(true);
     try {
-        const baseUrl = `${config.apiBaseUrl}/api`;
+      logger.log('Fetching leaderboards...');
+      setIsLeaderboardLoading(true);
+      const baseUrl = `${config.apiBaseUrl}/api`;
 
-        const fetchLeaderboard = async (endpoint) => {
-            const response = await fetch(`${baseUrl}${endpoint}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status} for endpoint: ${endpoint}`);
-            }
-            return response.json();
-        };
+      const fetchLeaderboard = async (endpoint) => {
+          const response = await fetch(`${baseUrl}${endpoint}`);
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status} for endpoint: ${endpoint}`);
+          }
+          return response.json();
+      };
 
-        // Fetch all leaderboards with separate TOA and TOB endpoints
-        const [
-            mainFreeTOA,
-            secondaryFreeTOA,
-            mainFreeTOB,
-            secondaryFreeTOB,
-            mainPaidTOA,
-            secondaryPaidTOA,
-            mainPaidTOB,
-            secondaryPaidTOB,
-            web2TOA,        
-            web2TOB         
-        ] = await Promise.all([
-            fetchLeaderboard('/scores/leaderboard/main/free?game=TOA'),
-            fetchLeaderboard('/scores/leaderboard/secondary/free?game=TOA'),
-            fetchLeaderboard('/scores/leaderboard/main/free?game=TOB'),
-            fetchLeaderboard('/scores/leaderboard/secondary/free?game=TOB'),
-            fetchLeaderboard('/scores/leaderboard/main/paid?game=TOA'),
-            fetchLeaderboard('/scores/leaderboard/secondary/paid?game=TOA'),
-            fetchLeaderboard('/scores/leaderboard/main/paid?game=TOB'),
-            fetchLeaderboard('/scores/leaderboard/secondary/paid?game=TOB'),
-            fetchLeaderboard('/web2/leaderboard?game=TOA'),  // Web2 TOA leaderboard
-            fetchLeaderboard('/web2/leaderboard?game=TOB')   // Web2 TOB leaderboard
-        ]);
+      // Fetch all leaderboards with separate TOA and TOB endpoints
+      const [
+          mainFreeTOA,
+          secondaryFreeTOA,
+          mainFreeTOB,
+          secondaryFreeTOB,
+          mainPaidTOA,
+          secondaryPaidTOA,
+          mainPaidTOB,
+          secondaryPaidTOB,
+          web2TOA,        
+          web2TOB         
+      ] = await Promise.all([
+          fetchLeaderboard('/scores/leaderboard/main/free?game=TOA'),
+          fetchLeaderboard('/scores/leaderboard/secondary/free?game=TOA'),
+          fetchLeaderboard('/scores/leaderboard/main/free?game=TOB'),
+          fetchLeaderboard('/scores/leaderboard/secondary/free?game=TOB'),
+          fetchLeaderboard('/scores/leaderboard/main/paid?game=TOA'),
+          fetchLeaderboard('/scores/leaderboard/secondary/paid?game=TOA'),
+          fetchLeaderboard('/scores/leaderboard/main/paid?game=TOB'),
+          fetchLeaderboard('/scores/leaderboard/secondary/paid?game=TOB'),
+          fetchLeaderboard('/web2/leaderboard?game=TOA'),  // Web2 TOA leaderboard
+          fetchLeaderboard('/web2/leaderboard?game=TOB')   // Web2 TOB leaderboard
+      ]);
 
-        setLeaderboardData({
-            mainFreeTOA,
-            secondaryFreeTOA,
-            mainFreeTOB,
-            secondaryFreeTOB,
-            mainPaidTOA,
-            secondaryPaidTOA,
-            mainPaidTOB,
-            secondaryPaidTOB,
-            web2TOA,    // Store TOA web2 scores separately
-            web2TOB     // Store TOB web2 scores separately
-        });
+      setLeaderboardData({
+          mainFreeTOA,
+          secondaryFreeTOA,
+          mainFreeTOB,
+          secondaryFreeTOB,
+          mainPaidTOA,
+          secondaryPaidTOA,
+          mainPaidTOB,
+          secondaryPaidTOB,
+          web2TOA,    // Store TOA web2 scores separately
+          web2TOB     // Store TOB web2 scores separately
+      });
 
     } catch (error) {
-        console.error('Error fetching leaderboards:', error);
-        setLeaderboardData({
-            mainFreeTOA: [],
-            secondaryFreeTOA: [],
-            mainFreeTOB: [],
-            secondaryFreeTOB: [],
-            mainPaidTOA: [],
-            secondaryPaidTOA: [],
-            mainPaidTOB: [],
-            secondaryPaidTOB: [],
-            web2TOA: [], // Empty array for TOA web2 scores on error
-            web2TOB: []  // Empty array for TOB web2 scores on error
-        });
+      logger.error('Error fetching leaderboards:', error);
+      setLeaderboardData({
+          mainFreeTOA: [],
+          secondaryFreeTOA: [],
+          mainFreeTOB: [],
+          secondaryFreeTOB: [],
+          mainPaidTOA: [],
+          secondaryPaidTOA: [],
+          mainPaidTOB: [],
+          secondaryPaidTOB: [],
+          web2TOA: [], // Empty array for TOA web2 scores on error
+          web2TOB: []  // Empty array for TOB web2 scores on error
+      });
     } finally {
-        setIsLeaderboardLoading(false);
+      setIsLeaderboardLoading(false);
     }
-};
+  };
 
   // Update the useEffect for leaderboard fetching
   useEffect(() => {
-    console.log('Initial leaderboard fetch');
+    logger.log('Initial leaderboard fetch');
     fetchLeaderboards();
     
     // Set up periodic refresh
     const intervalId = setInterval(() => {
-      console.log('Refreshing leaderboards');
+      logger.log('Refreshing leaderboards');
       fetchLeaderboards();
     }, 30000); // Refresh every 30 seconds
 
@@ -689,7 +709,7 @@ const GameApp = () => {
 
         setSuinsClient(newSuinsClient);
       } catch (error) {
-        console.error('Error initializing SuiNS client:', error);
+        logger.error('Error initializing SuiNS client:', error);
       }
     };
 
@@ -700,11 +720,11 @@ const GameApp = () => {
   const getSuiNSName = async (walletAddress) => {
     try {
         if (suinsCache[walletAddress]) {
-            console.log('Using cached SUINS data');
+            logger.log('Using cached SUINS data');
             return suinsCache[walletAddress];
         }
 
-        console.log('Fetching SUINS for wallet:', walletAddress);
+        logger.log('Fetching SUINS for wallet:', walletAddress);
         
         const { data: objects } = await client.getOwnedObjects({
             owner: walletAddress,
@@ -753,7 +773,7 @@ const GameApp = () => {
         
         return result;
     } catch (error) {
-        console.error('Error fetching SUINS:', error);
+        logger.error('Error fetching SUINS:', error);
         // Return truncated address on error
         const truncatedAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
         return {
@@ -779,7 +799,7 @@ const GameApp = () => {
             });
           }
         } catch (error) {
-          console.error('Error updating display name:', error);
+          logger.error('Error updating display name:', error);
           const truncatedAddress = `${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}`;
           setSuinsData({
             name: truncatedAddress,
@@ -857,7 +877,7 @@ const GameApp = () => {
   // Game restart function
   const restartGame = (type = 'aya') => {
     if (!gameManagerInitialized) {
-      console.error('Cannot restart game - game managers not initialized');
+      logger.error('Cannot restart game - game managers not initialized');
       return;
     }
 
@@ -888,14 +908,14 @@ const GameApp = () => {
     setPaying(false);
 
     // Start the game with selected type
-    console.log(`Restarting game in ${gameMode} mode, type: ${type}`);
+    logger.log(`Restarting game in ${gameMode} mode, type: ${type}`);
     startGame(type);
   };
 
   // Update startGame to track bucket click state
   const startGame = async (type = 'aya') => {
     if (!window.gameManager1 && !window.gameManager2) {
-        console.error('Game managers not found');
+        logger.error('Game managers not found');
         alert('Game initialization failed. Please refresh the page and try again.');
         return;
     }
@@ -909,7 +929,7 @@ const GameApp = () => {
         }
         
         // Log remaining attempts
-        console.log('Starting paid game:', {
+        logger.log('Starting paid game:', {
             currentAttempts: paidGameAttempts,
             maxAttempts: maxAttempts,
             remaining: maxAttempts - paidGameAttempts,
@@ -949,7 +969,7 @@ const GameApp = () => {
             });
         }
 
-        console.log(`Starting game in ${gameMode} mode, type: ${type}`);
+        logger.log(`Starting game in ${gameMode} mode, type: ${type}`);
         
         // Start countdown from 3
         setCountdown(3);
@@ -973,7 +993,7 @@ const GameApp = () => {
         activeManager.startGame(gameMode);
         
     } catch (error) {
-        console.error('Error starting game:', error);
+        logger.error('Error starting game:', error);
         setGameState(prev => ({
             ...prev,
             gameStarted: false,
@@ -988,7 +1008,7 @@ const GameApp = () => {
     const setupGameOver = (manager, gameType) => {
         if (manager) {
             manager.onGameOver = async (finalScore) => {
-                console.log('Game Over triggered with score:', finalScore, 'for game type:', gameType);
+                logger.log('Game Over triggered with score:', finalScore, 'for game type:', gameType);
 
                 // First, just set the game state and score
                 setGameState(prev => ({
@@ -1034,7 +1054,7 @@ const GameApp = () => {
                         }
                     }
                 } catch (error) {
-                    console.error('Error handling game over:', error);
+                    logger.error('Error handling game over:', error);
                     alert('Failed to submit score. Please try again.');
                 }
             };
@@ -1060,7 +1080,7 @@ const GameApp = () => {
         const data = await response.json();
         setSuiPrice(data.sui.usd);
     } catch (error) {
-        console.error('Error fetching SUI price:', error);
+        logger.error('Error fetching SUI price:', error);
         setSuiPrice(null);
       }
     };
@@ -1078,7 +1098,7 @@ const GameApp = () => {
     }
 
     try {
-        console.log('Starting payment process for tier:', paymentTier);
+        logger.log('Processing payment for tier:', paymentTier);
         setTransactionInProgress(true);
         setPaying(true);
 
@@ -1086,7 +1106,7 @@ const GameApp = () => {
         if (!tierConfig) {
             throw new Error('Invalid tier selected');
         }
-        console.log('Selected tier configuration:', {
+        logger.log('Selected tier configuration:', {
             tierId: paymentTier,
             amount: tierConfig.amount,
             plays: tierConfig.plays,
@@ -1098,7 +1118,7 @@ const GameApp = () => {
 
         const baseAmount = BigInt(tierConfig.amount);
         const totalAmount = isNFTVerified ? baseAmount / BigInt(2) : baseAmount;
-        console.log('Payment details:', {
+        logger.log('Payment details:', {
             baseAmount: baseAmount.toString(),
             isNFTVerified,
             finalAmount: totalAmount.toString(),
@@ -1111,7 +1131,7 @@ const GameApp = () => {
             tertiary: (totalAmount * BigInt(shares.tertiary)) / BigInt(10000),
             rewards: (totalAmount * BigInt(shares.rewards)) / BigInt(10000)
         };
-        console.log('Share distribution:', shareAmounts);
+        logger.log('Share distribution:', shareAmounts);
 
         const txb = new TransactionBlock();
         const [primary, secondary, tertiary, rewards] = txb.splitCoins(txb.gas, [
@@ -1126,7 +1146,7 @@ const GameApp = () => {
         txb.transferObjects([tertiary], recipients.tertiary);
         txb.transferObjects([rewards], recipients.rewards);
 
-        console.log('Executing transaction...');
+        logger.log('Executing transaction...');
         const response = await wallet.signAndExecuteTransactionBlock({
             transactionBlock: txb,
             options: { showEffects: true, showEvents: true }
@@ -1135,7 +1155,7 @@ const GameApp = () => {
         if (!response?.digest) {
             throw new Error('Transaction failed - no digest received');
         }
-        console.log('Transaction successful:', {
+        logger.log('Transaction successful:', {
             digest: response.digest,
             tier: paymentTier,
             maxAttempts: tierConfig.plays
@@ -1163,7 +1183,7 @@ const GameApp = () => {
             selectedTierClicked: true  // Add this to track that a tier was selected
         }));
 
-        console.log('Game state updated after payment:', {
+        logger.log('Game state updated after payment:', {
             hasValidPayment: true,
             gameStarted: false,
             isGameOver: false,
@@ -1174,7 +1194,7 @@ const GameApp = () => {
         // Add a success message that instructs the user to select a game type
         
     } catch (error) {
-        console.error('Payment error:', error);
+        logger.error('Payment error:', error);
         alert(`Payment failed: ${error.message}`);
         
         // Reset states on failure
@@ -1214,42 +1234,45 @@ const GameApp = () => {
   }, [gameState.gameStarted]);
 
   // Add this to your render method where you have the payment button
-  const renderPaymentTiers = () => (
-    <div className="payment-tiers">
-      {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
-        const originalAmount = tier.amount / 1_000_000_000;
-        const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
-        const canAfford = canAffordTier(isNFTVerified ? BigInt(tier.amount) / BigInt(2) : BigInt(tier.amount));
-        const isSelected = selectedTier === tierId;
-        
-        return (
-          <button
-            key={tierId}
-            className={`tier-button ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`}
-            onClick={async () => {
-              const selectedTierId = tierId;
-              console.log('Desktop tier button clicked:', {
-                tier: selectedTierId,
-                amount: finalAmount,
-                plays: tier.plays,
-                canAfford
-              });
-              
-              setSelectedTier(selectedTierId);
-              await new Promise(resolve => setTimeout(resolve, 100));
-              await handleGamePayment(selectedTierId);
-            }}
-            disabled={!canAfford || paying}
-          >
-            <div className="tier-label">{tier.label}</div>
-            <div className="tier-price">{finalAmount} SUI</div>
-            <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
-            {!canAfford && <div className="insufficient-funds">Insufficient funds</div>}
-          </button>
-        );
-      })}
-    </div>
-  );
+  const renderPaymentTiers = () => {
+    logger.log('Rendering payment tiers with NFT verification:', isNFTVerified);
+    return (
+      <div className="payment-tiers">
+        {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
+          const originalAmount = tier.amount / 1_000_000_000;
+          const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
+          const canAfford = canAffordTier(isNFTVerified ? BigInt(tier.amount) / BigInt(2) : BigInt(tier.amount));
+          const isSelected = selectedTier === tierId;
+          
+          return (
+            <button
+              key={tierId}
+              className={`tier-button ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`}
+              onClick={async () => {
+                const selectedTierId = tierId;
+                logger.log('Desktop tier button clicked:', {
+                  tier: selectedTierId,
+                  amount: finalAmount,
+                  plays: tier.plays,
+                  canAfford
+                });
+                
+                setSelectedTier(selectedTierId);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                await handleGamePayment(selectedTierId);
+              }}
+              disabled={!canAfford || paying}
+            >
+              <div className="tier-label">{tier.label}</div>
+              <div className="tier-price">{finalAmount} SUI</div>
+              <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
+              {!canAfford && <div className="insufficient-funds">Insufficient funds</div>}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderMobilePaymentTiers = () => (
     <div className="payment-tiers-mobile">
@@ -1263,7 +1286,7 @@ const GameApp = () => {
             const originalAmount = tier.amount / 1_000_000_000;
             const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
             
-            console.log('Mobile tier selected:', {
+            logger.log('Mobile tier selected:', {
               tier: selectedTierId,
               finalAmount,
               isNFTVerified
@@ -1315,10 +1338,10 @@ useEffect(() => {
   // Update checkScoreQualification with corrected comparison logic
   const checkScoreQualification = async (score, game) => {
     try {
-        console.log(`Checking qualification for game ${game} with score ${score}`);
+        logger.log(`Checking qualification for game ${game} with score ${score}`);
         
         const endpoint = `${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid?game=${game}`;
-        console.log('Checking against weekly paid leaderboard:', endpoint);
+        logger.log('Checking against weekly paid leaderboard:', endpoint);
         
         const response = await fetch(endpoint);
         if (!response.ok) {
@@ -1326,7 +1349,7 @@ useEffect(() => {
         }
         
         const leaderboardData = await response.json();
-        console.log(`Current ${game} weekly paid leaderboard:`, {
+        logger.log(`Current ${game} weekly paid leaderboard:`, {
             totalEntries: leaderboardData.length,
             topScore: leaderboardData[0]?.score,
             thirdPlace: leaderboardData[2]?.score,
@@ -1348,7 +1371,7 @@ useEffect(() => {
         setTopScores(leaderboardData);
         return qualificationTier;
     } catch (error) {
-        console.error('Error checking score qualification:', error);
+        logger.error('Error checking score qualification:', error);
         return null;
     }
 };
@@ -1358,26 +1381,26 @@ useEffect(() => {
 
 // Modify fetchPrimaryWalletBalance to set all balances
 const fetchPrimaryWalletBalance = async () => {
-    console.log('=== PRIZE POOL NFT PROCESSING ===');
-    console.log('fetchPrimaryWalletBalance called');
+    logger.log('=== PRIZE POOL NFT PROCESSING ===');
+    logger.log('fetchPrimaryWalletBalance called');
 
     try {
         const recipients = config.getCurrentRecipients();
-        console.log('Recipients from config:', recipients);
+        logger.log('Recipients from config:', recipients);
         
         if (!recipients?.primary) {
-            console.error('Primary recipient address is undefined or null');
+            logger.error('Primary recipient address is undefined or null');
             return;
         }
 
-        console.log('Attempting to fetch from address:', recipients.primary);
+        logger.log('Attempting to fetch from address:', recipients.primary);
 
         // Test the client connection
         try {
             const testConnection = await client.getChainIdentifier();
-            console.log('Client connection test:', testConnection);
+            logger.log('Client connection test:', testConnection);
         } catch (e) {
-            console.error('Client connection test failed:', e);
+            logger.error('Client connection test failed:', e);
         }
 
         // Fetch both coins and NFTs
@@ -1393,7 +1416,7 @@ const fetchPrimaryWalletBalance = async () => {
             })
         ]);
 
-        console.log('Prize Pool - Raw NFT response:', JSON.stringify(allNFTs, null, 2));
+        logger.log('Prize Pool - Raw NFT response:', JSON.stringify(allNFTs, null, 2));
         
         let totalSuiBalance = BigInt(0);
         const balancesByCoin = {};
@@ -1436,7 +1459,7 @@ const fetchPrimaryWalletBalance = async () => {
                         tokenIconsMap[symbol] = formatIPFSUrl(metadata.iconUrl);
                     }
                 } catch (error) {
-                    console.warn(`Failed to fetch metadata for ${symbol}:`, error);
+                    logger.warn(`Failed to fetch metadata for ${symbol}:`, error);
                 }
             }
         }
@@ -1463,7 +1486,7 @@ const fetchPrimaryWalletBalance = async () => {
             }
         }
         
-        console.log('Final balances:', {
+        logger.log('Final balances:', {
             totalSui: totalSuiBalance.toString(),
             byCoin: balancesByCoin,
             tokenIcons: tokenIconsMap,
@@ -1476,7 +1499,7 @@ const fetchPrimaryWalletBalance = async () => {
         setNFTs(nfts);
         
     } catch (error) {
-        console.error('Balance check error:', error);
+        logger.error('Balance check error:', error);
         setPrimaryWalletBalance(null);
         setAllBalances({});
         setTokenIcons({});
@@ -1516,7 +1539,7 @@ const resetGameState = () => {
 
 const handlePaidGameAttempt = () => {
     const newAttempts = paidGameAttempts + 1;
-    console.log('Updating paid attempts:', { current: paidGameAttempts, new: newAttempts, max: maxAttempts });
+    logger.log('Updating paid attempts:', { current: paidGameAttempts, new: newAttempts, max: maxAttempts });
     
     setPaidGameAttempts(newAttempts);
     
@@ -1748,9 +1771,9 @@ const handleSuinsChange = (e) => {
 
   // Add NFT verification function
   const checkUserNFTs = async () => {
-    console.log('=== USER NFT VERIFICATION ===');
+    logger.log('=== USER NFT VERIFICATION ===');
     if (!wallet.connected) {
-      console.log('Wallet not connected, skipping NFT check');
+      logger.log('Wallet not connected, skipping NFT check');
       return;
     }
 
@@ -1760,7 +1783,7 @@ const handleSuinsChange = (e) => {
       // Get active collections from database
       const collectionsResponse = await fetch(`${config.apiBaseUrl}/api/sui/collections/active`);
       const activeCollections = await collectionsResponse.json();
-      console.log('Active collections:', JSON.stringify(activeCollections, null, 2));
+      logger.log('Active collections:', JSON.stringify(activeCollections, null, 2));
       
       // Store active collections in state
       setActiveCollections(activeCollections);
@@ -1769,7 +1792,7 @@ const handleSuinsChange = (e) => {
 
       // Process each collection type separately to ensure proper filtering
       for (const collection of activeCollections) {
-        console.log(`Checking collection: ${collection.collectionType}`);
+        logger.log(`Checking collection: ${collection.collectionType}`);
         
         // Get collection info from blockchain
         try {
@@ -1788,7 +1811,7 @@ const handleSuinsChange = (e) => {
             collection.project_url = collectionInfo.data.display.data.project_url;
           }
         } catch (error) {
-          console.error('Error fetching collection info:', error);
+          logger.error('Error fetching collection info:', error);
         }
         
         const { data: collectionNFTs } = await client.getOwnedObjects({
@@ -1806,7 +1829,7 @@ const handleSuinsChange = (e) => {
           }
         });
 
-        console.log(`Found ${collectionNFTs?.length || 0} NFTs for collection ${collection.name}`);
+        logger.log(`Found ${collectionNFTs?.length || 0} NFTs for collection ${collection.name}`);
 
         if (collectionNFTs?.length > 0) {
           for (const nft of collectionNFTs) {
@@ -1826,13 +1849,13 @@ const handleSuinsChange = (e) => {
               image_url: imageUrl,
               project_url: displayData.project_url || nftData.project_url || collection.project_url
             };
-            console.log('Verified NFT:', verifiedNFT);
+            logger.log('Verified NFT:', verifiedNFT);
             verifiedNFTs.push(verifiedNFT);
           }
         }
       }
       
-      console.log('\nFinal verification results:', {
+      logger.log('\nFinal verification results:', {
         verifiedNFTs: verifiedNFTs.length,
         verifiedList: verifiedNFTs
       });
@@ -1840,7 +1863,7 @@ const handleSuinsChange = (e) => {
       setVerifiedNFTs(verifiedNFTs);
       setIsNFTVerified(verifiedNFTs.length > 0);
     } catch (error) {
-      console.error('Error checking NFTs:', error);
+      logger.error('Error checking NFTs:', error);
       setVerifiedNFTs([]);
       setIsNFTVerified(false);
     } finally {
@@ -1874,7 +1897,7 @@ const handleSuinsChange = (e) => {
 
   // Add these new functions after client initialization
   const queryChillCatsNFTs = async (address) => {
-    console.log('=== QUERYING CHILLCATS NFTS ===');
+    logger.log('=== QUERYING CHILLCATS NFTS ===');
     try {
       const response = await client.getOwnedObjects({
         owner: address,
@@ -1890,16 +1913,16 @@ const handleSuinsChange = (e) => {
           showOwner: true
         }
       });
-      console.log('ChillCats query response:', JSON.stringify(response, null, 2));
+      logger.log('ChillCats query response:', JSON.stringify(response, null, 2));
       return response;
     } catch (error) {
-      console.error('Error querying ChillCats:', error);
+      logger.error('Error querying ChillCats:', error);
       return null;
     }
   };
 
   const getNFTDetails = async (objectId) => {
-    console.log(`=== GETTING NFT DETAILS FOR ${objectId} ===`);
+    logger.log(`=== GETTING NFT DETAILS FOR ${objectId} ===`);
     try {
       const response = await client.getObject({
         id: objectId,
@@ -1911,10 +1934,10 @@ const handleSuinsChange = (e) => {
           showPreviousTransaction: true
         }
       });
-      console.log('NFT details:', JSON.stringify(response, null, 2));
+      logger.log('NFT details:', JSON.stringify(response, null, 2));
       return response;
     } catch (error) {
-      console.error('Error getting NFT details:', error);
+      logger.error('Error getting NFT details:', error);
       return null;
     }
   };
@@ -2017,9 +2040,9 @@ const handleSuinsChange = (e) => {
                 label="Connect SUI Wallet"
                 onConnectError={(error) => {
                   if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-                    console.warn("User rejected connection to " + error.details?.wallet);
+                    logger.warn("User rejected connection to " + error.details?.wallet);
                   } else {
-                    console.warn("Unknown connect error: ", error);
+                    logger.warn("Unknown connect error: ", error);
                   }
                 }}
               />
@@ -2051,7 +2074,7 @@ const handleSuinsChange = (e) => {
                                 className="nft-image"
                                 onError={(e) => {
                                   e.target.style.display = 'none';
-                                  console.error('Failed to load NFT image:', nft.image_url);
+                                  logger.error('Failed to load NFT image:', nft.image_url);
                                 }}
                               />
                             )}
@@ -2135,7 +2158,7 @@ const handleSuinsChange = (e) => {
                         className="token-icon"
                         onError={(e) => {
                           e.target.style.display = 'none';
-                          console.error('Failed to load token icon:', tokenIcons[symbol]);
+                          logger.error('Failed to load token icon:', tokenIcons[symbol]);
                         }}
                       />
                     )}
@@ -2167,7 +2190,7 @@ const handleSuinsChange = (e) => {
                             className="prize-pool-nft-image"
                             onError={(e) => {
                               e.target.style.display = 'none';
-                              console.error('Failed to load NFT image:', nft.url);
+                              logger.error('Failed to load NFT image:', nft.url);
                             }}
                           />
                         )}
@@ -2400,7 +2423,7 @@ const handleSuinsChange = (e) => {
                       <button 
                         onClick={async () => {
                           try {
-                            console.log('Starting paid submission for free mode score');
+                            logger.log('Starting paid submission for free mode score');
                             setPaying(true);
                             setTransactionInProgress(true);
 
@@ -2452,7 +2475,7 @@ const handleSuinsChange = (e) => {
                               throw new Error('Transaction failed - no digest received');
                             }
 
-                            console.log('Transaction successful:', response);
+                            logger.log('Transaction successful:', response);
 
                             // Create payment details for score submission
                             const paymentDetails = {
@@ -2468,7 +2491,7 @@ const handleSuinsChange = (e) => {
                             
                             alert('Score successfully submitted to paid leaderboard!');
                           } catch (error) {
-                            console.error('Error in paid submission process:', error);
+                            logger.error('Error in paid submission process:', error);
                             alert(`Failed to submit score: ${error.message}`);
                           } finally {
                             setTransactionInProgress(false);
@@ -2491,7 +2514,7 @@ const handleSuinsChange = (e) => {
                             resetGameState();
                             restartGame();
                           } catch (error) {
-                            console.error('Error submitting to free leaderboard:', error);
+                            logger.error('Error submitting to free leaderboard:', error);
                             alert(`Failed to submit score: ${error.message}`);
                           }
                         }}
