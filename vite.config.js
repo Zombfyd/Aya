@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       cors: true,
-      port: 3000,
+      port: 6969,
       strictPort: true,
       host: true // Enable access from local network
     },

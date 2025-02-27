@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3000",
-    "dev:testnet": "vite --port 3000 --mode testnet",
+    "dev": "vite --port 6969",
+    "dev:testnet": "vite --port 6969 --mode testnet",
     "build": "tsc && vite build",
     "build:testnet": "tsc && vite build --mode testnet",
     "build:mainnet": "tsc && vite build --mode production",

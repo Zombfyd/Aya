@@ -8,7 +8,7 @@ services:
       - key: NODE_VERSION
         value: 18.0.0
       - key: PORT
-        value: 10000
+        value: 6969
     secretFiles:
       - key: .env
         path: /etc/secrets/.env

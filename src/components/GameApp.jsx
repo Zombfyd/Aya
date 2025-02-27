@@ -49,6 +49,105 @@ const logger = {
   }
 };
 
+// Add this utility function near the top of your file with other utility functions
+const getIPFSWithFallbacks = (url) => {
+  if (!url) return '';
+  
+  // If it's already a full URL that's not IPFS, return it
+  if (url.startsWith('http') && !url.includes('ipfs')) {
+    return url;
+  }
+  
+  // Extract CID from various IPFS URL formats
+  let cid = url;
+  
+  if (url.startsWith('ipfs://')) {
+    cid = url.replace('ipfs://', '');
+  } else if (url.includes('ipfs.io/ipfs/')) {
+    cid = url.split('ipfs.io/ipfs/')[1];
+  } else if (url.includes('/ipfs/')) {
+    cid = url.split('/ipfs/')[1];
+  }
+  
+  // Create an array of gateway URLs - ordered by reliability
+  const gateways = [
+    `https://cloudflare-ipfs.com/ipfs/${cid}`,
+    `https://gateway.pinata.cloud/ipfs/${cid}`,
+    `https://ipfs.filebase.io/ipfs/${cid}`,
+    `https://dweb.link/ipfs/${cid}`,
+    `https://gateway.ipfs.io/ipfs/${cid}`,
+    `https://ipfs.io/ipfs/${cid}`,
+    `https://nftstorage.link/ipfs/${cid}`
+  ];
+  
+  return gateways;
+};
+
+// Enhance the NFTImage component with better error handling and reporting
+const NFTImage = ({ src, alt, className, onLoad }) => {
+  const [currentSrc, setCurrentSrc] = useState('');
+  const [gatewayIndex, setGatewayIndex] = useState(0);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [finalFallback, setFinalFallback] = useState(false);
+  const gateways = useMemo(() => getIPFSWithFallbacks(src), [src]);
+  
+  useEffect(() => {
+    // Reset state when src changes
+    if (Array.isArray(gateways) && gateways.length > 0) {
+      setCurrentSrc(gateways[0]);
+      setGatewayIndex(0);
+      setFailedAttempts(0);
+      setFinalFallback(false);
+    } else {
+      setCurrentSrc(src);
+      setFailedAttempts(0);
+      setFinalFallback(false);
+    }
+  }, [src, gateways]);
+  
+  const handleError = () => {
+    setFailedAttempts(prev => prev + 1);
+    
+    if (Array.isArray(gateways) && gatewayIndex < gateways.length - 1) {
+      // Try next gateway
+      const nextIndex = gatewayIndex + 1;
+      logger.log(`Image load failed for ${currentSrc}, trying gateway ${nextIndex + 1}/${gateways.length}`);
+      setGatewayIndex(nextIndex);
+      setCurrentSrc(gateways[nextIndex]);
+    } else if (!finalFallback) {
+      // All gateways failed, try direct URL if it's different
+      if (src !== currentSrc && !finalFallback) {
+        logger.log(`All gateways failed for ${src}, trying direct URL`);
+        setCurrentSrc(src);
+        setFinalFallback(true);
+      } else {
+        // Everything failed, show placeholder
+        logger.log(`All image loading attempts failed for ${src}, using placeholder`);
+        setCurrentSrc('https://placehold.co/200x200?text=Image+Not+Available');
+      }
+    }
+  };
+  
+  // If we've tried too many times, just show placeholder
+  useEffect(() => {
+    if (failedAttempts > gateways.length + 2) {
+      setCurrentSrc('https://placehold.co/200x200?text=Image+Not+Available');
+    }
+  }, [failedAttempts, gateways]);
+  
+  return (
+    <img 
+      src={currentSrc}
+      alt={alt || "NFT Image"}
+      className={className}
+      onError={handleError}
+      onLoad={onLoad}
+      loading="lazy"
+      style={{ minHeight: '50px', minWidth: '50px' }} // Ensure there's always space for the image
+    />
+  );
+};
+
 const GameApp = () => {
   // Remove provider initialization
   // const provider = new JsonRpcProvider('https://fullnode.mainnet.sui.io:443');
@@ -2068,14 +2167,10 @@ const handleSuinsChange = (e) => {
                             style={{ cursor: 'pointer' }}
                           >
                             {nft.image_url && (
-                              <img 
+                              <NFTImage 
                                 src={nft.image_url} 
                                 alt={nft.name} 
                                 className="nft-image"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  logger.error('Failed to load NFT image:', nft.image_url);
-                                }}
                               />
                             )}
                             <h4>{nft.name}</h4>
@@ -2184,14 +2279,10 @@ const handleSuinsChange = (e) => {
                         title={nft.description || nft.name}
                       >
                         {nft.url && (
-                          <img 
+                          <NFTImage 
                             src={nft.url} 
                             alt={nft.name} 
                             className="prize-pool-nft-image"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              logger.error('Failed to load NFT image:', nft.url);
-                            }}
                           />
                         )}
                         <div className="prize-pool-nft-name">{nft.name}</div>

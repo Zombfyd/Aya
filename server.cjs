@@ -17,8 +17,7 @@ app.use(cors({
     'https://aya-3i9c.onrender.com', 
     'https://www.tears-of-aya.webflow.io',
     'https://aya-1.onrender.com',
-    'http://localhost:3000',
-    'http://localhost:3001'
+    'http://localhost:6969'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -39,8 +38,7 @@ app.use((req, res, next) => {
     'https://aya-3i9c.onrender.com',
     'https://www.tears-of-aya.webflow.io',
     'https://aya-1.onrender.com',
-    'http://localhost:3000',
-    'http://localhost:3001'
+    'http://localhost:6969'
   ];
   
   const origin = req.headers.origin;
@@ -149,7 +147,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 6969;
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
