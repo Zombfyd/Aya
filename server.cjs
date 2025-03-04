@@ -18,6 +18,7 @@ app.use(cors({
     'https://www.tears-of-aya.webflow.io',
     'https://aya-1.onrender.com',
     'https://www.tears-of-aya.com',
+    'https://aya-test-server.onrender.com',
     'http://localhost:6969'
   ],
   credentials: true,
@@ -40,6 +41,7 @@ app.use((req, res, next) => {
     'https://www.tears-of-aya.webflow.io',
     'https://aya-1.onrender.com',
     'https://www.tears-of-aya.com',
+    'https://aya-test-server.onrender.com',
     'http://localhost:6969'
   ];
   

@@ -2013,7 +2013,7 @@ const handleSuinsChange = (e) => {
     }
   };
 
-  // Add this detection function
+  // Add this detection function for mobile devices
   const isMobileDevice = () => {
     return (
       typeof navigator !== 'undefined' && 
