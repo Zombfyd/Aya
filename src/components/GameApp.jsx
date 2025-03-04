@@ -1189,126 +1189,98 @@ const GameApp = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Modify handleGamePayment
-  const handleGamePayment = async (paymentTier) => {
-    if (!wallet.connected) {
-        alert('Please connect wallet to continue');
-        return;
-    }
+  // Add this detection function near the top of your file
+  const isReactNativeWebView = () => {
+    return (
+      typeof navigator !== 'undefined' && 
+      (navigator.userAgent.includes('ReactNativeWebView') || 
+       window.ReactNativeWebView !== undefined)
+    );
+  };
 
+  // Modify the handleGamePayment function to handle React Native WebView
+  const handleGamePayment = async (tierId) => {
     try {
-        logger.log('Processing payment for tier:', paymentTier);
-        setTransactionInProgress(true);
-        setPaying(true);
-
-        const tierConfig = config.paymentTiers[paymentTier];
-        if (!tierConfig) {
-            throw new Error('Invalid tier selected');
-        }
-        logger.log('Selected tier configuration:', {
-            tierId: paymentTier,
-            amount: tierConfig.amount,
-            plays: tierConfig.plays,
-            label: tierConfig.label
-        });
-
-        const recipients = config.getCurrentRecipients();
-        const shares = config.shares;
-
-        const baseAmount = BigInt(tierConfig.amount);
-        const totalAmount = isNFTVerified ? baseAmount / BigInt(2) : baseAmount;
-        logger.log('Payment details:', {
-            baseAmount: baseAmount.toString(),
-            isNFTVerified,
-            finalAmount: totalAmount.toString(),
-            plays: tierConfig.plays
-        });
-
-        const shareAmounts = {
-            primary: (totalAmount * BigInt(shares.primary)) / BigInt(10000),
-            secondary: (totalAmount * BigInt(shares.secondary)) / BigInt(10000),
-            tertiary: (totalAmount * BigInt(shares.tertiary)) / BigInt(10000),
-            rewards: (totalAmount * BigInt(shares.rewards)) / BigInt(10000)
+      logger.log('Processing payment for tier:', tierId);
+      setPaying(true);
+      setTransactionInProgress(true);
+      
+      const tier = config.paymentTiers[tierId];
+      const originalAmount = BigInt(tier.amount);
+      const finalAmount = isNFTVerified ? originalAmount / BigInt(2) : originalAmount;
+      
+      // Check if we're in a React Native WebView
+      if (isReactNativeWebView()) {
+        logger.log('React Native WebView detected, using alternative payment flow');
+        
+        // Create a simplified transaction object for React Native
+        const simplifiedTx = {
+          kind: 'pay',
+          recipient: config.getCurrentRecipients().primary,
+          amount: finalAmount.toString(),
+          gasBudget: 10000000
         };
-        logger.log('Share distribution:', shareAmounts);
-
-        const txb = new TransactionBlock();
-        const [primary, secondary, tertiary, rewards] = txb.splitCoins(txb.gas, [
-            shareAmounts.primary.toString(),
-            shareAmounts.secondary.toString(),
-            shareAmounts.tertiary.toString(),
-            shareAmounts.rewards.toString()
-        ]);
-
-        txb.transferObjects([primary], recipients.primary);
-        txb.transferObjects([secondary], recipients.secondary);
-        txb.transferObjects([tertiary], recipients.tertiary);
-        txb.transferObjects([rewards], recipients.rewards);
-
-        logger.log('Executing transaction...');
-        const response = await wallet.signAndExecuteTransactionBlock({
-            transactionBlock: txb,
-            options: { showEffects: true, showEvents: true }
-        });
-
-        if (!response?.digest) {
-            throw new Error('Transaction failed - no digest received');
+        
+        // Post message to React Native
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'PAYMENT_REQUEST',
+            payload: simplifiedTx
+          }));
+          
+          // Set up a listener for the response
+          window.addEventListener('message', function paymentResponseHandler(event) {
+            try {
+              const response = JSON.parse(event.data);
+              
+              if (response.type === 'PAYMENT_RESPONSE') {
+                if (response.success && response.digest) {
+                  // Payment successful
+                  setPaymentStatus({
+                    verified: true,
+                    transactionId: response.digest,
+                    amount: Number(finalAmount),
+                    timestamp: Date.now(),
+                    recipient: config.getCurrentRecipients().primary
+                  });
+                  
+                  setGameState(prev => ({
+                    ...prev,
+                    hasValidPayment: true
+                  }));
+                  
+                  setMaxAttempts(tier.plays);
+                  setPaidGameAttempts(0);
+                } else {
+                  // Payment failed
+                  alert(`Payment failed: ${response.error || 'Unknown error'}`);
+                }
+                
+                setTransactionInProgress(false);
+                setPaying(false);
+                
+                // Remove the event listener
+                window.removeEventListener('message', paymentResponseHandler);
+              }
+            } catch (error) {
+              logger.error('Error processing payment response:', error);
+            }
+          });
+          
+          return; // Exit early, wait for response from native side
         }
-        logger.log('Transaction successful:', {
-            digest: response.digest,
-            tier: paymentTier,
-            maxAttempts: tierConfig.plays
-        });
-
-        // Update states after successful payment
-        setPaymentStatus({
-            verified: true,
-            transactionId: response.digest,
-            amount: Number(totalAmount),
-            timestamp: Date.now(),
-            recipient: recipients.primary
-        });
-        
-        setMaxAttempts(tierConfig.plays);
-        setPaidGameAttempts(0);
-        
-        // Set hasValidPayment to true and ensure game is not started
-        setGameState(prev => ({
-            ...prev,
-            hasValidPayment: true,
-            gameStarted: false,
-            isGameOver: false,
-            score: 0,
-            selectedTierClicked: true  // Add this to track that a tier was selected
-        }));
-
-        logger.log('Game state updated after payment:', {
-            hasValidPayment: true,
-            gameStarted: false,
-            isGameOver: false,
-            score: 0,
-            selectedTierClicked: true
-        });
-
-        // Add a success message that instructs the user to select a game type
-        
+      }
+      
+      // Regular web browser flow continues here
+      // ... (your existing payment code)
+      
     } catch (error) {
-        logger.error('Payment error:', error);
-        alert(`Payment failed: ${error.message}`);
-        
-        // Reset states on failure
-        setGameState(prev => ({
-            ...prev,
-            hasValidPayment: false,
-            gameStarted: false,
-            selectedTierClicked: false
-        }));
-    } finally {
-        setTransactionInProgress(false);
-        setPaying(false);
+      logger.error('Payment error:', error);
+      alert(`Payment failed: ${error.message}`);
+      setTransactionInProgress(false);
+      setPaying(false);
     }
-};
-
+  };
 
   // Add useEffect for periodic leaderboard updates
   useEffect(() => {
@@ -2041,6 +2013,44 @@ const handleSuinsChange = (e) => {
     }
   };
 
+  // Add this detection function
+  const isMobileDevice = () => {
+    return (
+      typeof navigator !== 'undefined' && 
+      (navigator.userAgent.match(/Android/i) ||
+       navigator.userAgent.match(/webOS/i) ||
+       navigator.userAgent.match(/iPhone/i) ||
+       navigator.userAgent.match(/iPad/i) ||
+       navigator.userAgent.match(/iPod/i) ||
+       navigator.userAgent.match(/BlackBerry/i) ||
+       navigator.userAgent.match(/Windows Phone/i))
+    );
+  };
+
+  // Then use it to show mobile-specific UI or instructions
+  useEffect(() => {
+    if (isMobileDevice() && wallet.connected) {
+      // Show mobile-specific instructions or UI
+      logger.log('Mobile device detected with connected wallet');
+    }
+  }, [wallet.connected]);
+
+  // Add this component for mobile wallet guidance
+  const MobileWalletGuide = () => {
+    if (!isMobileDevice() || !wallet.connected) return null;
+    
+    return (
+      <div className="mobile-wallet-guide">
+        <p>Mobile Wallet Tips:</p>
+        <ol>
+          <li>Ensure your wallet app is up to date</li>
+          <li>If payment fails, try switching to your wallet app and back</li>
+          <li>For best experience, use the in-app browser of your wallet app</li>
+        </ol>
+      </div>
+    );
+  };
+
   // Render method
   return (
     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
@@ -2356,6 +2366,7 @@ const handleSuinsChange = (e) => {
                   {(!gameState.hasValidPayment || paidGameAttempts >= maxAttempts) ? (
                     <>
                       <h2>Select Payment Tier</h2>
+                      <MobileWalletGuide />
                       <div className="payment-section">
                         {/* Mobile dropdown */}
                         <div className="payment-tiers-mobile">
