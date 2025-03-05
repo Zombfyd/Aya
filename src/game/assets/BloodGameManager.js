@@ -61,6 +61,7 @@ class BloodGameManager {
       // Bind methods to maintain correct 'this' context
       this.gameLoop = this.gameLoop.bind(this);
       this.handlePointerMove = this.handlePointerMove.bind(this);
+      this.handleTouchStart = this.handleTouchStart.bind(this);
       this.handleResize = this.handleResize.bind(this);
   
       // Add base dimensions for scaling
@@ -95,9 +96,17 @@ class BloodGameManager {
       this.ctx = this.canvas.getContext('2d');
       this.resizeCanvas();
   
-      // Set up event listeners
+      // Set up event listeners - use both window and canvas events for better compatibility
       window.addEventListener('pointermove', this.handlePointerMove);
+      window.addEventListener('touchmove', this.handlePointerMove, { passive: false });
+      window.addEventListener('touchstart', this.handleTouchStart, { passive: false });
       window.addEventListener('resize', this.handleResize);
+  
+      // Add direct canvas touch handlers for better mobile response
+      if (this.canvas) {
+        this.canvas.addEventListener('touchmove', this.handleCanvasTouchMove.bind(this), { passive: false });
+        this.canvas.style.touchAction = 'none';
+      }
   
       // Wait for all images to load
       try {
@@ -246,17 +255,51 @@ class BloodGameManager {
       if (this.ctx && this.canvas) {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       }
+  
+      // Remove event listeners
+      window.removeEventListener('pointermove', this.handlePointerMove);
+      window.removeEventListener('touchmove', this.handlePointerMove);
+      window.removeEventListener('touchstart', this.handleTouchStart);
+      window.removeEventListener('resize', this.handleResize);
+      
+      // Remove direct canvas touch handlers
+      if (this.canvas) {
+        this.canvas.removeEventListener('touchmove', this.handleCanvasTouchMove);
+      }
     }
   
     // Event Handlers
+    handleTouchStart(e) {
+      // Only prevent default if we're touching the canvas
+      if (e.target && e.target.tagName === 'CANVAS') {
+        e.preventDefault();
+      }
+    }
+  
     handlePointerMove(e) {
-      if (!this.gameActive || !this.bucket) return;
+      if (!this.gameActive || !this.bucket || !this.canvas) return;
   
-      // Prevent default behavior to stop scrolling
-      e.preventDefault();
+      // Only prevent default if we're interacting with the canvas
+      if (e.target && e.target.tagName === 'CANVAS') {
+        e.preventDefault();
+      }
   
+      // Get the canvas position
       const rect = this.canvas.getBoundingClientRect();
-      const pointerX = e.clientX - rect.left;
+      
+      // Get touch or mouse position
+      let pointerX;
+      
+      if (e.type === 'touchmove' && e.touches && e.touches.length > 0) {
+        // For touch events, use the first touch point
+        pointerX = e.touches[0].clientX - rect.left;
+      } else if (e.clientX !== undefined) {
+        // For mouse/pointer events
+        pointerX = e.clientX - rect.left;
+      } else {
+        // If we can't determine the position, exit
+        return;
+      }
       
       // Position bucket relative to canvas scale
       const scaleX = this.canvas.width / rect.width;
@@ -761,6 +804,43 @@ class BloodGameManager {
         this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         this.ctx.fill();
       });
+    }
+
+    // Direct canvas touch handler for better mobile response
+    handleCanvasTouchMove(e) {
+      if (!this.gameActive || !this.bucket || !this.canvas) return;
+      
+      // Always prevent default on direct canvas touch
+      e.preventDefault();
+      
+      if (this.debugMode) {
+        console.log('Direct canvas touch move', {
+          touches: e.touches ? e.touches.length : 0,
+          active: this.gameActive
+        });
+      }
+      
+      if (e.touches && e.touches.length > 0) {
+        const rect = this.canvas.getBoundingClientRect();
+        const touchX = e.touches[0].clientX - rect.left;
+        
+        // Position bucket relative to canvas scale
+        const scaleX = this.canvas.width / rect.width;
+        const scaledX = touchX * scaleX;
+        
+        // Center the bucket under the touch point
+        this.bucket.x = Math.min(
+          Math.max(scaledX - (this.bucket.width / 2), 0),
+          this.canvas.width - this.bucket.width
+        );
+        
+        if (this.debugMode) {
+          console.log('Direct touch bucket update:', {
+            touchX: touchX,
+            bucketX: this.bucket.x
+          });
+        }
+      }
     }
   }
   

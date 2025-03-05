@@ -1125,6 +1125,9 @@ const GameApp = () => {
     // Start the game with selected type
     logger.log(`Restarting game in ${gameMode} mode, type: ${type}`);
     startGame(type);
+    
+    // Notify document that game is inactive
+    window.postMessage({ type: 'gameStateChange', active: false }, '*');
   };
 
   // Update startGame to track bucket click state
@@ -1173,6 +1176,9 @@ const GameApp = () => {
             isGameOver: false,
         }));
 
+        // Notify document that game is active (for touch event handling)
+        window.postMessage({ type: 'gameStateChange', active: true }, '*');
+
         // Handle canvas scrolling
         const canvas = document.getElementById('tearCatchGameCanvas');
         if (canvas) {
@@ -1182,6 +1188,9 @@ const GameApp = () => {
                 top: scrollTop,
                 behavior: 'smooth'
             });
+            
+            // Make sure the canvas has the right touch handling properties
+            canvas.style.touchAction = 'none';
         }
 
         logger.log(`Starting game in ${gameMode} mode, type: ${type}`);
@@ -1272,6 +1281,9 @@ const GameApp = () => {
                     logger.error('Error handling game over:', error);
                     alert('Failed to submit score. Please try again.');
                 }
+                
+                // Notify document that game is inactive
+                window.postMessage({ type: 'gameStateChange', active: false }, '*');
             };
         }
     };
