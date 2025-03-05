@@ -6,6 +6,12 @@ class AudioManager {
         this.audioUnlocked = false;
         this.ambientSoundId = null;
         this.backgroundMusicId = null;
+        this.sounds = {};
+        this.music = null;
+        this.isMuted = false;
+        this.musicVolume = 0.5;
+        this.soundVolume = 0.7;
+        this.fallbackBaseUrl = 'https://storage.googleapis.com/aya-game-assets/sounds/';
         
 
         const BASE_URL = 'https://aya-3i9c.onrender.com/';
@@ -136,6 +142,32 @@ class AudioManager {
             if (this.audioUnlocked && !this.ambientSoundId) {
                 this.startRainAmbience();
             }
+        }
+    }
+
+    async loadSound(key, url) {
+        try {
+            // Try to load from original URL first
+            this.sounds[key] = new Howl({
+                src: [url],
+                volume: this.soundVolume,
+                onloaderror: (id, err) => {
+                    console.error(`Error loading sound ${key} from ${url}:`, err);
+                    // Try fallback URL if original fails
+                    const filename = url.split('/').pop();
+                    const fallbackUrl = this.fallbackBaseUrl + filename;
+                    
+                    this.sounds[key] = new Howl({
+                        src: [fallbackUrl],
+                        volume: this.soundVolume,
+                        onloaderror: (id, err) => {
+                            console.error(`Error loading sound ${key} from fallback ${fallbackUrl}:`, err);
+                        }
+                    });
+                }
+            });
+        } catch (error) {
+            console.error(`Failed to load sound ${key}:`, error);
         }
     }
 
