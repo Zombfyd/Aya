@@ -69,71 +69,26 @@ const getIPFSWithFallbacks = (url) => {
     cid = url.split('/ipfs/')[1];
   }
   
-  // Create an array of gateway URLs - ordered by reliability
-  const gateways = [
-    `https://cloudflare-ipfs.com/ipfs/${cid}`,
-    `https://gateway.pinata.cloud/ipfs/${cid}`,
-    `https://ipfs.filebase.io/ipfs/${cid}`,
-    `https://dweb.link/ipfs/${cid}`,
-    `https://gateway.ipfs.io/ipfs/${cid}`,
-    `https://ipfs.io/ipfs/${cid}`,
-    `https://nftstorage.link/ipfs/${cid}`
-  ];
-  
-  return gateways;
+  // Return direct gateway URL instead of array
+  return `https://ipfs.io/ipfs/${cid}`;
 };
 
 // Enhance the NFTImage component with better error handling and reporting
 const NFTImage = ({ src, alt, className, onLoad }) => {
   const [currentSrc, setCurrentSrc] = useState('');
-  const [gatewayIndex, setGatewayIndex] = useState(0);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [finalFallback, setFinalFallback] = useState(false);
-  const gateways = useMemo(() => getIPFSWithFallbacks(src), [src]);
+  const [error, setError] = useState(false);
   
   useEffect(() => {
     // Reset state when src changes
-    if (Array.isArray(gateways) && gateways.length > 0) {
-      setCurrentSrc(gateways[0]);
-      setGatewayIndex(0);
-      setFailedAttempts(0);
-      setFinalFallback(false);
-    } else {
-      setCurrentSrc(src);
-      setFailedAttempts(0);
-      setFinalFallback(false);
-    }
-  }, [src, gateways]);
+    setCurrentSrc(getIPFSWithFallbacks(src));
+    setError(false);
+  }, [src]);
   
   const handleError = () => {
-    setFailedAttempts(prev => prev + 1);
-    
-    if (Array.isArray(gateways) && gatewayIndex < gateways.length - 1) {
-      // Try next gateway
-      const nextIndex = gatewayIndex + 1;
-      logger.log(`Image load failed for ${currentSrc}, trying gateway ${nextIndex + 1}/${gateways.length}`);
-      setGatewayIndex(nextIndex);
-      setCurrentSrc(gateways[nextIndex]);
-    } else if (!finalFallback) {
-      // All gateways failed, try direct URL if it's different
-      if (src !== currentSrc && !finalFallback) {
-        logger.log(`All gateways failed for ${src}, trying direct URL`);
-        setCurrentSrc(src);
-        setFinalFallback(true);
-      } else {
-        // Everything failed, show placeholder
-        logger.log(`All image loading attempts failed for ${src}, using placeholder`);
-        setCurrentSrc('https://placehold.co/200x200?text=Image+Not+Available');
-      }
-    }
+    setError(true);
+    // If image fails to load, use placeholder
+    setCurrentSrc('https://placehold.co/200x200?text=Image+Not+Available');
   };
-  
-  // If we've tried too many times, just show placeholder
-  useEffect(() => {
-    if (failedAttempts > gateways.length + 2) {
-      setCurrentSrc('https://placehold.co/200x200?text=Image+Not+Available');
-    }
-  }, [failedAttempts, gateways]);
   
   return (
     <img 
@@ -143,7 +98,7 @@ const NFTImage = ({ src, alt, className, onLoad }) => {
       onError={handleError}
       onLoad={onLoad}
       loading="lazy"
-      style={{ minHeight: '50px', minWidth: '50px' }} // Ensure there's always space for the image
+      style={{ minHeight: '50px', minWidth: '50px' }}
     />
   );
 };
@@ -173,11 +128,10 @@ const GameApp = () => {
     mainFreeTOA: [],
     secondaryFreeTOA: [],
     mainPaidTOA: [],
-    secondaryPaidTOA: [],
+    secondaryPaidTOB: [],
     mainFreeTOB: [],
     secondaryFreeTOB: [],
     mainPaidTOB: [],
-    secondaryPaidTOB: [],
     web2TOA: [],
     web2TOB: []
   });
@@ -264,6 +218,120 @@ const GameApp = () => {
   
   // Add state for active collections
   const [activeCollections, setActiveCollections] = useState([]);
+  
+  // Add this near your other state declarations
+  const [selectedPaymentToken, setSelectedPaymentToken] = useState('SUI');
+  
+  // Add these constants at the top of your file, after other imports
+  const PAYMENT_TOKENS = {
+    SUI: {
+      type: '0x2::sui::SUI',
+      symbol: 'SUI',
+      decimals: 9,
+      icon: "https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png"
+    },
+    AYA: {
+      type: '0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b::aya::AYA',
+      symbol: 'AYA',
+      decimals: 6,  // Change back to 6 decimals
+      icon: "https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png"
+    }
+  };
+  
+  // Add these state variables for token prices
+  const [tokenPrices, setTokenPrices] = useState({
+    SUI: null,
+    AYA: null
+  });
+  
+  // Update the fetchTokenPrices function to correctly parse the response
+  const fetchTokenPrices = async () => {
+    try {
+      // Add headers with API key
+      const headers = {
+        'x-api-key': 'insidex_api.hGhJarqGjnUDkw36WUXETXyR',
+        'Accept': 'application/json'
+      };
+
+      // Fetch SUI price from InsideX
+      const suiResponse = await fetch('https://api-ex.insidex.trade/coins/0x2::sui::SUI/price-data', {
+        headers
+      });
+      const suiData = await suiResponse.json();
+      
+      // Fetch AYA price from InsideX
+      const ayaResponse = await fetch('https://api-ex.insidex.trade/coins/0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b::aya::AYA/price-data', {
+        headers
+      });
+      const ayaData = await ayaResponse.json();
+      
+      // Log raw responses for debugging
+      logger.log('Raw SUI response:', suiData);
+      logger.log('Raw AYA response:', ayaData);
+
+      // Extract current prices from the response
+      const suiPrice = suiData?.price || null;
+      const ayaPrice = ayaData?.price || null;
+
+      logger.log('Parsed Token Prices:', {
+        SUI: suiPrice,
+        AYA: ayaPrice
+      });
+
+      if (suiPrice === null || ayaPrice === null) {
+        throw new Error('Failed to parse price data from API response');
+      }
+
+      setTokenPrices({
+        SUI: suiPrice,
+        AYA: ayaPrice
+      });
+    } catch (error) {
+      logger.error('Error fetching token prices:', error);
+      // Keep previous prices on error
+      setTokenPrices(prev => ({
+        ...prev,
+        lastUpdated: Date.now(),
+        error: error.message
+      }));
+    }
+  };
+
+  // Update the useEffect for price fetching to include error handling and retry logic
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        await fetchTokenPrices();
+      } catch (error) {
+        logger.error('Failed to fetch prices:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchPrices();
+    
+    // Set up polling with retry on failure
+    const intervalId = setInterval(fetchPrices, 30000); // Update every 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  // Add this utility function for checking token balances
+  const checkTokenBalance = async (tokenType) => {
+    try {
+      if (!wallet.connected) return BigInt(0);
+
+      const { data: coins } = await client.getCoins({
+        owner: wallet.account.address,
+        coinType: tokenType
+      });
+
+      return coins.reduce((total, coin) => total + BigInt(coin.balance), BigInt(0));
+    } catch (error) {
+      logger.error(`Error checking ${tokenType} balance:`, error);
+      return BigInt(0);
+    }
+  };
   
   // Utility function for chain name
   const chainName = (chainId) => {
@@ -453,7 +521,7 @@ const GameApp = () => {
                         setPaying(false);
                     }
                 }
-            } catch (error) {
+    } catch (error) {
                 logger.error('Payment status check failed:', error);
                 setTransactionInProgress(false);
                 setPaying(false);
@@ -486,6 +554,23 @@ const GameApp = () => {
         logger.log('Correct network detected:', wallet.chain?.name);
         window.currentWalletAddress = wallet.account.address;
         setWalletInitialized(true);
+        
+        // Update AYA balance when wallet is connected
+        try {
+          const ayaType = PAYMENT_TOKENS.AYA.type;
+          const ayaBalance = await checkTokenBalance(ayaType);
+          setAllBalances(prev => ({
+            ...prev,
+            [ayaType]: ayaBalance
+          }));
+          
+          logger.log('Updated AYA balance:', {
+            address: wallet.account.address,
+            ayaBalance: ayaBalance.toString()
+          });
+        } catch (error) {
+          logger.error('Error updating AYA balance:', error);
+        }
       } else {
         window.currentWalletAddress = null;
         setWalletInitialized(false);
@@ -501,6 +586,37 @@ const GameApp = () => {
       config.updateNetwork(wallet.chain?.name);
     }
   }, [wallet.connected, wallet.chain]);
+
+  // Add a useEffect to update AYA balance periodically
+  useEffect(() => {
+    if (!wallet.connected || !wallet.account) return;
+    
+    const updateAyaBalance = async () => {
+      try {
+        const ayaType = PAYMENT_TOKENS.AYA.type;
+        const ayaBalance = await checkTokenBalance(ayaType);
+        setAllBalances(prev => ({
+          ...prev,
+          [ayaType]: ayaBalance
+        }));
+        
+        logger.log('Periodic AYA balance update:', {
+          address: wallet.account.address,
+          ayaBalance: ayaBalance.toString()
+        });
+      } catch (error) {
+        logger.error('Error updating AYA balance:', error);
+      }
+    };
+    
+    // Update immediately
+    updateAyaBalance();
+    
+    // Then update every 30 seconds
+    const intervalId = setInterval(updateAyaBalance, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, [wallet.connected, wallet.account, selectedPaymentToken]);
 
   const checkWalletBalance = async () => {
     try {
@@ -533,9 +649,9 @@ const GameApp = () => {
     if (!gameState.hasValidPayment) {
       try {
         logger.log('Starting payment process...');
-        setPaying(true);
-        setTransactionInProgress(true);
-
+      setPaying(true);
+      setTransactionInProgress(true);
+      
         // Following exact Suiet example structure
         const tx = {
           kind: 'pay',
@@ -575,7 +691,7 @@ const GameApp = () => {
         setPaying(false);
         setTransactionInProgress(false);
       }
-    } else {
+      } else {
       if (paidGameAttempts >= maxAttempts) {
         setGameState(prev => ({ ...prev, hasValidPayment: false }));
         return;
@@ -830,7 +946,7 @@ const GameApp = () => {
             filter: {
                 StructType: `${SUINS_REGISTRY}::suins_registration::SuinsRegistration`
             },
-            options: {
+        options: {
                 showType: true,
                 showContent: true,
                 showDisplay: true
@@ -1167,8 +1283,7 @@ const GameApp = () => {
 
   // Add this function to check if user can afford a tier
   const canAffordTier = (tierAmount) => {
-    const balanceInMist = BigInt(balance ?? 0);
-    return balanceInMist >= BigInt(tierAmount);
+    return true;
   };
 
   // Update the SUI price fetching function
@@ -1198,171 +1313,284 @@ const GameApp = () => {
     );
   };
 
-  // Modify the handleGamePayment function to handle React Native WebView
-  const handleGamePayment = async (tierId) => {
+  // Update calculateTokenAmount to handle tiers and AYA conversion correctly
+  const calculateTokenAmount = (baseSuiAmount, tokenSymbol) => {
+    // Get the tier amount from config if available, otherwise use the provided base amount
+    const tierAmount = selectedTier ? config.paymentTiers[selectedTier].amount : baseSuiAmount;
+    
+    // Apply NFT discount to the tier amount if applicable
+    const discountedTierAmount = isNFTVerified ? BigInt(tierAmount) / BigInt(2) : BigInt(tierAmount);
+    
+    let finalAmount;
+    if (tokenSymbol === 'SUI') {
+      // For SUI, use the discounted tier amount directly (already in MIST)
+      finalAmount = discountedTierAmount;
+    } else {
+      // For AYA, convert the SUI amount to AYA using price ratio
+      // First convert SUI from MIST to base units
+      const suiBaseAmount = Number(discountedTierAmount) / Math.pow(10, PAYMENT_TOKENS.SUI.decimals);
+      
+      // Calculate equivalent AYA amount based on price ratio
+      // If SUI is $1 and AYA is $0.5, then 1 SUI = 2 AYA
+      const ayaAmount = tokenPrices.SUI && tokenPrices.AYA 
+        ? (suiBaseAmount * tokenPrices.SUI / tokenPrices.AYA) 
+        : 0;
+      
+      // Convert to AYA base units (multiply by AYA decimals)
+      finalAmount = BigInt(Math.floor(ayaAmount * Math.pow(10, PAYMENT_TOKENS.AYA.decimals)));
+    }
+
+    return finalAmount;
+  };
+
+  // Update the handleGamePayment function to use the tier amount
+  const handleGamePayment = async (paymentTier) => {
+    if (!wallet.connected) {
+        alert('Please connect wallet to continue');
+        return;
+    }
+
     try {
-      logger.log('Processing payment for tier:', tierId);
-      setPaying(true);
-      setTransactionInProgress(true);
-      
-      const tier = config.paymentTiers[tierId];
-      const originalAmount = BigInt(tier.amount);
-      const finalAmount = isNFTVerified ? originalAmount / BigInt(2) : originalAmount;
-      
-      // Check if we're in a React Native WebView
-      if (isReactNativeWebView()) {
-        logger.log('React Native WebView detected, using alternative payment flow');
-        
-        // Create a simplified transaction object for React Native
-        const simplifiedTx = {
-          kind: 'pay',
-          recipient: config.getCurrentRecipients().primary,
-          amount: finalAmount.toString(),
-          gasBudget: 10000000
-        };
-        
-        // Post message to React Native
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'PAYMENT_REQUEST',
-            payload: simplifiedTx
-          }));
-          
-          // Set up a listener for the response
-          window.addEventListener('message', function paymentResponseHandler(event) {
-            try {
-              const response = JSON.parse(event.data);
-              
-              if (response.type === 'PAYMENT_RESPONSE') {
-                if (response.success && response.digest) {
-                  // Payment successful
-                  setPaymentStatus({
-                    verified: true,
-                    transactionId: response.digest,
-                    amount: Number(finalAmount),
-                    timestamp: Date.now(),
-                    recipient: config.getCurrentRecipients().primary
-                  });
-                  
-                  setGameState(prev => ({
-                    ...prev,
-                    hasValidPayment: true
-                  }));
-                  
-                  setMaxAttempts(tier.plays);
-                  setPaidGameAttempts(0);
-                } else {
-                  // Payment failed
-                  alert(`Payment failed: ${response.error || 'Unknown error'}`);
-                }
-                
-                setTransactionInProgress(false);
-                setPaying(false);
-                
-                // Remove the event listener
-                window.removeEventListener('message', paymentResponseHandler);
-              }
-            } catch (error) {
-              logger.error('Error processing payment response:', error);
-            }
-          });
-          
-          return; // Exit early, wait for response from native side
+        logger.log('Processing payment for tier:', paymentTier || selectedTier);
+        setTransactionInProgress(true);
+        setPaying(true);
+
+        const tierConfig = config.paymentTiers[paymentTier || selectedTier];
+        if (!tierConfig) {
+            throw new Error('Invalid tier selected');
         }
-      }
-      
-      // Regular web browser flow continues here
-      // ... (your existing payment code)
-      
+        logger.log('Selected tier configuration:', {
+            tierId: paymentTier || selectedTier,
+            amount: tierConfig.amount,
+            plays: tierConfig.plays,
+            label: tierConfig.label
+        });
+
+        const recipients = config.getCurrentRecipients();
+        const shares = config.shares;
+
+        if (selectedPaymentToken === 'SUI') {
+            // SUI payment logic - using the original approach
+            const baseAmount = BigInt(tierConfig.amount);
+            const totalAmount = isNFTVerified ? baseAmount / BigInt(2) : baseAmount;
+            logger.log('Payment details:', {
+                token: 'SUI',
+                baseAmount: baseAmount.toString(),
+                isNFTVerified,
+                finalAmount: totalAmount.toString(),
+                plays: tierConfig.plays
+            });
+
+            const shareAmounts = {
+                primary: (totalAmount * BigInt(shares.primary)) / BigInt(10000),
+                secondary: (totalAmount * BigInt(shares.secondary)) / BigInt(10000),
+                tertiary: (totalAmount * BigInt(shares.tertiary)) / BigInt(10000),
+                rewards: (totalAmount * BigInt(shares.rewards)) / BigInt(10000)
+            };
+            logger.log('Share distribution:', shareAmounts);
+
+            const txb = new TransactionBlock();
+            const [primary, secondary, tertiary, rewards] = txb.splitCoins(txb.gas, [
+                shareAmounts.primary.toString(),
+                shareAmounts.secondary.toString(),
+                shareAmounts.tertiary.toString(),
+                shareAmounts.rewards.toString()
+            ]);
+
+            txb.transferObjects([primary], txb.pure.address(recipients.primary));
+            txb.transferObjects([secondary], txb.pure.address(recipients.secondary));
+            txb.transferObjects([tertiary], txb.pure.address(recipients.tertiary));
+            txb.transferObjects([rewards], txb.pure.address(recipients.rewards));
+
+            logger.log('Executing transaction...');
+            const response = await wallet.signAndExecuteTransactionBlock({
+                transactionBlock: txb,
+                options: { showEffects: true, showEvents: true }
+            });
+
+            if (!response?.digest) {
+                throw new Error('Transaction failed - no digest received');
+            }
+            logger.log('Transaction successful:', {
+                digest: response.digest,
+                tier: paymentTier || selectedTier,
+                maxAttempts: tierConfig.plays
+            });
+
+            // Update states after successful payment
+            setPaymentStatus({
+                verified: true,
+                transactionId: response.digest,
+                amount: Number(totalAmount),
+                timestamp: Date.now(),
+                recipient: recipients.primary
+            });
+            
+            setMaxAttempts(tierConfig.plays);
+            setPaidGameAttempts(0);
+            
+            // Set hasValidPayment to true and ensure game is not started
+            setGameState(prev => ({
+                ...prev,
+                hasValidPayment: true,
+                gameStarted: false,
+                isGameOver: false,
+                score: 0,
+                selectedTierClicked: true  // Add this to track that a tier was selected
+            }));
+
+            logger.log('Game state updated after payment:', {
+                hasValidPayment: true,
+                gameStarted: false,
+                isGameOver: false,
+                score: 0,
+                selectedTierClicked: true
+            });
+        } else {
+            // AYA payment logic - keep as is
+            // Calculate base amount based on selected token
+            const suiBaseAmount = Number(tierConfig.amount) / Math.pow(10, PAYMENT_TOKENS.SUI.decimals);
+            const ayaAmount = tokenPrices.SUI && tokenPrices.AYA 
+                ? (suiBaseAmount * tokenPrices.SUI / tokenPrices.AYA) 
+                : 0;
+            // Apply 25% discount for AYA payments
+            const discountedAyaAmount = ayaAmount * 0.75;
+            const baseAmount = BigInt(Math.floor(discountedAyaAmount * Math.pow(10, PAYMENT_TOKENS.AYA.decimals)));
+            const totalAmount = isNFTVerified ? baseAmount / BigInt(2) : baseAmount;
+            
+            logger.log('Payment details:', {
+                token: 'AYA',
+                baseAmount: baseAmount.toString(),
+                isNFTVerified,
+                finalAmount: totalAmount.toString(),
+                plays: tierConfig.plays,
+                discount: '25% AYA discount applied'
+            });
+
+            const shareAmounts = {
+                primary: (totalAmount * BigInt(shares.primary)) / BigInt(10000),
+                secondary: (totalAmount * BigInt(shares.secondary)) / BigInt(10000),
+                tertiary: (totalAmount * BigInt(shares.tertiary)) / BigInt(10000),
+                rewards: (totalAmount * BigInt(shares.rewards)) / BigInt(10000)
+            };
+            logger.log('Share distribution:', shareAmounts);
+
+            const packageId = '0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b';
+            
+            // Get AYA coins
+            const { data: coins } = await client.getCoins({
+                owner: wallet.account.address,
+                coinType: `${packageId}::aya::AYA`
+            });
+
+            logger.log('Available AYA coins:', coins);
+
+            if (coins.length === 0) throw new Error('No AYA coins found');
+
+            // Find a coin with sufficient balance
+            const selectedCoin = coins.find(coin => BigInt(coin.balance) >= totalAmount);
+            if (!selectedCoin) {
+                throw new Error(`Insufficient AYA balance. Need ${Number(totalAmount) / Math.pow(10, PAYMENT_TOKENS.AYA.decimals)} AYA`);
+            }
+
+            const txb = new TransactionBlock();
+            // Split the selected coin
+            const [primary, secondary, tertiary, rewards] = txb.splitCoins(
+                txb.object(selectedCoin.coinObjectId),
+                [
+                    shareAmounts.primary.toString(),
+                    shareAmounts.secondary.toString(),
+                    shareAmounts.tertiary.toString(),
+                    shareAmounts.rewards.toString()
+                ]
+            );
+
+            // Transfer AYA shares
+            txb.transferObjects([primary], txb.pure.address(recipients.primary));
+            txb.transferObjects([secondary], txb.pure.address(recipients.secondary));
+            txb.transferObjects([tertiary], txb.pure.address(recipients.tertiary));
+            txb.transferObjects([rewards], txb.pure.address(recipients.rewards));
+
+            logger.log('Executing transaction...');
+            const response = await wallet.signAndExecuteTransactionBlock({
+                transactionBlock: txb,
+                options: { showEffects: true, showEvents: true }
+            });
+
+            if (!response?.digest) {
+                throw new Error('Transaction failed - no digest received');
+            }
+            logger.log('Transaction successful:', {
+                digest: response.digest,
+                tier: paymentTier || selectedTier,
+                maxAttempts: tierConfig.plays
+            });
+
+            // Update states after successful payment
+            setPaymentStatus({
+                verified: true,
+                transactionId: response.digest,
+                amount: Number(totalAmount),
+                timestamp: Date.now(),
+                recipient: recipients.primary
+            });
+            
+            setMaxAttempts(tierConfig.plays);
+            setPaidGameAttempts(0);
+            
+            // Set hasValidPayment to true and ensure game is not started
+            setGameState(prev => ({
+                ...prev,
+                hasValidPayment: true,
+                gameStarted: false,
+                isGameOver: false,
+                score: 0,
+                selectedTierClicked: true  // Add this to track that a tier was selected
+            }));
+
+            logger.log('Game state updated after payment:', {
+                hasValidPayment: true,
+                gameStarted: false,
+                isGameOver: false,
+                score: 0,
+                selectedTierClicked: true
+            });
+        }
     } catch (error) {
-      logger.error('Payment error:', error);
-      alert(`Payment failed: ${error.message}`);
-      setTransactionInProgress(false);
-      setPaying(false);
+        logger.error('Payment error:', error);
+        alert(`Payment failed: ${error.message}`);
+        
+        // Reset states on failure
+        setGameState(prev => ({
+            ...prev,
+            hasValidPayment: false,
+            gameStarted: false,
+            selectedTierClicked: false
+        }));
+    } finally {
+        setTransactionInProgress(false);
+        setPaying(false);
     }
   };
 
-  // Add useEffect for periodic leaderboard updates
-  useEffect(() => {
-    fetchLeaderboards(); // Initial fetch only
-  }, []); // No interval, just fetch once on mount
-
-  useEffect(() => {
-    // Prevent scrolling on touch devices during gameplay
-    const preventScroll = (e) => {
-      if (gameState.gameStarted) {
-        e.preventDefault();
-      }
-    };
-
-    document.addEventListener('touchmove', preventScroll, { passive: false });
-    document.addEventListener('touchstart', preventScroll, { passive: false });
-
-    return () => {
-      document.removeEventListener('touchmove', preventScroll);
-      document.removeEventListener('touchstart', preventScroll);
-    };
-  }, [gameState.gameStarted]);
-
-  // Add this to your render method where you have the payment button
-  const renderPaymentTiers = () => {
-    logger.log('Rendering payment tiers with NFT verification:', isNFTVerified);
-    return (
-      <div className="payment-tiers">
-        {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
-          const originalAmount = tier.amount / 1_000_000_000;
-          const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
-          const canAfford = canAffordTier(isNFTVerified ? BigInt(tier.amount) / BigInt(2) : BigInt(tier.amount));
-          const isSelected = selectedTier === tierId;
-          
-          return (
-            <button
-              key={tierId}
-              className={`tier-button ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`}
-              onClick={async () => {
-                const selectedTierId = tierId;
-                logger.log('Desktop tier button clicked:', {
-                  tier: selectedTierId,
-                  amount: finalAmount,
-                  plays: tier.plays,
-                  canAfford
-                });
-                
-                setSelectedTier(selectedTierId);
-                await new Promise(resolve => setTimeout(resolve, 100));
-                await handleGamePayment(selectedTierId);
-              }}
-              disabled={!canAfford || paying}
-            >
-              <div className="tier-label">{tier.label}</div>
-              <div className="tier-price">{finalAmount} SUI</div>
-              <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
-              {!canAfford && <div className="insufficient-funds">Insufficient funds</div>}
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
-
+  // Update the renderMobilePaymentTiers function to remove duplicate selector
   const renderMobilePaymentTiers = () => (
-    <div className="payment-tiers-mobile">
+    <div className="mobile-payment-tiers">
       <select
         className="tier-select"
         value={selectedTier}
         onChange={async (e) => {
           const selectedTierId = e.target.value;
+          console.log("Selected tier:", selectedTierId);
+          
           if (selectedTierId) {
+            console.log("Payment tier selected:", selectedTierId);
+            console.log("Payment token:", selectedPaymentToken);
+            
+            // Log the tier details
             const tier = config.paymentTiers[selectedTierId];
-            const originalAmount = tier.amount / 1_000_000_000;
-            const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
-            
-            logger.log('Mobile tier selected:', {
-              tier: selectedTierId,
-              finalAmount,
-              isNFTVerified
-            });
-            
+            console.log("Tier details:", tier);
+          
             setSelectedTier(selectedTierId);
             await new Promise(resolve => setTimeout(resolve, 100));
             await handleGamePayment(selectedTierId);
@@ -1371,22 +1599,44 @@ const GameApp = () => {
       >
         <option value="">-- Select Payment Tier --</option>
         {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
-          const originalAmount = tier.amount / 1_000_000_000;
-          const finalAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
-          const canAfford = canAffordTier(isNFTVerified ? BigInt(tier.amount) / BigInt(2) : BigInt(tier.amount));
+          // Calculate display amount based on selected token
+          let displayAmount, displaySymbol;
+          
+          if (selectedPaymentToken === 'SUI') {
+            const originalAmount = tier.amount / 1_000_000_000;
+            displayAmount = isNFTVerified ? originalAmount / 2 : originalAmount;
+            displaySymbol = 'SUI';
+          } else {
+            // For AYA, convert the SUI amount to AYA using price ratio
+            const suiBaseAmount = Number(tier.amount) / Math.pow(10, PAYMENT_TOKENS.SUI.decimals);
+            const ayaAmount = tokenPrices.SUI && tokenPrices.AYA 
+              ? (suiBaseAmount * tokenPrices.SUI / tokenPrices.AYA) 
+              : 0;
+            // Apply 25% discount for AYA payments
+            const discountedAyaAmount = ayaAmount * 0.75;
+            displayAmount = isNFTVerified ? discountedAyaAmount / 2 : discountedAyaAmount;
+            displaySymbol = 'AYA';
+          }
+          
+          // Calculate USD value
+          const usdValue = displayAmount * (tokenPrices[selectedPaymentToken] || 0);
+          const usdDisplay = tokenPrices[selectedPaymentToken] 
+            ? `≈$${usdValue.toFixed(2)}` 
+            : '(Loading...)';
           
           return (
             <option 
               key={tierId} 
               value={tierId}
-              disabled={!canAfford || paying}
+              disabled={paying || (!tokenPrices.SUI || !tokenPrices.AYA)}
             >
-              {`${tier.label} - ${finalAmount} SUI (${tier.plays} ${tier.plays === 1 ? 'Play' : 'Plays'})`}
-              {!canAfford ? ' (Insufficient funds)' : ''}
+              {`${tier.label} - ${displayAmount.toFixed(displaySymbol === 'SUI' ? 2 : 0)} ${displaySymbol} (${usdDisplay}) - ${tier.plays} ${tier.plays === 1 ? 'Play' : 'Plays'}`}
             </option>
           );
         })}
       </select>
+      
+          
     </div>
   );
 
@@ -1450,81 +1700,58 @@ useEffect(() => {
 
 
 
-// Modify fetchPrimaryWalletBalance to set all balances
+// Update the fetchPrimaryWalletBalance function to filter zero balances
 const fetchPrimaryWalletBalance = async () => {
-    logger.log('=== PRIZE POOL NFT PROCESSING ===');
-    logger.log('fetchPrimaryWalletBalance called');
-
+    logger.log('=== PRIZE POOL BALANCE CHECK ===');
     try {
         const recipients = config.getCurrentRecipients();
-        logger.log('Recipients from config:', recipients);
-        
         if (!recipients?.primary) {
-            logger.error('Primary recipient address is undefined or null');
+            logger.error('Primary recipient address is undefined');
             return;
         }
 
-        logger.log('Attempting to fetch from address:', recipients.primary);
+        // Fetch all coins for the prize pool wallet
+        const { data: allCoins } = await client.getAllCoins({
+            owner: recipients.primary
+        });
 
-        // Test the client connection
-        try {
-            const testConnection = await client.getChainIdentifier();
-            logger.log('Client connection test:', testConnection);
-        } catch (e) {
-            logger.error('Client connection test failed:', e);
-        }
-
-        // Fetch both coins and NFTs
-        const [allCoins, allNFTs] = await Promise.all([
-            client.getAllCoins({ owner: recipients.primary }),
-            client.getOwnedObjects({
-                owner: recipients.primary,
-                options: { 
-                    showType: true,
-                    showContent: true,
-                    showDisplay: true 
-                }
-            })
-        ]);
-
-        logger.log('Prize Pool - Raw NFT response:', JSON.stringify(allNFTs, null, 2));
-        
-        let totalSuiBalance = BigInt(0);
-        const balancesByCoin = {};
-        const tokenIconsMap = {};
-        const nfts = [];
-
-        // Process coins and fetch metadata
-        for (const coin of allCoins.data) {
+        // Group coins by type and sum balances
+        const balanceMap = new Map();
+        for (const coin of allCoins) {
             const coinType = coin.coinType;
             const balance = BigInt(coin.balance);
             
-            if (coinType === '0x2::sui::SUI') {
-                totalSuiBalance += balance;
-                // Add SUI icon
-                tokenIconsMap['SUI'] = "https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png";  // Use the Blue Tear image URL
-            }
-            
-            const parts = coinType.split('::');
-            const symbol = parts.length >= 3 ? parts[2] : coinType;
-            
-            // Store both balance and full coin type
-            if (balancesByCoin[symbol]) {
-                balancesByCoin[symbol] = {
-                    balance: balancesByCoin[symbol].balance + balance,
+            // Only process non-zero balances
+            if (balance > BigInt(0)) {
+                // Get existing balance or initialize to 0
+                const existingBalance = balanceMap.get(coinType) || {
+                    balance: BigInt(0),
                     coinType: coinType
                 };
-            } else {
-                balancesByCoin[symbol] = {
-                    balance: balance,
-                    coinType: coinType
-                };
+                
+                // Add current balance to existing
+                existingBalance.balance += balance;
+                balanceMap.set(coinType, existingBalance);
             }
+        }
 
-            // Try to get token metadata if not already fetched
-            if (!tokenIconsMap[symbol]) {
+        // Convert to the format expected by the state
+        const balancesByCoin = {};
+        const tokenIconsMap = {};
+
+        for (const [coinType, data] of balanceMap.entries()) {
+            // Only process coins with non-zero balances
+            if (data.balance > BigInt(0)) {
+                // Extract symbol from coin type (e.g., "0x2::sui::SUI" -> "SUI")
+                const symbol = coinType.split('::').pop();
+                
+                balancesByCoin[symbol] = {
+                    balance: data.balance,
+                    coinType: coinType
+                };
+
+                // Try to fetch coin metadata for icon
                 try {
-                    // First try to get from coin metadata
                     const metadata = await client.getCoinMetadata({ coinType });
                     if (metadata?.iconUrl) {
                         tokenIconsMap[symbol] = formatIPFSUrl(metadata.iconUrl);
@@ -1532,57 +1759,79 @@ const fetchPrimaryWalletBalance = async () => {
                 } catch (error) {
                     logger.warn(`Failed to fetch metadata for ${symbol}:`, error);
                 }
+
+                // Set default SUI icon
+                if (coinType === '0x2::sui::SUI') {
+                    tokenIconsMap['SUI'] = "https://cdn.prod.website-files.com/6744eaad4ef3982473db4359/676b2256d6f25cb51c68229b_BlueTear.2.png";
+                }
             }
         }
 
-        // Process NFTs
-        for (const nft of allNFTs.data) {
-            const contentType = nft.data?.content?.type || '';
-            // Skip if it's a coin
-            if (!contentType.includes('0x2::coin')) {
-                const displayData = nft.data?.display?.data || {};
-                const nftData = nft.data?.content?.fields || {};
-                
-                // Get the raw image URL
-                let imageUrl = displayData.image_url || nftData.url || nftData.image_url;
-                imageUrl = formatIPFSUrl(imageUrl);
-                
-                nfts.push({
-                    id: nft.data.objectId,
-                    type: contentType,
-                    name: displayData.name || nftData.name || 'Unnamed NFT',
-                    description: displayData.description || nftData.description || contentType,
-                    url: imageUrl
-                });
+        // Fetch NFTs
+        const { data: nftObjects } = await client.getOwnedObjects({
+            owner: recipients.primary,
+            options: {
+                showType: true,
+                showContent: true,
+                showDisplay: true
             }
-        }
-        
-        logger.log('Final balances:', {
-            totalSui: totalSuiBalance.toString(),
-            byCoin: balancesByCoin,
-            tokenIcons: tokenIconsMap,
-            nfts: nfts
         });
 
+        // Process NFTs
+        const nfts = nftObjects
+            .filter(obj => {
+                const type = obj.data?.content?.type || '';
+                return !type.includes('0x2::coin'); // Filter out coin objects
+            })
+            .map(obj => {
+                const displayData = obj.data?.display?.data || {};
+                const contentFields = obj.data?.content?.fields || {};
+                
+                let imageUrl = displayData.image_url || 
+                             contentFields.url || 
+                             contentFields.image_url;
+                
+                if (imageUrl) {
+                    imageUrl = formatIPFSUrl(imageUrl);
+                }
+
+                return {
+                    id: obj.data.objectId,
+                    type: obj.data.content.type,
+                    name: displayData.name || contentFields.name || 'Unnamed NFT',
+                    description: displayData.description || contentFields.description || '',
+                    url: imageUrl
+                };
+            });
+
+        logger.log('Prize Pool Assets:', {
+            coins: balancesByCoin,
+            nfts: nfts.length
+        });
+
+        // Update states
         setAllBalances(balancesByCoin);
         setTokenIcons(tokenIconsMap);
-        setPrimaryWalletBalance(totalSuiBalance);
         setNFTs(nfts);
-        
+
     } catch (error) {
-        logger.error('Balance check error:', error);
-        setPrimaryWalletBalance(null);
+        logger.error('Error fetching prize pool assets:', error);
+        // Reset states on error
         setAllBalances({});
         setTokenIcons({});
         setNFTs([]);
     }
 };
 
-
+// Update the useEffect for fetching prize pool assets
 useEffect(() => {
-  fetchPrimaryWalletBalance(); // Initial fetch
-  const interval = setInterval(fetchPrimaryWalletBalance, 60000); // Update every minute
-  return () => clearInterval(interval);
+    fetchPrimaryWalletBalance();
+    
+    // Set up periodic refresh every 30 seconds
+    const intervalId = setInterval(fetchPrimaryWalletBalance, 30000);
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
 }, []);
 
 const resetGameState = () => {
@@ -2051,9 +2300,228 @@ const handleSuinsChange = (e) => {
     );
   };
 
+  // Update testAyaPayment to use proper decimal conversion
+  const testAyaPayment = async () => {
+    try {
+      logger.log('Testing AYA payment...');
+      setPaying(true);
+      setTransactionInProgress(true);
+
+      const packageId = '0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b';
+      // Total amount in base units (1000 * 10^6)
+      const testAmount = 1000 * Math.pow(10, PAYMENT_TOKENS.AYA.decimals);
+
+      // Calculate split amounts (40%, 30%, 20%, 10%)
+      const primaryAmount = Math.floor(testAmount * 0.4);    // 400 AYA
+      const secondaryAmount = Math.floor(testAmount * 0.3);  // 300 AYA
+      const tertiaryAmount = Math.floor(testAmount * 0.2);   // 200 AYA
+      const rewardsAmount = testAmount - primaryAmount - secondaryAmount - tertiaryAmount; // 100 AYA (remainder)
+
+      // Get AYA coins
+      const { data: coins } = await client.getCoins({
+        owner: wallet.account.address,
+        coinType: `${packageId}::aya::AYA`
+      });
+
+      logger.log('Available AYA coins:', coins);
+
+      if (coins.length === 0) throw new Error('No AYA coins found');
+
+      // Find a coin with sufficient balance
+      const selectedCoin = coins.find(coin => BigInt(coin.balance) >= BigInt(testAmount));
+      if (!selectedCoin) {
+        throw new Error(`Insufficient AYA balance. Need ${testAmount / Math.pow(10, PAYMENT_TOKENS.AYA.decimals)} AYA`);
+      }
+
+      // Create transaction block
+      const tx = new TransactionBlock();
+
+      // Split the coin into shares
+      const [primary, secondary, tertiary, rewards] = tx.splitCoins(
+        tx.object(selectedCoin.coinObjectId),
+        [
+          tx.pure.u64(primaryAmount),
+          tx.pure.u64(secondaryAmount),
+          tx.pure.u64(tertiaryAmount),
+          tx.pure.u64(rewardsAmount)
+        ]
+      );
+
+      // Transfer each share
+      tx.transferObjects([primary], tx.pure.address(config.getCurrentRecipients().primary));
+      tx.transferObjects([secondary], tx.pure.address(config.getCurrentRecipients().secondary));
+      tx.transferObjects([tertiary], tx.pure.address(config.getCurrentRecipients().tertiary));
+      tx.transferObjects([rewards], tx.pure.address(config.getCurrentRecipients().rewards));
+
+      logger.log('Executing AYA split transfer:', {
+        from: wallet.account.address,
+        totalAmount: testAmount / Math.pow(10, PAYMENT_TOKENS.AYA.decimals),
+        splits: {
+          primary: primaryAmount / Math.pow(10, PAYMENT_TOKENS.AYA.decimals),
+          secondary: secondaryAmount / Math.pow(10, PAYMENT_TOKENS.AYA.decimals),
+          tertiary: tertiaryAmount / Math.pow(10, PAYMENT_TOKENS.AYA.decimals),
+          rewards: rewardsAmount / Math.pow(10, PAYMENT_TOKENS.AYA.decimals)
+        },
+        recipients: config.getCurrentRecipients(),
+        coinId: selectedCoin.coinObjectId
+      });
+
+      const response = await wallet.signAndExecuteTransactionBlock({
+        transactionBlock: tx,
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showInput: true,
+          gasBudget: 10000000
+        }
+      });
+
+      logger.log('Test transaction response:', response);
+
+      if (response.digest) {
+        alert('Test AYA split transfer successful!');
+      }
+
+    } catch (error) {
+      logger.error('Test payment error:', error);
+      alert(`Test payment failed: ${error.message}`);
+    } finally {
+      setTransactionInProgress(false);
+      setPaying(false);
+    }
+  };
+
+  // Update the renderPaymentTiers function to handle loading and error states
+  const renderPaymentTiers = () => {
+    return (
+      <div className="payment-section">
+        <div className="token-selector">
+          <select 
+            value={selectedPaymentToken} 
+            onChange={(e) => {
+              const newToken = e.target.value;
+              setSelectedPaymentToken(newToken);
+              
+              // If switching to AYA, update AYA balance immediately
+              if (newToken === 'AYA' && wallet.connected && wallet.account) {
+                const updateAyaBalance = async () => {
+                  try {
+                    const ayaType = PAYMENT_TOKENS.AYA.type;
+                    const ayaBalance = await checkTokenBalance(ayaType);
+                    setAllBalances(prev => ({
+                      ...prev,
+                      [ayaType]: ayaBalance
+                    }));
+                    
+                    logger.log('AYA balance updated after token switch:', {
+                      address: wallet.account.address,
+                      ayaBalance: ayaBalance.toString()
+                    });
+                  } catch (error) {
+                    logger.error('Error updating AYA balance after token switch:', error);
+                  }
+                };
+                
+                updateAyaBalance();
+              }
+            }}
+            className="token-select"
+          >
+            <option value="SUI">Pay with SUI</option>
+            <option value="AYA">Pay with AYA</option>
+          </select>
+          {(!tokenPrices.SUI || !tokenPrices.AYA) && (
+            <div className="price-loading">Loading prices...</div>
+          )}
+        </div>
+
+        <div className="payment-tiers">
+          {Object.entries(config.paymentTiers).map(([tierId, tier]) => {
+            // Get base amount in SUI
+            const baseSuiAmount = tier.amount / (10 ** PAYMENT_TOKENS.SUI.decimals);
+            
+            // Calculate display amount based on selected token
+            let displayAmount;
+            if (selectedPaymentToken === 'SUI') {
+              displayAmount = baseSuiAmount;
+            } else {
+              // Calculate equivalent AYA amount based on price ratio
+              displayAmount = tokenPrices.SUI && tokenPrices.AYA 
+                ? (baseSuiAmount * tokenPrices.SUI / tokenPrices.AYA) 
+                : 0;
+                
+              // Apply 25% discount for AYA payments
+              displayAmount = displayAmount * 0.75;
+            }
+
+            // Apply NFT discount if applicable
+            if (isNFTVerified) {
+              displayAmount = displayAmount / 2;
+            }
+
+            // Calculate USD value for display
+            const usdValue = displayAmount * (tokenPrices[selectedPaymentToken] || 0);
+
+            return (
+              <button
+                key={tierId}
+                className={`tier-button ${selectedTier === tierId ? 'selected' : ''}`}
+                onClick={async () => {
+                  setSelectedTier(tierId);
+                  // Add a small delay to allow the UI to update
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  // Automatically start payment process
+                  await handleGamePayment(tierId);
+                }}
+                disabled={paying || !tokenPrices[selectedPaymentToken]}
+              >
+                <div className="tier-label">{tier.label}</div>
+                <div className="tier-price">
+                  {displayAmount.toFixed(selectedPaymentToken === 'SUI' ? 2 : 0)} {selectedPaymentToken}
+                  <div className="usd-value">
+                    {tokenPrices[selectedPaymentToken] 
+                      ? `(≈$${usdValue.toFixed(2)})` 
+                      : '(Loading price...)'}
+                  </div>
+                </div>
+                <div className="tier-plays">{tier.plays} {tier.plays === 1 ? 'Play' : 'Plays'}</div>
+              </button>
+            );
+          })}
+        </div>
+        
+        {/* Active Discounts Section */}
+        <div className="active-discounts">
+          <h4>Active Discounts:</h4>
+          <div className="discount-list">
+            {selectedPaymentToken === 'AYA' && (
+              <div className="discount-item">
+                <span className="discount-badge">25% off</span>
+                <span className="discount-description">AYA payment discount</span>
+              </div>
+            )}
+            {isNFTVerified && (
+              <div className="discount-item">
+                <span className="discount-badge">50% off</span>
+                <span className="discount-description">NFT holder discount</span>
+              </div>
+            )}
+            {!isNFTVerified && selectedPaymentToken !== 'AYA' && (
+              <div className="discount-item no-discount">
+                <span className="discount-description">No active discounts</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render method
   return (
     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+      
+
       {showGameInfoPopup && (
         <GameInfoPopup onClose={handlePopupClose} />
       )}
@@ -2314,7 +2782,6 @@ const handleSuinsChange = (e) => {
               🎮 Zombfyd 🎮
             </a>
           </p>
-
           <h2>Select Game Mode</h2>
           <div className="mode-selector">
             <button 
@@ -2368,12 +2835,13 @@ const handleSuinsChange = (e) => {
                       <h2>Select Payment Tier</h2>
                       <MobileWalletGuide />
                       <div className="payment-section">
+                        {/* Desktop payment tiers */}
+                        {renderPaymentTiers()}
                         {/* Mobile dropdown */}
                         <div className="payment-tiers-mobile">
                           {renderMobilePaymentTiers()}
                         </div>
-                        {/* Desktop payment tiers */}
-                        {renderPaymentTiers()}
+                        
                       </div>
                     </>
                   ) : (

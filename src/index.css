@@ -850,6 +850,7 @@ th, td {
 
   .tier-select {
     width: 100%;
+    text-align: center;
     padding: 12px;
     border: 2px solid #2054c9;
     border-radius: 8px;
@@ -2076,4 +2077,70 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
 
 *:hover {
   scrollbar-width: thin;
+}
+select.token-select {
+  width: 100%;
+  padding: 12px;
+  text-align: center;
+  border: 2px solid #2054c9;
+  border-radius: 8px;
+  background-color: rgba(66, 66, 66, 0);
+  color: #2054c9;
+  font-size: 1rem;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232054c9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1em;
+}
+
+/* Active Discounts Section */
+.active-discounts {
+  margin: auto;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(32, 84, 201, 0.3);
+  border-radius: 8px;
+  background-color: rgba(32, 84, 201, 0.05);
+  width: 50%;
+  @media (max-width: 768px) {
+    width: 91%;
+
+  }
+}
+
+.active-discounts h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: #2054c9;
+}
+
+.discount-list {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.discount-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.discount-description {
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.discount-item.no-discount {
+  color: #666;
+  font-style: italic;
 }
