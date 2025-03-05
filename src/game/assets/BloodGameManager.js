@@ -105,10 +105,9 @@ class BloodGameManager {
       // Add direct canvas touch handlers for better mobile response
       if (this.canvas) {
         this.canvas.addEventListener('touchmove', this.handleCanvasTouchMove.bind(this), { passive: false });
-        // Add mouse move handler for desktop users
+        // Add mouse move handler specifically for desktop users
         this.canvas.addEventListener('mousemove', this.handleCanvasMouseMove.bind(this));
         this.canvas.style.touchAction = 'none';
-        this.canvas.style.cursor = 'none'; // Hide cursor when over canvas for better gameplay
       }
   
       // Wait for all images to load
@@ -269,7 +268,6 @@ class BloodGameManager {
       if (this.canvas) {
         this.canvas.removeEventListener('touchmove', this.handleCanvasTouchMove);
         this.canvas.removeEventListener('mousemove', this.handleCanvasMouseMove);
-        this.canvas.style.cursor = 'default'; // Restore default cursor
       }
     }
   
@@ -852,13 +850,6 @@ class BloodGameManager {
     handleCanvasMouseMove(e) {
       if (!this.gameActive || !this.bucket || !this.canvas) return;
       
-      if (this.debugMode) {
-        console.log('Direct canvas mouse move', {
-          clientX: e.clientX,
-          active: this.gameActive
-        });
-      }
-      
       const rect = this.canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       
@@ -866,14 +857,14 @@ class BloodGameManager {
       const scaleX = this.canvas.width / rect.width;
       const scaledX = mouseX * scaleX;
       
-      // Center the bucket under the mouse cursor
+      // Center the bucket under the mouse pointer
       this.bucket.x = Math.min(
         Math.max(scaledX - (this.bucket.width / 2), 0),
         this.canvas.width - this.bucket.width
       );
       
       if (this.debugMode) {
-        console.log('Direct mouse bucket update:', {
+        console.log('Mouse bucket update:', {
           mouseX: mouseX,
           bucketX: this.bucket.x
         });

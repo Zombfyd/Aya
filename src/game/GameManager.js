@@ -122,10 +122,9 @@ class GameManager {
     // Add direct canvas touch handlers for better mobile response
     if (this.canvas) {
       this.canvas.addEventListener('touchmove', this.handleCanvasTouchMove.bind(this), { passive: false });
-      // Add mouse move handler for desktop users
+      // Add mouse move handler specifically for desktop users
       this.canvas.addEventListener('mousemove', this.handleCanvasMouseMove.bind(this));
       this.canvas.style.touchAction = 'none';
-      this.canvas.style.cursor = 'none'; // Hide cursor when over canvas for better gameplay
     }
     
     // Wait for all images to load
@@ -224,14 +223,16 @@ class GameManager {
   }
 
   cleanup() {
-    // Stop background music
-    if (this.audioManager) {
-      this.audioManager.stopBackgroundMusic();
+    // Stop only background music, keep ambient rain playing
+    AudioManager.stopBackgroundMusic();
+    
+    // Clear any running game loops
+    if (this.gameLoopId) {
+      cancelAnimationFrame(this.gameLoopId);
+      this.gameLoopId = null;
     }
-
-    // Clear all timers
-    clearTimeout(this.gameLoopId);
-    Object.values(this.spawnTimers).forEach(timer => clearTimeout(timer));
+    
+    // Clear all spawn timers
     this.spawnTimers = {
       teardrop: null,
       goldtear: null,
@@ -249,7 +250,6 @@ class GameManager {
     if (this.canvas) {
       this.canvas.removeEventListener('touchmove', this.handleCanvasTouchMove);
       this.canvas.removeEventListener('mousemove', this.handleCanvasMouseMove);
-      this.canvas.style.cursor = 'default'; // Restore default cursor
     }
 
     // Clear entities
@@ -718,13 +718,6 @@ drawUI() {
   handleCanvasMouseMove(e) {
     if (!this.gameActive || !this.bucket || !this.canvas) return;
     
-    if (this.debugMode) {
-      console.log('Direct canvas mouse move', {
-        clientX: e.clientX,
-        active: this.gameActive
-      });
-    }
-    
     const rect = this.canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     
@@ -732,14 +725,14 @@ drawUI() {
     const scaleX = this.canvas.width / rect.width;
     const scaledX = mouseX * scaleX;
     
-    // Center the bucket under the mouse cursor
+    // Center the bucket under the mouse pointer
     this.bucket.x = Math.min(
       Math.max(scaledX - (this.bucket.width / 2), 0),
       this.canvas.width - this.bucket.width
     );
     
     if (this.debugMode) {
-      console.log('Direct mouse bucket update:', {
+      console.log('Mouse bucket update:', {
         mouseX: mouseX,
         bucketX: this.bucket.x
       });
