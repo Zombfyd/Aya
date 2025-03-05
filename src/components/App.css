@@ -45,6 +45,21 @@
   margin: 2rem 0;
   background: url('https://i.imgflip.com/4zei4c.jpg') no-repeat center bottom;
   background-size: cover;
+  touch-action: none; /* Prevent browser handling of touch gestures */
+  -webkit-touch-callout: none; /* Prevent callout to copy image */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version */
+  position: relative; /* Ensure position context for absolute positioning */
+}
+
+.centered-canvas {
+  position: relative;
+  z-index: 10;
+  touch-action: none;
+  pointer-events: auto;
 }
 
 /* Header and wallet connection styles */
@@ -261,6 +276,17 @@ tr:nth-child(even) {
   
   .game-canvas {
     height: 400px;
+    touch-action: none;
+    -webkit-overflow-scrolling: none;
+    overscroll-behavior: none;
+    position: relative;
+  }
+  
+  .centered-canvas {
+    position: relative;
+    z-index: 10;
+    touch-action: none;
+    pointer-events: auto;
   }
 }
 .leaderboards-container {
