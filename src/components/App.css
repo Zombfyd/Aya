@@ -60,6 +60,12 @@
   z-index: 10;
   touch-action: none;
   pointer-events: auto;
+  -webkit-touch-callout: none; /* Prevent callout to copy image */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version */
 }
 
 /* Header and wallet connection styles */
@@ -280,6 +286,12 @@ tr:nth-child(even) {
     -webkit-overflow-scrolling: none;
     overscroll-behavior: none;
     position: relative;
+    -webkit-touch-callout: none; /* Prevent callout to copy image */
+    -webkit-user-select: none; /* Safari */
+    -khtml-user-select: none; /* Konqueror HTML */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* Internet Explorer/Edge */
+    user-select: none; /* Non-prefixed version */
   }
   
   .centered-canvas {
