@@ -1189,13 +1189,22 @@ const GameApp = () => {
                 behavior: 'smooth'
             });
             
-            // Make sure the canvas has the right touch and mouse handling properties
+            // Make sure the canvas has the right touch handling properties
             canvas.style.touchAction = 'none';
-            canvas.style.cursor = 'none'; // Hide cursor when game is active
-            canvas.style.userSelect = 'none';
-            canvas.style.webkitUserSelect = 'none';
-            canvas.style.mozUserSelect = 'none';
-            canvas.style.msUserSelect = 'none';
+            
+            // Add active class for cursor styling
+            canvas.classList.add('active');
+            
+            // Also add active class to the parent container if it exists
+            const gameCanvas = document.querySelector('.game-canvas');
+            if (gameCanvas) {
+                gameCanvas.classList.add('active');
+            }
+            
+            const centeredCanvas = document.querySelector('.centered-canvas');
+            if (centeredCanvas) {
+                centeredCanvas.classList.add('active');
+            }
         }
 
         logger.log(`Starting game in ${gameMode} mode, type: ${type}`);
@@ -1246,15 +1255,22 @@ const GameApp = () => {
                     isGameOver: true,
                     gameStarted: false,
                 }));
-
-                // Restore cursor on game over
+                
+                // Remove active class from canvas elements
                 const canvas = document.getElementById('tearCatchGameCanvas');
                 if (canvas) {
-                    canvas.style.cursor = 'default';
+                    canvas.classList.remove('active');
                 }
-
-                // Notify document that game is no longer active
-                window.postMessage({ type: 'gameStateChange', active: false }, '*');
+                
+                const gameCanvas = document.querySelector('.game-canvas');
+                if (gameCanvas) {
+                    gameCanvas.classList.remove('active');
+                }
+                
+                const centeredCanvas = document.querySelector('.centered-canvas');
+                if (centeredCanvas) {
+                    centeredCanvas.classList.remove('active');
+                }
 
                 try {
                     // If not connected to wallet, submit to Web2 directly
