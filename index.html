@@ -52,6 +52,14 @@
         }
       }, { passive: false });
       
+      // Prevent text selection on canvas during mouse events
+      document.addEventListener('mousedown', function(e) {
+        const isCanvas = e.target && e.target.tagName === 'CANVAS';
+        if (isCanvas) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
       let lastTouchEnd = 0;
     </script>
 

@@ -122,7 +122,10 @@ class GameManager {
     // Add direct canvas touch handlers for better mobile response
     if (this.canvas) {
       this.canvas.addEventListener('touchmove', this.handleCanvasTouchMove.bind(this), { passive: false });
+      // Add mouse move handler for desktop users
+      this.canvas.addEventListener('mousemove', this.handleCanvasMouseMove.bind(this));
       this.canvas.style.touchAction = 'none';
+      this.canvas.style.cursor = 'none'; // Hide cursor when over canvas for better gameplay
     }
     
     // Wait for all images to load
@@ -221,20 +224,14 @@ class GameManager {
   }
 
   cleanup() {
-    // Stop only background music, keep ambient rain playing
-    AudioManager.stopBackgroundMusic();
-    
-    // Clear any running game loops
-    if (this.gameLoopId) {
-      cancelAnimationFrame(this.gameLoopId);
-      this.gameLoopId = null;
+    // Stop background music
+    if (this.audioManager) {
+      this.audioManager.stopBackgroundMusic();
     }
-    
-    // Clear spawn timers
-    Object.values(this.spawnTimers).forEach(timer => {
-      if (timer) clearTimeout(timer);
-    });
 
+    // Clear all timers
+    clearTimeout(this.gameLoopId);
+    Object.values(this.spawnTimers).forEach(timer => clearTimeout(timer));
     this.spawnTimers = {
       teardrop: null,
       goldtear: null,
@@ -251,6 +248,8 @@ class GameManager {
     // Remove direct canvas touch handlers
     if (this.canvas) {
       this.canvas.removeEventListener('touchmove', this.handleCanvasTouchMove);
+      this.canvas.removeEventListener('mousemove', this.handleCanvasMouseMove);
+      this.canvas.style.cursor = 'default'; // Restore default cursor
     }
 
     // Clear entities
@@ -712,6 +711,38 @@ drawUI() {
           bucketX: this.bucket.x
         });
       }
+    }
+  }
+  
+  // Direct canvas mouse handler for desktop users
+  handleCanvasMouseMove(e) {
+    if (!this.gameActive || !this.bucket || !this.canvas) return;
+    
+    if (this.debugMode) {
+      console.log('Direct canvas mouse move', {
+        clientX: e.clientX,
+        active: this.gameActive
+      });
+    }
+    
+    const rect = this.canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    
+    // Position bucket relative to canvas scale
+    const scaleX = this.canvas.width / rect.width;
+    const scaledX = mouseX * scaleX;
+    
+    // Center the bucket under the mouse cursor
+    this.bucket.x = Math.min(
+      Math.max(scaledX - (this.bucket.width / 2), 0),
+      this.canvas.width - this.bucket.width
+    );
+    
+    if (this.debugMode) {
+      console.log('Direct mouse bucket update:', {
+        mouseX: mouseX,
+        bucketX: this.bucket.x
+      });
     }
   }
 }
