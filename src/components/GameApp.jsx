@@ -1,5 +1,6 @@
 import { gameManager } from '../game/GameManager.js';
 import { BloodGameManager } from '../game/assets/BloodGameManager.js';
+import AudioManager from '../game/AudioManager.js';
 
 // Initialize both game managers
 const gameManager1 = gameManager;
@@ -157,8 +158,15 @@ const GameApp = () => {
   const [suinsClient, setSuinsClient] = useState(null);
   const [addressToNameCache, setAddressToNameCache] = useState({});
   const [displayName, setDisplayName] = useState('');
-  const [playerName, setPlayerName] = useState('');
-  const [isUsernameSubmitted, setIsUsernameSubmitted] = useState(false);
+  const [playerName, setPlayerName] = useState(() => {
+    // Check if there's a saved name in localStorage
+    const savedName = localStorage.getItem('savedPlayerName');
+    return savedName || '';
+  });
+  const [isUsernameSubmitted, setIsUsernameSubmitted] = useState(() => {
+    // If there's a saved name, consider the username as already submitted
+    return !!localStorage.getItem('savedPlayerName');
+  });
   const [useSuins, setUseSuins] = useState(false);
   const [suinsData, setSuinsData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -191,6 +199,24 @@ const GameApp = () => {
   // Add this state at the top with other state declarations
   const [isAssetsExpanded, setIsAssetsExpanded] = useState(false);
   
+  // Add audio volume state variables
+  const [masterVolume, setMasterVolume] = useState(() => {
+    const savedVolume = localStorage.getItem('masterVolume');
+    return savedVolume ? parseFloat(savedVolume) : 0.7; // Default to 0.7 if not saved
+  });
+  
+  const [musicVolume, setMusicVolume] = useState(() => {
+    const savedVolume = localStorage.getItem('musicVolume');
+    return savedVolume ? parseFloat(savedVolume) : 0.3; // Default to 0.3 if not saved
+  });
+  
+  const [soundVolume, setSoundVolume] = useState(() => {
+    const savedVolume = localStorage.getItem('soundVolume');
+    return savedVolume ? parseFloat(savedVolume) : 0.5; // Default to 0.5 if not saved
+  });
+  
+  const [showVolumeControls, setShowVolumeControls] = useState(false);
+
   const SUINS_TYPE = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0::suins_registration::SuinsRegistration";
   const SUINS_REGISTRY = "0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0";
   
@@ -203,7 +229,19 @@ const GameApp = () => {
   });
   
   // Add this state near the top of your file
-  const [showGameInfoPopup, setShowGameInfoPopup] = useState(true);
+  const [showGameInfoPopup, setShowGameInfoPopup] = useState(() => {
+    // Check both localStorage (permanent) and sessionStorage (temporary) during initialization
+    const permanentlyClosed = localStorage.getItem('hasSeenGameTutorial') === 'true';
+    const temporarilyClosed = sessionStorage.getItem('hasSeenGameTutorial') === 'true';
+    
+    console.log('Initial state check:');
+    console.log('localStorage hasSeenGameTutorial:', localStorage.getItem('hasSeenGameTutorial'));
+    console.log('sessionStorage hasSeenGameTutorial:', sessionStorage.getItem('hasSeenGameTutorial'));
+    console.log('permanentlyClosed:', permanentlyClosed);
+    console.log('temporarilyClosed:', temporarilyClosed);
+    
+    return !permanentlyClosed && !temporarilyClosed;
+  });
   
   // First, add a new state for the checkbox
   const [neverShowTutorial, setNeverShowTutorial] = useState(false);
@@ -1299,7 +1337,10 @@ const GameApp = () => {
                         const qualificationResult = await checkScoreQualification(finalScore, gameType);
                         if (qualificationResult) {
                             setQualifiedForPaid(true);
-                            setQualifyingTier(qualificationResult);
+                            // Store both the tier and discount information
+                            setQualifyingTier(qualificationResult.tier);
+                            // Log the discount information
+                            logger.log('Qualification with discounts:', qualificationResult);
                         } else {
                             setQualifiedForPaid(false);
                             setQualifyingTier(null);
@@ -1702,6 +1743,7 @@ useEffect(() => {
   const checkScoreQualification = async (score, game) => {
     try {
         logger.log(`Checking qualification for game ${game} with score ${score}`);
+        logger.log('Discount status:', { isNFTVerified, selectedPaymentToken });
         
         const endpoint = `${config.apiBaseUrl}/api/scores/leaderboard/secondary/paid?game=${game}`;
         logger.log('Checking against weekly paid leaderboard:', endpoint);
@@ -1732,7 +1774,19 @@ useEffect(() => {
         }
 
         setTopScores(leaderboardData);
-        return qualificationTier;
+        
+        // Include discount information with the qualification tier
+        if (qualificationTier) {
+            return {
+                tier: qualificationTier,
+                discounts: {
+                    nftDiscount: isNFTVerified,
+                    ayaDiscount: selectedPaymentToken === 'AYA'
+                }
+            };
+        }
+        
+        return null;
     } catch (error) {
         logger.error('Error checking score qualification:', error);
         return null;
@@ -1941,6 +1995,13 @@ const handlePaidGameAttempt = () => {
     }
 };
 
+// Add this function to clear the saved username
+const clearSavedUsername = () => {
+  localStorage.removeItem('savedPlayerName');
+  setPlayerName('');
+  setIsUsernameSubmitted(false);
+};
+
 const handleUsernameChange = (e) => {
     setPlayerName(e.target.value);
 };
@@ -1948,6 +2009,8 @@ const handleUsernameChange = (e) => {
 const handleUsernameSubmit = (e) => {
     e.preventDefault();
     if (playerName.trim() && playerName.length <= 25) {
+        // Save the player name to localStorage
+        localStorage.setItem('savedPlayerName', playerName.trim());
         setIsUsernameSubmitted(true);
     }
 };
@@ -1965,8 +2028,18 @@ const handleSuinsChange = (e) => {
   setUseSuins(checked);
   if (checked && suinsData?.name) {
     setPlayerName(suinsData.name);
+    // Save the SUINS name to localStorage
+    localStorage.setItem('savedPlayerName', suinsData.name);
+    setIsUsernameSubmitted(true);
   } else {
-    setPlayerName(playerName);
+    // If unchecking and we have a saved name, use that
+    const savedName = localStorage.getItem('savedPlayerName');
+    if (savedName && savedName !== suinsData?.name) {
+      setPlayerName(savedName);
+    } else {
+      // Otherwise just keep the current name
+      setPlayerName(playerName);
+    }
   }
 };
 
@@ -2023,44 +2096,77 @@ const handleSuinsChange = (e) => {
   };
 
   // Update this useEffect to properly handle the popup state
-  useEffect(() => {
-    // Check both localStorage (permanent) and sessionStorage (temporary)
-    const permanentlyClosed = localStorage.getItem('hasSeenGameTutorial');
-    const temporarilyClosed = sessionStorage.getItem('hasSeenGameTutorial');
+  // This useEffect is now redundant since we check localStorage/sessionStorage in the initial state
+  // useEffect(() => {
+  //   // Check both localStorage (permanent) and sessionStorage (temporary)
+  //   const permanentlyClosed = localStorage.getItem('hasSeenGameTutorial');
+  //   const temporarilyClosed = sessionStorage.getItem('hasSeenGameTutorial');
     
-    if (!permanentlyClosed && !temporarilyClosed) {
-      setShowGameInfoPopup(true);
-    }
-  }, []);
+  //   if (!permanentlyClosed && !temporarilyClosed) {
+  //     setShowGameInfoPopup(true);
+  //   }
+  // }, []);
 
   // Update the handlePopupClose function
   const handlePopupClose = () => {
-    // Add a small delay before hiding the popup to ensure animations complete
-    setTimeout(() => {
-      setShowGameInfoPopup(false);
-      localStorage.setItem('hasSeenGameTutorial', 'true');
-    }, 100);
+    console.log('handlePopupClose called');
+    
+    // Simply hide the popup without modifying localStorage/sessionStorage
+    setShowGameInfoPopup(false);
+    
+    console.log('After handlePopupClose:');
+    console.log('localStorage hasSeenGameTutorial:', localStorage.getItem('hasSeenGameTutorial'));
+    console.log('sessionStorage hasSeenGameTutorial:', sessionStorage.getItem('hasSeenGameTutorial'));
   };
 
   // Update the GameInfoPopup component to include transition styles
   const GameInfoPopup = ({ onClose }) => {
     const [dontShowAgain, setDontShowAgain] = useState(false);
 
+    // Add console.log for debugging
+    useEffect(() => {
+      console.log('GameInfoPopup mounted');
+      console.log('localStorage hasSeenGameTutorial:', localStorage.getItem('hasSeenGameTutorial'));
+      console.log('sessionStorage hasSeenGameTutorial:', sessionStorage.getItem('hasSeenGameTutorial'));
+    }, []);
+
     const handleClose = () => {
+      console.log('handleClose called, dontShowAgain:', dontShowAgain);
+      
       if (dontShowAgain) {
+        // If "don't show again" is checked, store in localStorage (permanent)
+        console.log('Setting localStorage to true');
         localStorage.setItem('hasSeenGameTutorial', 'true');
       } else {
-        // If they don't check "don't show again", we'll show it next time
+        // If "don't show again" is NOT checked, only store in sessionStorage (temporary)
+        console.log('Setting sessionStorage to true');
         sessionStorage.setItem('hasSeenGameTutorial', 'true');
+        // Make sure localStorage doesn't have the value
+        localStorage.removeItem('hasSeenGameTutorial');
+        console.log('Set sessionStorage, removed localStorage');
       }
+      
+      console.log('After handleClose:');
+      console.log('localStorage hasSeenGameTutorial:', localStorage.getItem('hasSeenGameTutorial'));
+      console.log('sessionStorage hasSeenGameTutorial:', sessionStorage.getItem('hasSeenGameTutorial'));
+      
       onClose();
     };
 
     return (
-      <div className="game-info-popup-overlay" onClick={handleClose}>
+      <div className="game-info-popup-overlay" onClick={(e) => {
+        console.log('Overlay clicked');
+        // Prevent clicks on the overlay from closing the popup
+        e.stopPropagation();
+        handleClose();
+      }}>
         <div 
           className="game-info-popup"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            console.log('Popup clicked');
+            // Prevent clicks on the popup from triggering the overlay's onClick
+            e.stopPropagation();
+          }}
         >
           <h2>Welcome to Tears of Aya!</h2>
           
@@ -2116,7 +2222,11 @@ const handleSuinsChange = (e) => {
             </label>
           </div>
 
-          <button className="start-button" onClick={handleClose}>
+          <button className="start-button" onClick={(e) => {
+            e.stopPropagation(); // Prevent event bubbling
+            console.log('Let\'s Play button clicked, dontShowAgain:', dontShowAgain);
+            handleClose();
+          }}>
             Let's Play!
           </button>
         </div>
@@ -2559,9 +2669,84 @@ const handleSuinsChange = (e) => {
     );
   };
 
+  // Add a function to show the tutorial
+  const showTutorial = () => {
+    console.log('showTutorial called');
+    console.log('Before clearing:');
+    console.log('localStorage hasSeenGameTutorial:', localStorage.getItem('hasSeenGameTutorial'));
+    console.log('sessionStorage hasSeenGameTutorial:', sessionStorage.getItem('hasSeenGameTutorial'));
+    
+    // Clear both storage items
+    localStorage.removeItem('hasSeenGameTutorial');
+    sessionStorage.removeItem('hasSeenGameTutorial');
+    
+    // Force the popup to show
+    setShowGameInfoPopup(true);
+    
+    console.log('After clearing:');
+    console.log('localStorage hasSeenGameTutorial:', localStorage.getItem('hasSeenGameTutorial'));
+    console.log('sessionStorage hasSeenGameTutorial:', sessionStorage.getItem('hasSeenGameTutorial'));
+  };
+
+  // Add a useEffect to log when the playerName changes
+  useEffect(() => {
+    console.log('playerName changed:', playerName);
+    console.log('localStorage savedPlayerName:', localStorage.getItem('savedPlayerName'));
+    console.log('isUsernameSubmitted:', isUsernameSubmitted);
+  }, [playerName, isUsernameSubmitted]);
+
+  // Add a useEffect to apply volume settings
+  useEffect(() => {
+    // Apply master volume
+    AudioManager.setMasterVolume(masterVolume);
+    localStorage.setItem('masterVolume', masterVolume.toString());
+    
+    // Apply music volume
+    if (AudioManager.sounds.backgroundMusic) {
+      AudioManager.sounds.backgroundMusic.volume(musicVolume);
+    }
+    localStorage.setItem('musicVolume', musicVolume.toString());
+    
+    // Apply sound effects volume
+    const soundEffects = ['blueTear', 'redTear', 'goldTear', 'splash'];
+    soundEffects.forEach(sound => {
+      if (AudioManager.sounds[sound]) {
+        AudioManager.sounds[sound].volume(soundVolume);
+      }
+    });
+    localStorage.setItem('soundVolume', soundVolume.toString());
+    
+  }, [masterVolume, musicVolume, soundVolume]);
+  
+  // Add a useEffect to handle clicking outside the volume controls panel
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Only close if the panel is open
+      if (!showVolumeControls) return;
+      
+      // Check if the click was outside the volume controls
+      const volumeControls = document.querySelector('.volume-controls-container');
+      if (volumeControls && !volumeControls.contains(event.target)) {
+        setShowVolumeControls(false);
+      }
+    };
+    
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showVolumeControls]);
+
+  // Add a VolumeControls component
+  
+
   // Render method
   return (
     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
+      
       
 
       {showGameInfoPopup && (
@@ -2581,16 +2766,9 @@ const handleSuinsChange = (e) => {
           <span className="player-name">
             {suinsData?.imageUrl && (
               <img 
-                src={suinsData.imageUrl} 
-                alt="SUINS avatar" 
+                src={suinsData.imageUrl}
+                alt="SUINS avatar"
                 className="suins-avatar"
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  marginRight: '5px',
-                  verticalAlign: 'middle'
-                }}
               />
             )}
             <span>{playerName}</span>
@@ -2626,7 +2804,64 @@ const handleSuinsChange = (e) => {
               <h3>{useSuins && suinsData ? suinsData.name : playerName}'s' Profile</h3>
               <span className="dropdown-arrow">▼</span>
             </div>
+            
             <div className="assets-content">
+              {/* Add Volume Controls back to the assets-content section */}
+              <div className="volume-controls-container">
+                <div className="volume-controls-header">
+                  <h4>Audio Settings</h4>
+                  <button 
+                    className="volume-toggle-button"
+                    onClick={() => setShowVolumeControls(!showVolumeControls)}
+                  >
+                    {masterVolume === 0 ? '🔇' : masterVolume < 0.3 ? '🔈' : masterVolume < 0.7 ? '🔉' : '🔊'}
+                  </button>
+                </div>
+                
+                {showVolumeControls && (
+                  <div className="volume-controls-panel">
+                    <div className="volume-control">
+                      <label>Master Volume</label>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.01" 
+                        value={masterVolume}
+                        onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
+                      />
+                      <span>{Math.round(masterVolume * 100)}%</span>
+                    </div>
+                    
+                    <div className="volume-control">
+                      <label>Music Volume</label>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.01" 
+                        value={musicVolume}
+                        onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+                      />
+                      <span>{Math.round(musicVolume * 100)}%</span>
+                    </div>
+                    
+                    <div className="volume-control">
+                      <label>Sound Effects</label>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.01" 
+                        value={soundVolume}
+                        onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
+                      />
+                      <span>{Math.round(soundVolume * 100)}%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="username-container">
                 {!isUsernameSubmitted ? (
                   <form className="username-form" onSubmit={handleUsernameSubmit}>
@@ -2644,7 +2879,7 @@ const handleSuinsChange = (e) => {
                 ) : (
                   <div className="username-controls">
                     <h4>Welcome, {useSuins && suinsData ? suinsData.name : playerName}!</h4>
-                    <button onClick={() => setIsUsernameSubmitted(false)}>Change Username</button>
+                    <button onClick={clearSavedUsername}>Change Username</button>
                     <label>
                       <input
                         type="checkbox"
@@ -2653,8 +2888,10 @@ const handleSuinsChange = (e) => {
                       />
                       Use SUINS name
                     </label>
+                    
                   </div>
                 )}
+                
                 <ConnectButton
                 label="Connect SUI Wallet"
                 onConnectError={(error) => {
@@ -2664,6 +2901,7 @@ const handleSuinsChange = (e) => {
                     logger.warn("Unknown connect error: ", error);
                   }
                 }}
+                
               />
               </div>
               
@@ -2813,6 +3051,20 @@ const handleSuinsChange = (e) => {
               )}
             </div>
           </div>
+          
+          {/* Add a button to show the tutorial */}
+      <button 
+        className="view-tutorial-button" 
+        onClick={showTutorial}
+        style={{ 
+          position: 'fixed', 
+          top: '10px', 
+          right: '10px', 
+          zIndex: 1000 
+        }}
+      >
+        View Tutorial
+      </button>
 
           <p className="creator-credit">
             Created by <a 
@@ -2824,6 +3076,9 @@ const handleSuinsChange = (e) => {
               🎮 Zombfyd 🎮
             </a>
           </p>
+          
+          
+          
           <h2>Select Game Mode</h2>
           <div className="mode-selector">
             <button 
@@ -3044,8 +3299,17 @@ const handleSuinsChange = (e) => {
                             const tierConfig = config.scoreSubmissionTiers[qualifyingTier];
                             const recipients = config.getCurrentRecipients();
                             const baseAmount = BigInt(tierConfig.amount);
+                            
                             // Apply NFT discount if verified
                             const totalAmount = isNFTVerified ? baseAmount / BigInt(2) : baseAmount;
+
+                            // Log discount information
+                            logger.log('Applying discounts for paid submission:', {
+                                baseAmount: Number(baseAmount),
+                                isNFTVerified,
+                                totalAmount: Number(totalAmount),
+                                discountApplied: isNFTVerified ? '50% NFT discount' : 'No discount'
+                            });
 
                             // Calculate shares using BigInt
                             const primaryShare = BigInt(config.shares.primary);
@@ -3116,7 +3380,9 @@ const handleSuinsChange = (e) => {
                         disabled={transactionInProgress}
                       >
                         Submit to Paid Leaderboard - {config.scoreSubmissionTiers[qualifyingTier]?.label} 
-                        ({formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI)
+                        ({isNFTVerified ? 
+                          `${formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount / 2)} SUI (50% NFT discount)` : 
+                          `${formatSUI(config.scoreSubmissionTiers[qualifyingTier]?.amount)} SUI`})
                       </button>
                       <button 
                         onClick={async () => {
