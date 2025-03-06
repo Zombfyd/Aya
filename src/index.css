@@ -2213,7 +2213,6 @@ select.token-select {
 
 .volume-control label {
   margin-bottom: 5px;
-  color: #fff;
   font-weight: bold;
 }
 
@@ -2247,7 +2246,6 @@ select.token-select {
 }
 
 .volume-control span {
-  color: #fff;
   font-size: 14px;
   align-self: flex-end;
 }
