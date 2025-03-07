@@ -287,7 +287,7 @@ const GameApp = () => {
     try {
       // Add headers with API key
       const headers = {
-        'x-api-key': 'insidex_api.hGhJarqGjnUDkw36WUXETXyR',
+        'x-api-key': 'insidex_api.VIkoDQuLrf6TTxWfJU3r2ho7',
         'Accept': 'application/json'
       };
 
