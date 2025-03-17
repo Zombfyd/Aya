@@ -9,7 +9,7 @@ const nftCache = {
   collections: {
     data: null,
     lastFetched: 0,
-    ttl: 5 * 60 * 1000 // 5 minutes TTL for collections
+    ttl: 24 * 60 * 60 * 1000 // 24 hours TTL for collections (will be manually cleared on page load/refresh)
   },
   wallets: {}, // Will store wallet-specific NFT data
   ttl: 10 * 60 * 1000, // 10 minutes TTL for wallet NFTs

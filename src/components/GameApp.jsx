@@ -2237,13 +2237,28 @@ const handleSuinsChange = (e) => {
     );
   };
 
-  // Add after other useEffect hooks
   // Automatic NFT check on page load removed to improve performance
   // useEffect(() => {
   //   if (wallet.connected && wallet.account?.address) {
   //     checkUserNFTs();
   //   }
   // }, [wallet.connected, wallet.account?.address]);
+
+  // Clear collections cache on page load/reload
+  useEffect(() => {
+    // Clear collections cache on page load to ensure we get fresh data
+    nftUtils.clearAllNFTCaches();
+    logger.log('Collections cache cleared on page load');
+  }, []);
+
+  // Clear wallet-specific cache when wallet connects
+  useEffect(() => {
+    if (wallet.connected && wallet.account?.address) {
+      // Clear this specific wallet's cache to ensure we get fresh data on connection
+      nftUtils.clearNFTCacheForWallet(wallet.account.address);
+      logger.log(`Wallet cache cleared for ${wallet.account.address.slice(0, 8)}...`);
+    }
+  }, [wallet.connected, wallet.account?.address]);
 
   // Add NFT verification function
   const checkUserNFTs = async (forceRefresh = false) => {
@@ -2273,7 +2288,12 @@ const handleSuinsChange = (e) => {
   // Add function to manually refresh NFTs
   const refreshNFTs = () => {
     if (wallet.connected && wallet.account?.address) {
-      checkUserNFTs(true); // Force refresh, bypass cache
+      // Clear both collection cache and wallet-specific cache to get completely fresh data
+      nftUtils.clearAllNFTCaches();
+      logger.log('Cache cleared for manual refresh');
+      
+      // Force refresh by passing true to bypass any remaining cache
+      checkUserNFTs(true);
     }
   };
 
@@ -2838,7 +2858,7 @@ const handleSuinsChange = (e) => {
                               }}
                             />
                             <div className="nft-info">
-                              <span className="nft-name">{nft.name || 'Unnamed NFT'}</span>
+                              <span className="nft-name">{nft.name || 'Unnamed NFT'}</span><br></br>
                               {nft.in_kiosk && <span className="nft-badge kiosk-badge">In Kiosk</span>}
                               {nft.isUnverifiedNFT && <span className="nft-badge unverified-badge">Unverified</span>}
                             </div>
