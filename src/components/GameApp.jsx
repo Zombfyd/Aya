@@ -1,4 +1,5 @@
 import { gameManager } from '../game/GameManager.js';
+import { SuinsClient } from '@mysten/suins';
 import { BloodGameManager } from '../game/assets/BloodGameManager.js';
 import AudioManager from '../game/AudioManager.js';
 
@@ -8,7 +9,7 @@ const gameManager2 = new BloodGameManager();
 
 window.gameManager = gameManager1;
 window.GameManager2 = gameManager2;
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ConnectButton,
   useAccountBalance,
@@ -24,6 +25,8 @@ import config from '../config/config';
 import { Transaction as TransactionBlock } from '@mysten/sui/transactions';
 import { SuiClient } from '@mysten/sui/client';
 // import { JsonRpcProvider } from "@mysten/sui.js";
+import nftUtils from '../utils/nftUtils';
+// import { SuinsClient } from '@mysten/suins';
 
 // Helper function to format a wallet address by truncating it
 function formatWalletAddress(addr) {
@@ -704,7 +707,7 @@ const GameApp = () => {
         logger.log('Transaction payload:', tx);
 
         // Following Suiet example structure exactly
-        const response = await wallet.signAndExecuteTransaction({
+        const response = await wallet.signAndExecuteTransactionBlock({
           transaction: {
             kind: 'pay',
             data: tx.data
@@ -1850,7 +1853,7 @@ const fetchPrimaryWalletBalance = async () => {
                 try {
                     const metadata = await client.getCoinMetadata({ coinType });
                     if (metadata?.iconUrl) {
-                        tokenIconsMap[symbol] = formatIPFSUrl(metadata.iconUrl);
+                        tokenIconsMap[symbol] = nftUtils.formatIPFSUrl(metadata.iconUrl);
                     }
                 } catch (error) {
                     logger.warn(`Failed to fetch metadata for ${symbol}:`, error);
@@ -1888,7 +1891,7 @@ const fetchPrimaryWalletBalance = async () => {
                              contentFields.image_url;
                 
                 if (imageUrl) {
-                    imageUrl = formatIPFSUrl(imageUrl);
+                    imageUrl = nftUtils.formatIPFSUrl(imageUrl);
                 }
 
                 return {
@@ -2235,128 +2238,53 @@ const handleSuinsChange = (e) => {
   };
 
   // Add after other useEffect hooks
-  useEffect(() => {
-    if (wallet.connected && wallet.account?.address) {
-      checkUserNFTs();
-    }
-  }, [wallet.connected, wallet.account?.address]);
+  // Automatic NFT check on page load removed to improve performance
+  // useEffect(() => {
+  //   if (wallet.connected && wallet.account?.address) {
+  //     checkUserNFTs();
+  //   }
+  // }, [wallet.connected, wallet.account?.address]);
 
   // Add NFT verification function
-  const checkUserNFTs = async () => {
-    logger.log('=== USER NFT VERIFICATION ===');
-    if (!wallet.connected) {
-      logger.log('Wallet not connected, skipping NFT check');
-      return;
-    }
-
+  const checkUserNFTs = async (forceRefresh = false) => {
     setIsCheckingNFTs(true);
-
+    
     try {
-      // Get active collections from database
-      const collectionsResponse = await fetch(`${config.apiBaseUrl}/api/sui/collections/active`);
-      const activeCollections = await collectionsResponse.json();
-      logger.log('Active collections:', JSON.stringify(activeCollections, null, 2));
+      // First fetch the active collections
+      const collections = await nftUtils.fetchActiveCollections();
+      setActiveCollections(collections || []);
       
-      // Store active collections in state
-      setActiveCollections(activeCollections);
+      // Check both directly owned NFTs and kiosk items, using cache unless forceRefresh is true
+      const result = await nftUtils.checkUserNFTsAndKiosk(client, wallet, forceRefresh);
       
-      const verifiedNFTs = [];
-
-      // Process each collection type separately to ensure proper filtering
-      for (const collection of activeCollections) {
-        logger.log(`Checking collection: ${collection.collectionType}`);
-        
-        // Get collection info from blockchain
-        try {
-          const collectionInfo = await client.getObject({
-            id: collection.collectionType,
-            options: {
-              showType: true,
-              showContent: true,
-              showDisplay: true
-            }
-          });
-          
-          if (collectionInfo?.data?.display?.data) {
-            collection.name = collectionInfo.data.display.data.name || collection.name;
-            collection.description = collectionInfo.data.display.data.description;
-            collection.project_url = collectionInfo.data.display.data.project_url;
-          }
-        } catch (error) {
-          logger.error('Error fetching collection info:', error);
-        }
-        
-        const { data: collectionNFTs } = await client.getOwnedObjects({
-          owner: wallet.account.address,
-          filter: {
-            MatchAll: [{
-              StructType: collection.collectionType
-            }]
-          },
-          options: {
-            showType: true,
-            showContent: true,
-            showDisplay: true,
-            showOwner: true
-          }
-        });
-
-        logger.log(`Found ${collectionNFTs?.length || 0} NFTs for collection ${collection.name}`);
-
-        if (collectionNFTs?.length > 0) {
-          for (const nft of collectionNFTs) {
-            const nftData = nft.data?.content?.fields || {};
-            const displayData = nft.data?.display?.data || {};
-            
-            let imageUrl = displayData.image_url || nftData.url || nftData.image_url || nftData.project_url;
-            if (imageUrl) {
-              imageUrl = formatIPFSUrl(imageUrl);
-            }
-
-            const verifiedNFT = {
-              ...collection,
-              verified: true,
-              name: displayData.name || nftData.name || collection.name,
-              description: displayData.description || nftData.description || collection.description,
-              image_url: imageUrl,
-              project_url: displayData.project_url || nftData.project_url || collection.project_url
-            };
-            logger.log('Verified NFT:', verifiedNFT);
-            verifiedNFTs.push(verifiedNFT);
-          }
-        }
-      }
-      
-      logger.log('\nFinal verification results:', {
-        verifiedNFTs: verifiedNFTs.length,
-        verifiedList: verifiedNFTs
-      });
-      
-      setVerifiedNFTs(verifiedNFTs);
-      setIsNFTVerified(verifiedNFTs.length > 0);
+      // Update state with results
+      setVerifiedNFTs(result.nfts || []);
+      setIsNFTVerified(result.verified || false);
     } catch (error) {
       logger.error('Error checking NFTs:', error);
       setVerifiedNFTs([]);
       setIsNFTVerified(false);
+      setActiveCollections([]);
     } finally {
       setIsCheckingNFTs(false);
     }
   };
 
-  // Helper function to format IPFS URLs
-  const formatIPFSUrl = (url) => {
-    if (!url) return null;
-    
-    // Check if it's an IPFS hash (either ipfs:// or starts with Qm or bafy)
-    if (url.startsWith('ipfs://')) {
-      // Remove ipfs:// prefix and ensure no leading slash
-      const hash = url.replace('ipfs://', '').replace(/^\/+/, '');
-      return `https://ipfs.io/ipfs/${hash}`;
-    } else if (url.match(/^(Qm|bafy)/i)) {
-      // Direct hash, just prepend gateway
-      return `https://ipfs.io/ipfs/${url}`;
+  // Add function to manually refresh NFTs
+  const refreshNFTs = () => {
+    if (wallet.connected && wallet.account?.address) {
+      checkUserNFTs(true); // Force refresh, bypass cache
     }
-    return url;
+  };
+
+  // Replace queryChillCatsNFTs function with call to nftUtils
+  const queryChillCatsNFTs = async (address) => {
+    return await nftUtils.queryChillCatsNFTs(client, address);
+  };
+
+  // Replace getNFTDetails function with call to nftUtils
+  const getNFTDetails = async (objectId) => {
+    return await nftUtils.getNFTDetails(client, objectId);
   };
 
   // Replace everything from here until the useEffect for token icons
@@ -2366,53 +2294,6 @@ const handleSuinsChange = (e) => {
       SUI: 'https://cdn.prod.website-files.com/6425f546844727ce5fb9e5ab/65690e5e73e9e2a416e3502f_sui-mark.svg'
     });
   }, []);
-
-  // Add these new functions after client initialization
-  const queryChillCatsNFTs = async (address) => {
-    logger.log('=== QUERYING CHILLCATS NFTS ===');
-    try {
-      const response = await client.getOwnedObjects({
-        owner: address,
-        filter: {
-          MatchAll: [{
-            StructType: "0x3706895940d5a19a93f8656c0bd506ce7b5999d8e9af292d4fe1cd5ae0c2a279::chillcats_collection::ChillCats"
-          }]
-        },
-        options: {
-          showType: true,
-          showContent: true,
-          showDisplay: true,
-          showOwner: true
-        }
-      });
-      logger.log('ChillCats query response:', JSON.stringify(response, null, 2));
-      return response;
-    } catch (error) {
-      logger.error('Error querying ChillCats:', error);
-      return null;
-    }
-  };
-
-  const getNFTDetails = async (objectId) => {
-    logger.log(`=== GETTING NFT DETAILS FOR ${objectId} ===`);
-    try {
-      const response = await client.getObject({
-        id: objectId,
-        options: {
-          showType: true,
-          showContent: true,
-          showDisplay: true,
-          showOwner: true,
-          showPreviousTransaction: true
-        }
-      });
-      logger.log('NFT details:', JSON.stringify(response, null, 2));
-      return response;
-    } catch (error) {
-      logger.error('Error getting NFT details:', error);
-      return null;
-    }
-  };
 
   // Add this detection function for mobile devices
   const isMobileDevice = () => {
@@ -2906,8 +2787,28 @@ const handleSuinsChange = (e) => {
               </div>
               
               {wallet.connected && (
+                
                 <div className="nft-verification-section">
                   <h3>NFT Verification Status</h3>
+                  {wallet.connected && (
+                    <button 
+                      className="refresh-nfts-btn blue-button" 
+                      onClick={refreshNFTs} 
+                      disabled={isCheckingNFTs}
+                      title="Refresh NFTs"
+                      style={{
+                        backgroundColor: '#2054c9',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontWeight: 'bold',
+                        cursor: isCheckingNFTs ? 'not-allowed' : 'pointer',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                      }}
+                    >
+                      {isCheckingNFTs ? '⟳ Refreshing...' : '⟳ Refresh'}
+                    </button>
+                  )}
                   {isCheckingNFTs ? (
                     <div className="nft-status">Checking NFTs...</div>
                   ) : isNFTVerified ? (
@@ -2916,31 +2817,37 @@ const handleSuinsChange = (e) => {
                       <div className="verified-nfts">
                         {verifiedNFTs.map((nft, index) => (
                           <div 
-                            key={index} 
-                            className="nft-item"
+                            key={`${nft.objectId}-${index}`}
+                            className={`nft-item ${nft.in_kiosk ? 'kiosk-item' : 'direct-item'} ${nft.isUnverifiedNFT ? 'unverified-nft' : 'verified-nft'}`}
                             onClick={() => {
-                              const objectId = nft.collectionType.split('::')[0];
-                              window.open(`https://tradeport.xyz/sui/collection/${objectId}`, '_blank');
+                              // Use the correct collection ID from collectionType property
+                              const collectionId = nft.collectionType ? nft.collectionType.split('::')[0] : 
+                                                 nft.type ? nft.type.split('::')[0] : null;
+                              if (collectionId) {
+                                window.open(`https://tradeport.xyz/sui/collection/${collectionId}`, '_blank');
+                              }
                             }}
-                            style={{ cursor: 'pointer' }}
                           >
-                            {nft.image_url && (
-                              <NFTImage 
-                                src={nft.image_url} 
-                                alt={nft.name} 
-                                className="nft-image"
-                              />
-                            )}
-                            <h4>{nft.name}</h4>
-                            {nft.discountPercentage && (
-                              <span className="discount-badge">
-                                {nft.discountPercentage}% off
-                              </span>
-                            )}
+                            <img 
+                              className="nft-image" 
+                              src={nft.image_url || '/placeholder.png'} 
+                              alt={nft.name || 'NFT'} 
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = '/placeholder.png';
+                              }}
+                            />
+                            <div className="nft-info">
+                              <span className="nft-name">{nft.name || 'Unnamed NFT'}</span>
+                              {nft.in_kiosk && <span className="nft-badge kiosk-badge">In Kiosk</span>}
+                              {nft.isUnverifiedNFT && <span className="nft-badge unverified-badge">Unverified</span>}
+                            </div>
                           </div>
                         ))}
                       </div>
+                      
                     </div>
+                    
                   ) : (
                     <div className="nft-status">
                       <p>No eligible NFTs found in your wallet</p>
@@ -2981,6 +2888,7 @@ const handleSuinsChange = (e) => {
               
               
             </div>
+            
           </div>
 
           {/* Prize Pool Assets Section */}

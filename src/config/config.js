@@ -75,7 +75,7 @@ const config = {
             }
         };
     },
-    
+    blockberryApiKey: import.meta.env.VITE_APP_BLOCKBERRY_API_KEY,
     paymentConfig: {
         totalAmount: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) || 100000000,
         minBalance: parseInt(import.meta.env.VITE_APP_TOTAL_AMOUNT) || 100000000,
