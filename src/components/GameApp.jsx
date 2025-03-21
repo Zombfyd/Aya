@@ -121,13 +121,7 @@ const GameApp = () => {
   const [walletInitialized, setWalletInitialized] = useState(false);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [transactionInProgress, setTransactionInProgress] = useState(false);
-  const [gameState, setGameState] = useState({
-    gameStarted: false,
-    score: 0,
-    isGameOver: false,
-    hasValidPayment: false,
-    selectedTierClicked: false
-  });
+  const [gameState, setGameState] = useState({ started: false, over: false, score: 0, hasValidPayment: false });
   const [leaderboardData, setLeaderboardData] = useState({
     mainFreeTOA: [],
     secondaryFreeTOA: [],
@@ -166,6 +160,10 @@ const GameApp = () => {
     const savedName = localStorage.getItem('savedPlayerName');
     return savedName || '';
   });
+  
+  // Error handling
+  const [errorMessage, setErrorMessage] = useState('');
+  
   const [isUsernameSubmitted, setIsUsernameSubmitted] = useState(() => {
     // If there's a saved name, consider the username as already submitted
     return !!localStorage.getItem('savedPlayerName');
@@ -747,7 +745,6 @@ const GameApp = () => {
       logger.log('Submitting score:', { finalScore, submissionGameMode, gameType, paymentDetails });
       const currentGame = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
       const environment = import.meta.env.VITE_APP_ENVIRONMENT || 'development';
-      const timestamp = Date.now();
       
       logger.log('handleScoreSubmit received:', { 
           finalScore, 
@@ -758,123 +755,183 @@ const GameApp = () => {
           paymentStatus,
           environment,
           isTestnet,
-          timestamp
+          skipScoreSubmit: import.meta.env.VITE_APP_SKIP_SCORE_SUBMIT
       });
 
-      // For testnet environment, just log the score but don't submit to leaderboard
-      if (environment === 'development' || (environment === 'testnet' && import.meta.env.VITE_APP_SKIP_SCORE_SUBMIT === 'true')) {
-          logger.log('Testnet environment detected - Score not submitted to leaderboard:', {
+      // Check if score submissions should be skipped based on environment variable
+      if (import.meta.env.VITE_APP_SKIP_SCORE_SUBMIT === 'true') {
+          logger.log('Score submission skipped - VITE_APP_SKIP_SCORE_SUBMIT is enabled:', {
               score: finalScore,
               playerName,
               game: currentGame,
               mode: submissionGameMode
           });
-          return { success: true, message: 'Score logged (testnet mode)' };
+          return { success: true, message: 'Score logged (skip mode)' };
       }
-
-      let endpoint;
-      let requestBody;
-
-      if (!wallet.connected) {
-          // Web2 submission - specific to the game played
-          endpoint = `${config.apiBaseUrl}/api/web2/scores`;
-          
-          // Let the server generate the signature
-          requestBody = {
-              playerName,
-              score: finalScore,
-              game: currentGame,
-              timestamp,
-              signature: 'placeholder' // Add placeholder signature for validation
-          };
-
-          const response = await fetch(endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody)
-          });
-
-          if (!response.ok) {
-              const errorData = await response.json();
-              logger.error('Web2 score submission failed:', { 
-                  status: response.status, 
-                  error: errorData,
-                  endpoint,
-                  requestBody
-              });
-              throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-          }
-
-          const result = await response.json();
-          logger.log(`Web2 score submitted successfully for ${currentGame}:`, result);
-          await fetchLeaderboards();
-          return result;
-      }
-
-      // Enhanced verification for paid submissions
-      if (submissionGameMode === 'paid') {
-          // Check both state and passed payment details
-          const verifiedPayment = paymentDetails || paymentStatus;
-          if (!verifiedPayment.verified || !verifiedPayment.transactionId) {
-              logger.error('Payment verification failed:', { verifiedPayment });
-              throw new Error('Payment verification failed - no valid payment found');
-          }
-      }
-
-      // Submit score with verification data
-      endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
       
-      const submissions = ['main', 'secondary'].map(async (gameType) => {
-          // Let the server generate the signature
-          const body = {
+      // Step 1: Determine if this is a Web2 or Web3 submission
+      const isWeb3 = wallet.connected;
+      
+      // Step 2: Get score signature first (following backend README instructions)
+      try {
+        logger.log('Requesting score signature from the server...');
+        
+        // Build the signature request body based on the player type
+        let signatureRequestBody;
+        
+        if (isWeb3) {
+          // Web3 player
+          signatureRequestBody = {
+            playerName: playerName || 'Unknown',
+            playerWallet: wallet.account?.address,
+            score: finalScore,
+            type: 'main', // We'll use main for signature generation
+            mode: submissionGameMode,
+            game: currentGame
+          };
+        } else {
+          // Web2 player
+          signatureRequestBody = {
+            playerName: playerName || 'Unknown',
+            score: finalScore,
+            game: currentGame
+          };
+        }
+        
+        // Request signature from server
+        const signatureResponse = await fetch(`${config.apiBaseUrl}/api/auth/score-signature`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(signatureRequestBody)
+        });
+        
+        if (!signatureResponse.ok) {
+          const errorText = await signatureResponse.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            errorData = { error: errorText };
+          }
+          logger.error('Failed to get score signature:', errorData);
+          throw new Error(errorData.error || `Failed to get score signature: ${signatureResponse.status}`);
+        }
+        
+        const { signature, timestamp: serverTimestamp } = await signatureResponse.json();
+        logger.log('Received score signature from server:', { signature, timestamp: serverTimestamp });
+        
+        // Step 3: Submit scores with the signature
+        if (isWeb3) {
+          // Web3 submission (submit to both main and secondary)
+          const submissions = ['main', 'secondary'].map(async (gameType) => {
+            const endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
+            
+            // Prepare submission with the server-provided signature and timestamp
+            const body = {
               playerWallet: wallet.account?.address,
               score: finalScore,
               type: gameType,
               playerName: playerName || 'Unknown',
               game: currentGame,
-              timestamp,
-              signature: 'placeholder', // Add placeholder signature for validation
+              timestamp: serverTimestamp,
+              signature: signature,
               paymentVerification: submissionGameMode === 'paid' ? {
-                  transactionId: paymentDetails?.transactionId,
-                  amount: paymentDetails?.amount,
-                  timestamp: paymentDetails?.timestamp,
-                  recipient: paymentDetails?.recipient
+                transactionId: paymentDetails?.transactionId,
+                amount: paymentDetails?.amount,
+                timestamp: paymentDetails?.timestamp,
+                recipient: paymentDetails?.recipient
               } : null
-          };
+            };
 
-          // Log request details in development
-          logger.log(`Submitting score to ${endpoint}:`, { type: gameType, body });
+            // Log request details in development
+            logger.log(`Submitting Web3 score to ${endpoint}:`, { type: gameType, body });
 
-          const response = await fetch(endpoint, {
+            const response = await fetch(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(body)
-          });
+            });
 
-          if (!response.ok) {
-              const errorData = await response.json();
+            if (!response.ok) {
+              const errorText = await response.text();
+              let errorData;
+              try {
+                errorData = JSON.parse(errorText);
+              } catch (e) {
+                errorData = { error: errorText };
+              }
               logger.error('Score submission failed:', { 
-                  status: response.status, 
-                  error: errorData,
-                  endpoint,
-                  body
+                status: response.status, 
+                error: errorData,
+                endpoint,
+                body
               });
               throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+          });
+
+          const [mainResult, secondaryResult] = await Promise.all(submissions);
+          logger.log(`Web3 scores submitted successfully for ${currentGame}:`, { 
+            main: mainResult, 
+            secondary: secondaryResult 
+          });
+          
+          await fetchLeaderboards();
+          return { main: mainResult, secondary: secondaryResult, success: true };
+        } else {
+          // Web2 submission
+          const endpoint = `${config.apiBaseUrl}/api/web2/scores`;
+          
+          // Prepare Web2 submission with the server-provided signature and timestamp
+          const body = {
+            playerName: playerName || 'Unknown',
+            score: finalScore,
+            game: currentGame,
+            timestamp: serverTimestamp,
+            signature: signature
+          };
+          
+          // Log request details
+          logger.log(`Submitting Web2 score to ${endpoint}:`, body);
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch (e) {
+              errorData = { error: errorText };
+            }
+            logger.error('Web2 score submission failed:', { 
+              status: response.status, 
+              error: errorData,
+              endpoint,
+              body
+            });
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
           }
-
-          return response.json();
-      });
-
-      const [mainResult, secondaryResult] = await Promise.all(submissions);
-      logger.log(`Scores submitted successfully for ${currentGame}:`, { 
-          main: mainResult, 
-          secondary: secondaryResult 
-      });
-      
-      await fetchLeaderboards();
-      return { main: mainResult, secondary: secondaryResult };
+          
+          const result = await response.json();
+          logger.log(`Web2 score submitted successfully for ${currentGame}:`, result);
+          
+          await fetchLeaderboards();
+          return { result, success: true };
+        }
+      } catch (error) {
+        logger.error('Error in signature or submission process:', error);
+        throw error;
+      }
     } catch (error) {
       console.error('Error submitting score:', error);
+      logger.error('Failed to submit score:', error.message);
       setErrorMessage(`Failed to submit score: ${error.message}`);
       return { success: false, error: error.message };
     }
@@ -2731,6 +2788,14 @@ const handleSuinsChange = (e) => {
       {isTestnet && (
         <div className="testnet-indicator">
           🧪 Testnet Mode - Scores will not be saved to leaderboard
+        </div>
+      )}
+      
+      {/* Error message display */}
+      {errorMessage && (
+        <div className="error-message">
+          <p>{errorMessage}</p>
+          <button onClick={() => setErrorMessage('')}>Dismiss</button>
         </div>
       )}
       

@@ -12,7 +12,12 @@ const network = environment === 'testnet' ? 'testnet' : 'mainnet';
 // Debug logging
 console.log('Current Environment:', environment);
 console.log('Selected Network:', network);
-console.log('All ENV Variables:', import.meta.env);
+console.log('All ENV Variables:', {
+  MODE: import.meta.env.MODE,
+  VITE_APP_ENVIRONMENT: import.meta.env.VITE_APP_ENVIRONMENT,
+  VITE_APP_NETWORK: import.meta.env.VITE_APP_NETWORK,
+  VITE_APP_SKIP_SCORE_SUBMIT: import.meta.env.VITE_APP_SKIP_SCORE_SUBMIT
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

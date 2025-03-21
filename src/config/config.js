@@ -30,8 +30,11 @@ console.log('Has PRIMARY_RECIPIENT:', !!import.meta.env.VITE_APP_TESTNET_PRIMARY
 console.log('Primary recipient value:', import.meta.env.VITE_APP_TESTNET_PRIMARY_RECIPIENT);
 console.log('All ENV Variables:', import.meta.env);
 
+// Default API URL
+const API_BASE_URL = import.meta.env.VITE_APP_API_URL || 'https://ayagame.onrender.com';
+
 const config = {
-    apiBaseUrl: 'https://ayagame.onrender.com',
+    apiBaseUrl: API_BASE_URL,
     // Initialize with environment from Vite mode
     network: getEnvironmentFromMode(),
     
