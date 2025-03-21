@@ -137,3 +137,9 @@ walrus-test/walrus-test/walrus-sites
 toggle-score-skip.sh
 BackEndREADME.MD
 signature.json
+test-simple.js
+server.cjs
+test-simple-no-timestamps.js
+test-database.js
+scoreSubmitter.js
+test-web3-submission.js

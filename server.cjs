@@ -72,9 +72,66 @@ app.use((req, res, next) => {
 
 // Security verification helpers
 const verifyTimestamp = (timestamp) => {
+  // When SKIP_SCORE_SUBMIT is true, bypass all verification
+  if (SKIP_SCORE_SUBMIT) {
+    console.log(`SKIP_SCORE_SUBMIT is true, bypassing timestamp verification.`);
+    return true;
+  }
+
   const currentTime = Date.now();
-  const fiveMinutesInMs = 5 * 60 * 1000;
-  return Math.abs(currentTime - timestamp) <= fiveMinutesInMs;
+  // 15 seconds window as per requirement
+  const fifteenSecondsInMs = 15 * 1000;
+  
+  // Check if it's within the valid time window
+  const timeDiff = Math.abs(currentTime - timestamp);
+  const isValid = timeDiff <= fifteenSecondsInMs;
+  
+  if (!isValid) {
+    console.log(`Timestamp ${timestamp} is outside the 15-second window.`);
+    console.log(`Current time: ${currentTime}, time difference: ${timeDiff}ms`);
+    console.log(`Valid timestamp window: ${new Date(currentTime - fifteenSecondsInMs).toISOString()} to ${new Date(currentTime + fifteenSecondsInMs).toISOString()}`);
+  }
+  
+  return isValid;
+};
+
+// Verify that the submission occurred at the required time
+const verifySubmissionTime = (requiredTime, actualTime) => {
+  // When skipping database submission, bypass all verification
+  if (SKIP_SCORE_SUBMIT) {
+    console.log(`SKIP_SCORE_SUBMIT is true, bypassing submission time verification.`);
+    return true;
+  }
+
+  // Use a reasonable tolerance
+  const tolerance = 5000; // 5 seconds tolerance
+  const timeDiff = Math.abs(actualTime - requiredTime);
+  
+  console.log(`Submission time verification: requiredTime=${requiredTime}, actualTime=${actualTime}, diff=${timeDiff}ms, tolerance=${tolerance}ms`);
+  console.log(`Result: ${timeDiff <= tolerance ? 'PASSED' : 'FAILED'}`);
+  
+  return timeDiff <= tolerance;
+};
+
+// Generate timestamp
+const generateTimestamp = () => {
+  // Simply use the current timestamp
+  const now = Date.now();
+  console.log(`Generated timestamp: ${now} (${new Date(now).toISOString()})`);
+  return now;
+};
+
+// Generate a submission time
+const generateSubmissionTime = () => {
+  // Get current time and add a small delay
+  const now = Date.now();
+  const submissionTime = now + 3000; // 3 seconds in the future
+  
+  console.log(`Generated submission time: ${submissionTime} (${new Date(submissionTime).toISOString()})`);
+  console.log(`Current time: ${now} (${new Date(now).toISOString()})`);
+  console.log(`Time until submission: ${submissionTime - now}ms`);
+  
+  return submissionTime;
 };
 
 const generateWeb2Signature = (playerName, score, timestamp, game) => {
@@ -103,7 +160,18 @@ const generateWeb3Signature = (playerName, playerWallet, score, timestamp, type,
 // Proxy endpoints to the database server with enhanced security
 app.post('/api/web2/scores', async (req, res) => {
   try {
-    const { playerName, score, game, timestamp } = req.body;
+    const { playerName, score, game, timestamp, signature, submissionTime } = req.body;
+    const requestReceivedTime = Date.now(); // Record when we received this request
+    
+    console.log('Received Web2 score submission:', {
+      playerName,
+      score,
+      game,
+      timestamp,
+      submissionTime,
+      requestReceivedTime,
+      timeDiff: Math.abs(submissionTime - requestReceivedTime)
+    });
     
     // Input validation
     if (!playerName || typeof playerName !== 'string' || playerName.length > 25) {
@@ -118,34 +186,91 @@ app.post('/api/web2/scores', async (req, res) => {
       return res.status(400).json({ error: 'Invalid game type' });
     }
     
-    if (!timestamp || !verifyTimestamp(timestamp)) {
+    if (!timestamp) {
+      return res.status(400).json({ error: 'Missing timestamp' });
+    }
+    
+    // Verify timestamp and check time window
+    if (!verifyTimestamp(timestamp)) {
+      console.log(`Timestamp verification failed: ${timestamp}, current time: ${Date.now()}, diff: ${Math.abs(timestamp - Date.now())}ms`);
       return res.status(400).json({ error: 'Invalid or expired timestamp' });
     }
     
-    // Generate signature server-side
-    const signature = generateWeb2Signature(playerName, score, timestamp, game);
+    // Verify the submissionTime parameter against the requestReceivedTime
+    if (!submissionTime) {
+      return res.status(400).json({ error: 'Missing submission time' });
+    }
+    
+    if (!verifySubmissionTime(submissionTime, requestReceivedTime)) {
+      console.log(`Submission time verification failed: required=${submissionTime}, actual=${requestReceivedTime}, diff=${Math.abs(submissionTime - requestReceivedTime)}ms`);
+      return res.status(400).json({ error: 'Invalid submission time or submission not made at required time' });
+    }
+    
+    // Generate signature server-side for comparison
+    const serverSignature = generateWeb2Signature(playerName, score, timestamp, game);
+    
+    // Verify signature matches
+    if (signature !== serverSignature) {
+      console.log(`Signature mismatch: expected=${serverSignature}, received=${signature}`);
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
+    
+    // Skip database submission if configured
+    if (SKIP_SCORE_SUBMIT) {
+      console.log('Score submission skipped due to SKIP_SCORE_SUBMIT=true');
+      return res.json({ 
+        message: 'Score submission successful (database skipped)', 
+        score: {
+          id: crypto.randomUUID(),
+          playerName,
+          score,
+          game,
+          timestamp,
+          createdAt: new Date().toISOString()
+        }
+      });
+    }
     
     // Forward to database server with the generated signature
-    const response = await fetch(`${DATABASE_URL}/api/web2/scores`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        playerName,
-        score,
-        game,
-        timestamp,
-        signature
-      })
-    });
+    console.log('Forwarding to database at:', `${DATABASE_URL}/api/web2/scores`);
     
-    if (!response.ok) throw new Error(`Database error: ${response.status}`);
-    const data = await response.json();
-    res.json(data);
+    // Include all required fields including the submissionTime
+    const requestBody = {
+      playerName,
+      score,
+      game,
+      timestamp,
+      signature: serverSignature,
+      submissionTime  // Include submissionTime in the request to the database
+    };
+    
+    console.log('With data:', requestBody);
+    
+    try {
+      const response = await fetch(`${DATABASE_URL}/api/web2/scores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Database error response: ${response.status} - ${errorText}`);
+        throw new Error(`Database error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Successfully submitted score to database:', data);
+      res.json(data);
+    } catch (error) {
+      console.error('Database fetch error:', error);
+      throw error;
+    }
   } catch (error) {
     console.error('Score submission error:', error);
-    res.status(500).json({ error: 'Failed to submit score' });
+    res.status(500).json({ error: 'Failed to submit score', details: error.message });
   }
 });
 
@@ -153,7 +278,8 @@ app.post('/api/web2/scores', async (req, res) => {
 app.post('/api/scores/:mode', async (req, res) => {
   try {
     const { mode } = req.params;
-    const { playerName, playerWallet, score, type, game, timestamp, signature } = req.body;
+    const { playerName, playerWallet, score, type, game, timestamp, signature, submissionTime } = req.body;
+    const requestReceivedTime = Date.now(); // Record when we received this request
     
     console.log('Received score submission:', {
       mode,
@@ -162,7 +288,9 @@ app.post('/api/scores/:mode', async (req, res) => {
       score,
       type,
       game,
-      timestamp
+      timestamp,
+      submissionTime,
+      requestReceivedTime
     });
     
     // Input validation
@@ -186,8 +314,24 @@ app.post('/api/scores/:mode', async (req, res) => {
       return res.status(400).json({ error: 'Invalid game type' });
     }
     
-    if (!timestamp || !verifyTimestamp(timestamp)) {
+    if (!timestamp) {
+      return res.status(400).json({ error: 'Missing timestamp' });
+    }
+    
+    // Verify timestamp
+    if (!verifyTimestamp(timestamp)) {
+      console.log(`Timestamp verification failed: ${timestamp}, current time: ${Date.now()}, diff: ${Math.abs(timestamp - Date.now())}ms`);
       return res.status(400).json({ error: 'Invalid or expired timestamp' });
+    }
+    
+    if (!submissionTime) {
+      return res.status(400).json({ error: 'Missing submission time' });
+    }
+    
+    // Verify the submissionTime parameter against the requestReceivedTime
+    if (!verifySubmissionTime(submissionTime, requestReceivedTime)) {
+      console.log(`Submission time verification failed: required=${submissionTime}, actual=${requestReceivedTime}, diff=${Math.abs(submissionTime - requestReceivedTime)}ms`);
+      return res.status(400).json({ error: 'Invalid submission time or submission not made at required time' });
     }
     
     // Skip score submission if configured
@@ -200,6 +344,12 @@ app.post('/api/scores/:mode', async (req, res) => {
     const serverSignature = generateWeb3Signature(playerName, playerWallet, score, timestamp, type, mode, game);
     console.log('Generated signature for submission');
     
+    // Verify signature matches
+    if (signature !== serverSignature) {
+      console.log(`Signature mismatch: expected=${serverSignature}, received=${signature}`);
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
+    
     // Create request body with the exact same fields and order as the backend expects
     const requestBody = {
       playerName,
@@ -208,11 +358,13 @@ app.post('/api/scores/:mode', async (req, res) => {
       type,
       game,
       timestamp,
-      signature: serverSignature // Use our generated signature
+      signature: serverSignature, // Use our generated signature
+      submissionTime  // Include submissionTime in the request to the database
     };
     
     // Log the request we're about to make
     console.log('Forwarding to database at:', `${DATABASE_URL}/api/scores/${mode}`);
+    console.log('With data:', requestBody);
     
     // Forward to database server
     const response = await fetch(`${DATABASE_URL}/api/scores/${mode}`, {
@@ -310,10 +462,27 @@ app.post('/api/auth/score-signature', async (req, res) => {
   try {
     console.log('Received score signature request:', req.body);
     
-    // Extract data based on Web2 or Web3 request
-    let data;
+    // Get current time for all timing calculations
+    const now = Date.now();
+    
+    // Create timestamp
+    const timestamp = generateTimestamp();
+    
+    // Calculate when submission should occur
+    const submissionTime = generateSubmissionTime();
+    
+    // Calculate expiration time as 15 seconds from NOW
+    const expiresAt = now + 15 * 1000;
+    
+    console.log(`Timing information:`);
+    console.log(`Current time: ${now} (${new Date(now).toISOString()})`);
+    console.log(`Timestamp: ${timestamp} (${new Date(timestamp).toISOString()})`);
+    console.log(`Submission time: ${submissionTime} (${new Date(submissionTime).toISOString()})`);
+    console.log(`Expires at: ${expiresAt} (${new Date(expiresAt).toISOString()})`);
+    console.log(`Time until expiration: ${expiresAt - now}ms`);
+    console.log(`Time until submission: ${submissionTime - now}ms`);
+    
     let signature;
-    const timestamp = Date.now();
     
     if (req.body.playerWallet) {
       // Web3 request
@@ -367,11 +536,13 @@ app.post('/api/auth/score-signature', async (req, res) => {
       signature = generateWeb2Signature(playerName, score, timestamp, game);
     }
     
-    // Return signature and timestamp
+    // Return signature, timestamp, expiration, and the required submission time
     res.json({
       signature,
       timestamp,
-      expiresAt: timestamp + (5 * 60 * 1000) // Expires in 5 minutes
+      expiresAt,
+      submissionTime,
+      serverTime: now // Current server time for client-server time synchronization
     });
   } catch (error) {
     console.error('Error generating score signature:', error);

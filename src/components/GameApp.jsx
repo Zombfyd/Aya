@@ -772,7 +772,7 @@ const GameApp = () => {
       // Step 1: Determine if this is a Web2 or Web3 submission
       const isWeb3 = wallet.connected;
       
-      // Step 2: Get score signature first (following backend README instructions)
+      // Step 2: Get score signature first
       try {
         logger.log('Requesting score signature from the server...');
         
@@ -817,10 +817,11 @@ const GameApp = () => {
           throw new Error(errorData.error || `Failed to get score signature: ${signatureResponse.status}`);
         }
         
-        const { signature, timestamp: serverTimestamp } = await signatureResponse.json();
-        logger.log('Received score signature from server:', { signature, timestamp: serverTimestamp });
+        const signatureData = await signatureResponse.json();
+        const { signature, timestamp, submissionTime } = signatureData;
+        logger.log('Received signature data from server:', signatureData);
         
-        // Step 3: Submit scores with the signature
+        // Step 3: Submit scores with the signature - immediately after receiving it
         if (isWeb3) {
           // Web3 submission (submit to both main and secondary)
           const submissions = ['main', 'secondary'].map(async (gameType) => {
@@ -833,8 +834,9 @@ const GameApp = () => {
               type: gameType,
               playerName: playerName || 'Unknown',
               game: currentGame,
-              timestamp: serverTimestamp,
+              timestamp: timestamp,
               signature: signature,
+              submissionTime: submissionTime,
               paymentVerification: submissionGameMode === 'paid' ? {
                 transactionId: paymentDetails?.transactionId,
                 amount: paymentDetails?.amount,
@@ -889,8 +891,9 @@ const GameApp = () => {
             playerName: playerName || 'Unknown',
             score: finalScore,
             game: currentGame,
-            timestamp: serverTimestamp,
-            signature: signature
+            timestamp: timestamp,
+            signature: signature,
+            submissionTime: submissionTime
           };
           
           // Log request details
