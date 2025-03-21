@@ -2,7 +2,7 @@
 const getEnvironmentFromMode = () => {
     const mode = import.meta.env.MODE;
     console.log('Current MODE:', mode);
-    return mode === 'testnet' ? 'testnet' : 'mainnet';
+    return mode === 'testnet' || mode === 'dev.testnet' ? 'testnet' : 'mainnet';
 };
 
 // Helper function to determine environment based on wallet network
@@ -20,6 +20,15 @@ const getEnvironmentFromNetwork = (walletNetwork) => {
             return modeEnv;
     }
 };
+
+// Debug environment variables
+console.log('=== ENVIRONMENT VARIABLES DEBUG ===');
+console.log('MODE:', import.meta.env.MODE);
+console.log('VITE_APP_ENVIRONMENT:', import.meta.env.VITE_APP_ENVIRONMENT);
+console.log('VITE_APP_NETWORK:', import.meta.env.VITE_APP_NETWORK);
+console.log('Has PRIMARY_RECIPIENT:', !!import.meta.env.VITE_APP_TESTNET_PRIMARY_RECIPIENT);
+console.log('Primary recipient value:', import.meta.env.VITE_APP_TESTNET_PRIMARY_RECIPIENT);
+console.log('All ENV Variables:', import.meta.env);
 
 const config = {
     apiBaseUrl: 'https://ayagame.onrender.com',
@@ -66,12 +75,26 @@ const config = {
     getApiEndpoints: function() {
         return {
             scores: {
-                submit: (gameMode) => `${this.apiBaseUrl}/api/scores/submit/${gameMode}`,
+                submit: (gameMode) => `${this.apiBaseUrl}/api/scores/${gameMode}`,
                 leaderboard: (type, mode) => `${this.apiBaseUrl}/api/scores/leaderboard/${type}/${mode}`,
                 web2: {
                     leaderboard: `${this.apiBaseUrl}/api/web2/leaderboard`,
                     submit: `${this.apiBaseUrl}/api/web2/scores`
                 }
+            },
+            // Add more detailed debug info about endpoints
+            debug: {
+                getEndpointInfo: () => ({
+                    baseUrl: this.apiBaseUrl,
+                    web2Submit: `${this.apiBaseUrl}/api/web2/scores`,
+                    web2Leaderboard: `${this.apiBaseUrl}/api/web2/leaderboard`,
+                    web3FreeSubmit: `${this.apiBaseUrl}/api/scores/free`,
+                    web3PaidSubmit: `${this.apiBaseUrl}/api/scores/paid`,
+                    mainFreeLeaderboard: `${this.apiBaseUrl}/api/scores/leaderboard/main/free`,
+                    mainPaidLeaderboard: `${this.apiBaseUrl}/api/scores/leaderboard/main/paid`,
+                    secondaryFreeLeaderboard: `${this.apiBaseUrl}/api/scores/leaderboard/secondary/free`,
+                    secondaryPaidLeaderboard: `${this.apiBaseUrl}/api/scores/leaderboard/secondary/paid`
+                })
             }
         };
     },
@@ -152,7 +175,28 @@ const config = {
     },
     
     getCurrentRecipients: function() {
-        return this.recipients[this.network];
+        const recipients = this.recipients[this.network];
+        console.log(`Getting recipients for network: ${this.network}`, recipients);
+        
+        // Add fallback addresses for critical values that might be undefined
+        if (!recipients.primary) {
+            console.warn('Primary recipient is undefined, using fallback address');
+            recipients.primary = '0xa376ef54b9d89db49e7eac089a4efca84755f6c325429af97a7ce9b3a549642a';
+        }
+        if (!recipients.secondary) {
+            console.warn('Secondary recipient is undefined, using fallback address');
+            recipients.secondary = '0xa376ef54b9d89db49e7eac089a4efca84755f6c325429af97a7ce9b3a549642a';
+        }
+        if (!recipients.tertiary) {
+            console.warn('Tertiary recipient is undefined, using fallback address');
+            recipients.tertiary = '0xa376ef54b9d89db49e7eac089a4efca84755f6c325429af97a7ce9b3a549642a';
+        }
+        if (!recipients.rewards) {
+            console.warn('Rewards recipient is undefined, using fallback address');
+            recipients.rewards = '0xa376ef54b9d89db49e7eac089a4efca84755f6c325429af97a7ce9b3a549642a';
+        }
+        
+        return recipients;
     }
 };
 
@@ -166,7 +210,8 @@ console.log('Initial configuration:', {
     network: config.network,
     hasPackageId: !!config.getCurrentPackageId(),
     hasPaymentConfigId: !!config.getCurrentPaymentConfigId(),
-    debug: config.debug
+    debug: config.debug,
+    recipients: config.getCurrentRecipients()
 });
 
 export default config;

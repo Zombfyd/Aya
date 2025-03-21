@@ -130,3 +130,6 @@ stats.html
 
 # Keep example env file
 !.env.example
+
+# Endpoints
+endpoints.txt

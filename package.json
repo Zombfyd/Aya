@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --port 6969",
     "dev:testnet": "vite --port 6969 --mode testnet",
+    "dev:testnet:local": "vite --port 6969 --mode dev.testnet",
     "build": "tsc && vite build",
     "build:testnet": "tsc && vite build --mode testnet",
     "build:mainnet": "tsc && vite build --mode production",

@@ -6,6 +6,19 @@ export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
   const isDevelopment = mode === 'development';
   const isTestnet = mode === 'testnet';
+  const isDevTestnet = mode === 'dev.testnet';
+
+  console.log(`Building for mode: ${mode}`);
+  
+  // For debugging environment variables
+  if (isDevTestnet) {
+    console.log('Using dev.testnet environment with variables:');
+    Object.keys(process.env)
+      .filter(key => key.startsWith('VITE_'))
+      .forEach(key => {
+        console.log(`${key}: ${process.env[key]}`);
+      });
+  }
 
   return {
     plugins: [react()],
@@ -40,9 +53,9 @@ export default defineConfig(({ mode }) => {
     assetsInclude: ['**/*.wav', '**/*.mp3'], // Include audio files
     envDir: '.',
     define: {
-      __DEV__: isDevelopment || isTestnet,
+      __DEV__: isDevelopment || isTestnet || isDevTestnet,
       __PROD__: isProduction,
-      __TEST__: isTestnet
+      __TEST__: isTestnet || isDevTestnet
     }
   };
 });

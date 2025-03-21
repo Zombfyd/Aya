@@ -747,6 +747,7 @@ const GameApp = () => {
       logger.log('Submitting score:', { finalScore, submissionGameMode, gameType, paymentDetails });
       const currentGame = gameType || (window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB');
       const environment = import.meta.env.VITE_APP_ENVIRONMENT || 'development';
+      const timestamp = Date.now();
       
       logger.log('handleScoreSubmit received:', { 
           finalScore, 
@@ -756,11 +757,12 @@ const GameApp = () => {
           walletConnected: wallet.connected,
           paymentStatus,
           environment,
-          isTestnet
+          isTestnet,
+          timestamp
       });
 
       // For testnet environment, just log the score but don't submit to leaderboard
-      if (environment === 'development') {
+      if (environment === 'development' || (environment === 'testnet' && import.meta.env.VITE_APP_SKIP_SCORE_SUBMIT === 'true')) {
           logger.log('Testnet environment detected - Score not submitted to leaderboard:', {
               score: finalScore,
               playerName,
@@ -776,10 +778,14 @@ const GameApp = () => {
       if (!wallet.connected) {
           // Web2 submission - specific to the game played
           endpoint = `${config.apiBaseUrl}/api/web2/scores`;
+          
+          // Let the server generate the signature
           requestBody = {
               playerName,
               score: finalScore,
-              game: currentGame
+              game: currentGame,
+              timestamp,
+              signature: 'placeholder' // Add placeholder signature for validation
           };
 
           const response = await fetch(endpoint, {
@@ -790,11 +796,18 @@ const GameApp = () => {
 
           if (!response.ok) {
               const errorData = await response.json();
+              logger.error('Web2 score submission failed:', { 
+                  status: response.status, 
+                  error: errorData,
+                  endpoint,
+                  requestBody
+              });
               throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
           }
 
           const result = await response.json();
           logger.log(`Web2 score submitted successfully for ${currentGame}:`, result);
+          await fetchLeaderboards();
           return result;
       }
 
@@ -803,6 +816,7 @@ const GameApp = () => {
           // Check both state and passed payment details
           const verifiedPayment = paymentDetails || paymentStatus;
           if (!verifiedPayment.verified || !verifiedPayment.transactionId) {
+              logger.error('Payment verification failed:', { verifiedPayment });
               throw new Error('Payment verification failed - no valid payment found');
           }
       }
@@ -811,12 +825,15 @@ const GameApp = () => {
       endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
       
       const submissions = ['main', 'secondary'].map(async (gameType) => {
+          // Let the server generate the signature
           const body = {
               playerWallet: wallet.account?.address,
               score: finalScore,
-              gameType: gameType,
-              playerName: playerName || null,
+              type: gameType,
+              playerName: playerName || 'Unknown',
               game: currentGame,
+              timestamp,
+              signature: 'placeholder', // Add placeholder signature for validation
               paymentVerification: submissionGameMode === 'paid' ? {
                   transactionId: paymentDetails?.transactionId,
                   amount: paymentDetails?.amount,
@@ -824,6 +841,9 @@ const GameApp = () => {
                   recipient: paymentDetails?.recipient
               } : null
           };
+
+          // Log request details in development
+          logger.log(`Submitting score to ${endpoint}:`, { type: gameType, body });
 
           const response = await fetch(endpoint, {
               method: 'POST',
@@ -833,6 +853,12 @@ const GameApp = () => {
 
           if (!response.ok) {
               const errorData = await response.json();
+              logger.error('Score submission failed:', { 
+                  status: response.status, 
+                  error: errorData,
+                  endpoint,
+                  body
+              });
               throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
           }
 
@@ -844,31 +870,39 @@ const GameApp = () => {
           main: mainResult, 
           secondary: secondaryResult 
       });
+      
       await fetchLeaderboards();
       return { main: mainResult, secondary: secondaryResult };
-  } catch (error) {
-      logger.error(`Error submitting score for ${currentGame}:`, error);
-      alert(`Failed to submit score for ${currentGame}: ${error.message}`);
-      throw error;
-  }
-};
+    } catch (error) {
+      console.error('Error submitting score:', error);
+      setErrorMessage(`Failed to submit score: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+  };
 
   // Update the fetchLeaderboards function
   const fetchLeaderboards = async () => {
     try {
-      logger.log('Fetching leaderboards...');
       setIsLeaderboardLoading(true);
-      const baseUrl = `${config.apiBaseUrl}/api`;
+      logger.log('Fetching leaderboards...');
 
       const fetchLeaderboard = async (endpoint) => {
-          const response = await fetch(`${baseUrl}${endpoint}`);
+        try {
+          const url = `${config.apiBaseUrl}/api${endpoint}`;
+          const response = await fetch(url);
+          
           if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status} for endpoint: ${endpoint}`);
+            logger.error(`Failed to fetch leaderboard from ${url}: ${response.status}`);
+            return [];
           }
-          return response.json();
+          
+          return await response.json();
+        } catch (error) {
+          logger.error(`Error fetching leaderboard from ${endpoint}:`, error);
+          return [];
+        }
       };
 
-      // Fetch all leaderboards with separate TOA and TOB endpoints
       const [
           mainFreeTOA,
           secondaryFreeTOA,
@@ -894,36 +928,75 @@ const GameApp = () => {
       ]);
 
       setLeaderboardData({
-          mainFreeTOA,
-          secondaryFreeTOA,
-          mainFreeTOB,
-          secondaryFreeTOB,
-          mainPaidTOA,
-          secondaryPaidTOA,
-          mainPaidTOB,
-          secondaryPaidTOB,
-          web2TOA,    // Store TOA web2 scores separately
-          web2TOB     // Store TOB web2 scores separately
+        mainFreeTOA,
+        secondaryFreeTOA,
+        mainFreeTOB,
+        secondaryFreeTOB,
+        mainPaidTOA,
+        secondaryPaidTOA,
+        mainPaidTOB,
+        secondaryPaidTOB,
+        web2TOA,
+        web2TOB
       });
-
+      
     } catch (error) {
       logger.error('Error fetching leaderboards:', error);
-      setLeaderboardData({
-          mainFreeTOA: [],
-          secondaryFreeTOA: [],
-          mainFreeTOB: [],
-          secondaryFreeTOB: [],
-          mainPaidTOA: [],
-          secondaryPaidTOA: [],
-          mainPaidTOB: [],
-          secondaryPaidTOB: [],
-          web2TOA: [], // Empty array for TOA web2 scores on error
-          web2TOB: []  // Empty array for TOB web2 scores on error
-      });
     } finally {
       setIsLeaderboardLoading(false);
     }
   };
+
+  // Add a debug function to test API connectivity
+  const debugApiConnectivity = async () => {
+    try {
+      logger.log('=== Debugging API Connectivity ===');
+      
+      // Check API endpoints configuration
+      const endpointInfo = config.api.debug.getEndpointInfo();
+      logger.log('API Endpoints:', endpointInfo);
+      
+      // Try to connect to the health endpoint
+      logger.log('Testing health endpoint...');
+      const healthResponse = await fetch(`${config.apiBaseUrl}/health`);
+      const healthData = await healthResponse.json();
+      logger.log('Health endpoint response:', healthData);
+      
+      // Try to fetch leaderboard data
+      logger.log('Testing leaderboard endpoint...');
+      const leaderboardResponse = await fetch(`${config.apiBaseUrl}/api/web2/leaderboard`);
+      if (leaderboardResponse.ok) {
+        logger.log('Leaderboard endpoint is accessible');
+      } else {
+        logger.error('Leaderboard endpoint error:', leaderboardResponse.status);
+      }
+      
+      return {
+        success: true,
+        health: healthData,
+        endpoints: endpointInfo,
+        connectivity: {
+          health: healthResponse.ok,
+          leaderboard: leaderboardResponse.ok
+        }
+      };
+    } catch (error) {
+      logger.error('API connectivity test failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  };
+  
+  // Run a connectivity test on component mount
+  useEffect(() => {
+    if (config.debug.enabled) {
+      debugApiConnectivity().then(result => {
+        logger.log('API Connectivity Test Result:', result);
+      });
+    }
+  }, []);
 
   // Update the useEffect for leaderboard fetching
   useEffect(() => {
