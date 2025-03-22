@@ -79,10 +79,10 @@ const verifyTimestamp = (timestamp) => {
   }
 
   const currentTime = Date.now();
-  // 15 seconds window as per requirement
+  // 15 seconds window as per documentation
   const fifteenSecondsInMs = 15 * 1000;
   
-  // Check if it's within the valid time window
+  // Check if timestamp is within valid time window
   const timeDiff = Math.abs(currentTime - timestamp);
   const isValid = timeDiff <= fifteenSecondsInMs;
   
@@ -103,8 +103,8 @@ const verifySubmissionTime = (requiredTime, actualTime) => {
     return true;
   }
 
-  // Use a reasonable tolerance
-  const tolerance = 5000; // 5 seconds tolerance
+  // Use a reasonable tolerance per documentation
+  const tolerance = 250; // 250ms tolerance as mentioned in BackEndREADME.md
   const timeDiff = Math.abs(actualTime - requiredTime);
   
   console.log(`Submission time verification: requiredTime=${requiredTime}, actualTime=${actualTime}, diff=${timeDiff}ms, tolerance=${tolerance}ms`);
@@ -113,19 +113,18 @@ const verifySubmissionTime = (requiredTime, actualTime) => {
   return timeDiff <= tolerance;
 };
 
-// Generate timestamp
+// Generate timestamp - simply current time
 const generateTimestamp = () => {
-  // Simply use the current timestamp
   const now = Date.now();
   console.log(`Generated timestamp: ${now} (${new Date(now).toISOString()})`);
   return now;
 };
 
-// Generate a submission time
+// Generate a submission time in near future
 const generateSubmissionTime = () => {
-  // Get current time and add a small delay
   const now = Date.now();
-  const submissionTime = now + 3000; // 3 seconds in the future
+  // Set submission time 3 seconds in the future to allow client to prepare
+  const submissionTime = now + 3000;
   
   console.log(`Generated submission time: ${submissionTime} (${new Date(submissionTime).toISOString()})`);
   console.log(`Current time: ${now} (${new Date(now).toISOString()})`);
@@ -190,7 +189,7 @@ app.post('/api/web2/scores', async (req, res) => {
       return res.status(400).json({ error: 'Missing timestamp' });
     }
     
-    // Verify timestamp and check time window
+    // Verify timestamp is within 15-second window
     if (!verifyTimestamp(timestamp)) {
       console.log(`Timestamp verification failed: ${timestamp}, current time: ${Date.now()}, diff: ${Math.abs(timestamp - Date.now())}ms`);
       return res.status(400).json({ error: 'Invalid or expired timestamp' });
@@ -281,7 +280,7 @@ app.post('/api/scores/:mode', async (req, res) => {
     const { playerName, playerWallet, score, type, game, timestamp, signature, submissionTime } = req.body;
     const requestReceivedTime = Date.now(); // Record when we received this request
     
-    console.log('Received score submission:', {
+    console.log('Received Web3 score submission:', {
       mode,
       playerName,
       playerWallet: playerWallet ? playerWallet.substring(0, 10) + '...' : undefined, // Log truncated wallet for privacy
@@ -318,7 +317,7 @@ app.post('/api/scores/:mode', async (req, res) => {
       return res.status(400).json({ error: 'Missing timestamp' });
     }
     
-    // Verify timestamp
+    // Verify timestamp is within 15-second window
     if (!verifyTimestamp(timestamp)) {
       console.log(`Timestamp verification failed: ${timestamp}, current time: ${Date.now()}, diff: ${Math.abs(timestamp - Date.now())}ms`);
       return res.status(400).json({ error: 'Invalid or expired timestamp' });
@@ -337,7 +336,19 @@ app.post('/api/scores/:mode', async (req, res) => {
     // Skip score submission if configured
     if (SKIP_SCORE_SUBMIT) {
       console.log('Score submission skipped due to SKIP_SCORE_SUBMIT=true');
-      return res.json({ message: 'Score submission skipped' });
+      return res.json({ 
+        message: 'Score submission successful (database skipped)',
+        id: crypto.randomUUID(),
+        playerName,
+        playerWallet,
+        score,
+        gameType: type,
+        gameMode: mode,
+        game,
+        verified: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
     }
     
     // Generate signature server-side for comparison
@@ -465,13 +476,13 @@ app.post('/api/auth/score-signature', async (req, res) => {
     // Get current time for all timing calculations
     const now = Date.now();
     
-    // Create timestamp
+    // Create timestamp - this is what client will submit with their score
     const timestamp = generateTimestamp();
     
-    // Calculate when submission should occur
+    // Calculate submission time - when we expect the client to submit
     const submissionTime = generateSubmissionTime();
     
-    // Calculate expiration time as 15 seconds from NOW
+    // Calculate expiration time - 15 seconds from now as per documentation
     const expiresAt = now + 15 * 1000;
     
     console.log(`Timing information:`);
@@ -537,12 +548,13 @@ app.post('/api/auth/score-signature', async (req, res) => {
     }
     
     // Return signature, timestamp, expiration, and the required submission time
+    // Match the format specified in the documentation
     res.json({
       signature,
       timestamp,
       expiresAt,
       submissionTime,
-      serverTime: now // Current server time for client-server time synchronization
+      serverTime: now
     });
   } catch (error) {
     console.error('Error generating score signature:', error);

@@ -772,59 +772,48 @@ const GameApp = () => {
       // Step 1: Determine if this is a Web2 or Web3 submission
       const isWeb3 = wallet.connected;
       
-      // Step 2: Get score signature first
+      // Step 2: Submit scores - different approaches for Web2 vs Web3
       try {
-        logger.log('Requesting score signature from the server...');
-        
-        // Build the signature request body based on the player type
-        let signatureRequestBody;
-        
-        if (isWeb3) {
-          // Web3 player
-          signatureRequestBody = {
-            playerName: playerName || 'Unknown',
-            playerWallet: wallet.account?.address,
-            score: finalScore,
-            type: 'main', // We'll use main for signature generation
-            mode: submissionGameMode,
-            game: currentGame
-          };
-        } else {
-          // Web2 player
-          signatureRequestBody = {
-            playerName: playerName || 'Unknown',
-            score: finalScore,
-            game: currentGame
-          };
-        }
-        
-        // Request signature from server
-        const signatureResponse = await fetch(`${config.apiBaseUrl}/api/auth/score-signature`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(signatureRequestBody)
-        });
-        
-        if (!signatureResponse.ok) {
-          const errorText = await signatureResponse.text();
-          let errorData;
-          try {
-            errorData = JSON.parse(errorText);
-          } catch (e) {
-            errorData = { error: errorText };
-          }
-          logger.error('Failed to get score signature:', errorData);
-          throw new Error(errorData.error || `Failed to get score signature: ${signatureResponse.status}`);
-        }
-        
-        const signatureData = await signatureResponse.json();
-        const { signature, timestamp, submissionTime } = signatureData;
-        logger.log('Received signature data from server:', signatureData);
-        
-        // Step 3: Submit scores with the signature - immediately after receiving it
         if (isWeb3) {
           // Web3 submission (submit to both main and secondary)
-          const submissions = ['main', 'secondary'].map(async (gameType) => {
+          // For Web3, we need separate signatures for each game type
+          const gameTypes = ['main', 'secondary'];
+          const submissions = await Promise.all(gameTypes.map(async (gameType) => {
+            logger.log('Requesting score signature for', gameType);
+            
+            // Get a specific signature for this game type
+            const signatureRequestBody = {
+              playerName: playerName || 'Unknown',
+              playerWallet: wallet.account?.address,
+              score: finalScore,
+              type: gameType, // Use the specific game type for each signature
+              mode: submissionGameMode,
+              game: currentGame
+            };
+            
+            // Request signature from server
+            const signatureResponse = await fetch(`${config.apiBaseUrl}/api/auth/score-signature`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(signatureRequestBody)
+            });
+            
+            if (!signatureResponse.ok) {
+              const errorText = await signatureResponse.text();
+              let errorData;
+              try {
+                errorData = JSON.parse(errorText);
+              } catch (e) {
+                errorData = { error: errorText };
+              }
+              logger.error(`Failed to get score signature for ${gameType}:`, errorData);
+              throw new Error(errorData.error || `Failed to get score signature: ${signatureResponse.status}`);
+            }
+            
+            const signatureData = await signatureResponse.json();
+            const { signature, timestamp, submissionTime } = signatureData;
+            logger.log(`Received signature data for ${gameType}:`, signatureData);
+            
             const endpoint = `${config.apiBaseUrl}/api/scores/${submissionGameMode}`;
             
             // Prepare submission with the server-provided signature and timestamp
@@ -862,7 +851,7 @@ const GameApp = () => {
               } catch (e) {
                 errorData = { error: errorText };
               }
-              logger.error('Score submission failed:', { 
+              logger.error(`Score submission failed for ${gameType}:`, { 
                 status: response.status, 
                 error: errorData,
                 endpoint,
@@ -871,10 +860,16 @@ const GameApp = () => {
               throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
 
-            return response.json();
-          });
+            return {
+              type: gameType,
+              result: await response.json()
+            };
+          }));
 
-          const [mainResult, secondaryResult] = await Promise.all(submissions);
+          // Format the results to maintain the same return structure
+          const mainResult = submissions.find(s => s.type === 'main')?.result;
+          const secondaryResult = submissions.find(s => s.type === 'secondary')?.result;
+          
           logger.log(`Web3 scores submitted successfully for ${currentGame}:`, { 
             main: mainResult, 
             secondary: secondaryResult 
@@ -883,7 +878,39 @@ const GameApp = () => {
           await fetchLeaderboards();
           return { main: mainResult, secondary: secondaryResult, success: true };
         } else {
-          // Web2 submission
+          // Web2 submission - get signature and submit
+          logger.log('Requesting score signature for Web2 player');
+          
+          // Build the signature request body
+          const signatureRequestBody = {
+            playerName: playerName || 'Unknown',
+            score: finalScore,
+            game: currentGame
+          };
+          
+          // Request signature from server
+          const signatureResponse = await fetch(`${config.apiBaseUrl}/api/auth/score-signature`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(signatureRequestBody)
+          });
+          
+          if (!signatureResponse.ok) {
+            const errorText = await signatureResponse.text();
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch (e) {
+              errorData = { error: errorText };
+            }
+            logger.error('Failed to get score signature:', errorData);
+            throw new Error(errorData.error || `Failed to get score signature: ${signatureResponse.status}`);
+          }
+          
+          const signatureData = await signatureResponse.json();
+          const { signature, timestamp, submissionTime } = signatureData;
+          logger.log('Received signature data from server:', signatureData);
+          
           const endpoint = `${config.apiBaseUrl}/api/web2/scores`;
           
           // Prepare Web2 submission with the server-provided signature and timestamp
