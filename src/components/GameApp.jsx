@@ -1627,6 +1627,36 @@ const GameApp = () => {
                 plays: tierConfig.plays
             });
 
+            // Check if user has sufficient balance before proceeding
+            try {
+                const balanceResponse = await client.getBalance({
+                    owner: wallet.account.address,
+                    coinType: '0x2::sui::SUI'
+                });
+                
+                // Get balance from response, handling different possible structures
+                const balanceValue = balanceResponse?.totalBalance || balanceResponse?.balance || 
+                                     (balanceResponse?.data ? balanceResponse.data.balance : '0');
+                
+                logger.log('User SUI balance response:', balanceResponse);
+                logger.log('Extracted balance value:', balanceValue);
+                
+                // Convert balance to BigInt for comparison
+                const balanceBigInt = BigInt(balanceValue || 0);
+                
+                // Need enough for the tier amount plus some gas (10000000 MIST = 0.01 SUI for gas)
+                const requiredAmount = totalAmount + BigInt(10000000);
+                
+                if (balanceBigInt < requiredAmount) {
+                    throw new Error(`Insufficient SUI balance. You need at least ${Number(totalAmount) / Math.pow(10, PAYMENT_TOKENS.SUI.decimals)} SUI plus gas for this tier.`);
+                }
+                
+                logger.log('Balance check passed, proceeding with payment');
+            } catch (error) {
+                logger.error('Balance check failed:', error);
+                throw error;
+            }
+
             const shareAmounts = {
                 primary: (totalAmount * BigInt(shares.primary)) / BigInt(10000),
                 secondary: (totalAmount * BigInt(shares.secondary)) / BigInt(10000),
@@ -3406,6 +3436,36 @@ const handleSuinsChange = (e) => {
                                 totalAmount: Number(totalAmount),
                                 discountApplied: isNFTVerified ? '50% NFT discount' : 'No discount'
                             });
+
+                            // Check if user has sufficient balance before proceeding
+                            try {
+                                const balanceResponse = await client.getBalance({
+                                    owner: wallet.account.address,
+                                    coinType: '0x2::sui::SUI'
+                                });
+                                
+                                // Get balance from response, handling different possible structures
+                                const balanceValue = balanceResponse?.totalBalance || balanceResponse?.balance || 
+                                                     (balanceResponse?.data ? balanceResponse.data.balance : '0');
+                                
+                                logger.log('User SUI balance response:', balanceResponse);
+                                logger.log('Extracted balance value:', balanceValue);
+                                
+                                // Convert balance to BigInt for comparison
+                                const balanceBigInt = BigInt(balanceValue || 0);
+                                
+                                // Need enough for the submission amount plus some gas
+                                const requiredAmount = totalAmount + BigInt(10000000);
+                                
+                                if (balanceBigInt < requiredAmount) {
+                                    throw new Error(`Insufficient SUI balance. You need at least ${Number(totalAmount) / Math.pow(10, PAYMENT_TOKENS.SUI.decimals)} SUI plus gas for score submission.`);
+                                }
+                                
+                                logger.log('Balance check passed, proceeding with score submission payment');
+                            } catch (error) {
+                                logger.error('Balance check failed for score submission:', error);
+                                throw error;
+                            }
 
                             // Calculate shares using BigInt
                             const primaryShare = BigInt(config.shares.primary);
