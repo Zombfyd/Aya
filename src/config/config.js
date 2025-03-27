@@ -68,9 +68,9 @@ const config = {
     
     // Payment Shares (same for both networks)
     shares: {
-        primary: parseInt(import.meta.env.VITE_APP_PRIMARY_SHARE) || 4000,
-        secondary: parseInt(import.meta.env.VITE_APP_SECONDARY_SHARE) || 3000,
-        tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE) || 2000,
+        primary: parseInt(import.meta.env.VITE_APP_PRIMARY_SHARE) || 1000,
+        secondary: parseInt(import.meta.env.VITE_APP_SECONDARY_SHARE) || 1000,
+        tertiary: parseInt(import.meta.env.VITE_APP_TERTIARY_SHARE) || 1000,
         rewards: parseInt(import.meta.env.VITE_APP_REWARDS_SHARE) || 1000
     },
     

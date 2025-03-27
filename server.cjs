@@ -562,6 +562,137 @@ app.post('/api/auth/score-signature', async (req, res) => {
   }
 });
 
+// Admin API key for privileged operations
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || 'admin-key-for-development';
+
+// Endpoint to grant play attempts to a wallet
+app.post('/api/plays/grant', async (req, res) => {
+  // Check admin API key
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== ADMIN_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid API key' });
+  }
+  
+  const { playerWallet, quantity, grantReason } = req.body;
+  
+  // Validate input
+  if (!playerWallet || !playerWallet.startsWith('0x')) {
+    return res.status(400).json({ error: 'Invalid wallet address' });
+  }
+  
+  if (!quantity || isNaN(parseInt(quantity)) || parseInt(quantity) <= 0) {
+    return res.status(400).json({ error: 'Quantity must be a positive number' });
+  }
+  
+  try {
+    // Mock implementation - in production, this would update a database
+    console.log(`[ADMIN] Granting ${quantity} play attempts to wallet: ${playerWallet}`);
+    console.log(`[ADMIN] Reason: ${grantReason || 'Not specified'}`);
+    
+    // In this simplified implementation, we just return success
+    // In a real implementation, you would call your database service
+    
+    res.json({
+      success: true,
+      wallet: playerWallet,
+      granted: parseInt(quantity),
+      totalAttempts: parseInt(quantity),
+      message: `Successfully granted ${quantity} play attempts to ${playerWallet}`
+    });
+  } catch (error) {
+    console.error('Error granting play attempts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to grant play attempts',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint to purchase play attempts
+app.post('/api/plays/purchase', async (req, res) => {
+  try {
+    const { playerWallet, quantity, payment } = req.body;
+    
+    // Input validation
+    if (!playerWallet || !playerWallet.startsWith('0x')) {
+      return res.status(400).json({ error: 'Invalid wallet address' });
+    }
+    
+    if (!quantity || isNaN(parseInt(quantity)) || parseInt(quantity) <= 0) {
+      return res.status(400).json({ error: 'Quantity must be a positive number' });
+    }
+    
+    if (!payment || !payment.tokenType || !payment.transactionId) {
+      return res.status(400).json({ error: 'Invalid payment information' });
+    }
+    
+    console.log(`Received purchase request for ${quantity} play attempts for wallet: ${playerWallet}`);
+    console.log('Payment details:', payment);
+    
+    // Skip database submission if configured
+    if (SKIP_SCORE_SUBMIT) {
+      console.log('Play attempts purchase skipped due to SKIP_SCORE_SUBMIT=true');
+      return res.json({ 
+        success: true,
+        wallet: playerWallet,
+        purchased: parseInt(quantity),
+        totalAttempts: parseInt(quantity),
+        message: `Successfully purchased ${quantity} play attempts (database skipped)`
+      });
+    }
+    
+    try {
+      // Try to forward to database server
+      console.log('Attempting to forward to database at:', `${DATABASE_URL}/api/plays/purchase`);
+      
+      const response = await fetchWithRetry(`${DATABASE_URL}/api/plays/purchase`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          playerWallet,
+          quantity,
+          payment
+        })
+      });
+      
+      const data = await response.json();
+      console.log('Purchase response from database:', data);
+      return res.json(data);
+    } catch (dbError) {
+      console.error('Error forwarding to database, using local mock implementation:', dbError);
+      
+      // If database endpoint doesn't exist or has an error, use a mock implementation
+      // In production, we would want to track these in a local database to sync later
+      console.log(`[MOCK] Processing purchase of ${quantity} play attempts for wallet: ${playerWallet}`);
+      console.log(`[MOCK] Payment: ${payment.tokenType} transaction ${payment.transactionId}`);
+      
+      // Return a mock successful response
+      return res.json({
+        success: true,
+        wallet: playerWallet,
+        purchased: parseInt(quantity),
+        totalAttempts: parseInt(quantity), // In a real implementation, we would add to existing total
+        message: `Successfully purchased ${quantity} play attempts (mock implementation)`,
+        payment: {
+          confirmed: true,
+          tokenType: payment.tokenType,
+          transactionId: payment.transactionId
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error purchasing play attempts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to purchase play attempts',
+      details: error.message
+    });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);

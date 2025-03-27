@@ -7,33 +7,6 @@ import * as playAttemptsService from '../services/playAttemptsService';
 import PlayAttemptsPurchase from './PlayAttemptsPurchase';
 import * as paymentService from '../services/paymentService';
 
-// Expose grant function for development/testing
-if (import.meta.env.DEV) {
-  window.grantPlayAttempts = async (wallet, quantity = 10) => {
-    if (!wallet) {
-      console.error('Please provide a wallet address');
-      return { error: 'No wallet address provided' };
-    }
-    
-    if (!wallet.startsWith('0x')) {
-      console.error('Wallet address must start with 0x');
-      return { error: 'Invalid wallet address format' };
-    }
-    
-    try {
-      const result = await playAttemptsService.localGrantPlayAttempts(wallet, quantity);
-      console.log('Successfully granted play attempts:', result);
-      alert(`Granted ${quantity} play attempts to ${wallet}`);
-      return result;
-    } catch (error) {
-      console.error('Failed to grant play attempts:', error);
-      return { error: error.message };
-    }
-  };
-  
-  console.log('Play attempts utilities loaded. Use window.grantPlayAttempts(walletAddress, quantity) to grant play attempts.');
-}
-
 // Initialize both game managers
 const gameManager1 = gameManager;
 const gameManager2 = new BloodGameManager();
@@ -397,21 +370,14 @@ const GameApp = () => {
   // Add this utility function for checking token balances
   const checkTokenBalance = async (tokenType) => {
     try {
-      if (!wallet.connected) {
-        logger.log(`Wallet not connected, returning 0 balance for ${tokenType}`);
-        return BigInt(0);
-      }
+      if (!wallet.connected) return BigInt(0);
 
-      logger.log(`Checking balance for ${tokenType} at address ${wallet.account.address}`);
       const { data: coins } = await client.getCoins({
         owner: wallet.account.address,
         coinType: tokenType
       });
 
-      logger.log(`Found ${coins.length} coins for ${tokenType}:`, coins);
-      const total = coins.reduce((total, coin) => total + BigInt(coin.balance), BigInt(0));
-      logger.log(`Total balance for ${tokenType}: ${total.toString()}`);
-      return total;
+      return coins.reduce((total, coin) => total + BigInt(coin.balance), BigInt(0));
     } catch (error) {
       logger.error(`Error checking ${tokenType} balance:`, error);
       return BigInt(0);
@@ -649,9 +615,6 @@ const GameApp = () => {
             [ayaType]: ayaBalance
           }));
           
-          // Also update the ayaBalance state directly
-          setAyaBalance(ayaBalance);
-          
           logger.log('Updated AYA balance:', {
             address: wallet.account.address,
             ayaBalance: ayaBalance.toString()
@@ -683,13 +646,10 @@ const GameApp = () => {
       try {
         const ayaType = PAYMENT_TOKENS.AYA.type;
         const ayaBalance = await checkTokenBalance(ayaType);
-        
-        // Update both states
         setAllBalances(prev => ({
           ...prev,
           [ayaType]: ayaBalance
         }));
-        setAyaBalance(ayaBalance);
         
         logger.log('Periodic AYA balance update:', {
           address: wallet.account.address,
@@ -2749,15 +2709,10 @@ const handleSuinsChange = (e) => {
                   try {
                     const ayaType = PAYMENT_TOKENS.AYA.type;
                     const ayaBalance = await checkTokenBalance(ayaType);
-                    
-                    // Update both states
                     setAllBalances(prev => ({
                       ...prev,
                       [ayaType]: ayaBalance
                     }));
-                    
-                    // Also update the ayaBalance state directly
-                    setAyaBalance(ayaBalance);
                     
                     logger.log('AYA balance updated after token switch:', {
                       address: wallet.account.address,
@@ -2937,6 +2892,13 @@ const handleSuinsChange = (e) => {
   // Add a VolumeControls component
   
 
+  // Add new state for play attempts
+  const [playAttempts, setPlayAttempts] = useState(0);
+  const [isLoadingAttempts, setIsLoadingAttempts] = useState(false);
+  const [currentPlayAttempt, setCurrentPlayAttempt] = useState(null);
+  const [showPlayAttemptsPurchase, setShowPlayAttemptsPurchase] = useState(false);
+  const [ayaBalance, setAyaBalance] = useState(BigInt(0));
+
   // Add function to fetch play attempts
   const fetchPlayAttempts = useCallback(async () => {
     if (!wallet.connected || !wallet.account?.address) return;
@@ -3004,183 +2966,51 @@ const handleSuinsChange = (e) => {
       
       const { plays, paymentToken, isAyaPayment, cost } = purchaseDetails;
       
-      // Get all recipient addresses
-      const recipients = config.getCurrentRecipients();
-      logger.log('Payment recipients:', recipients);
-      
-      // Get share percentages directly from config (already in basis points)
-      const shares = config.shares;
-      logger.log('Using shares from config:', shares);
-      
-      // Ensure totalCost is a BigInt for calculations
-      const totalCost = typeof cost === 'bigint' ? cost : BigInt(cost);
-      
-      if (isAyaPayment) {
-        // AYA payment needs special handling - follow the pattern from testAyaPayment function
-        const packageId = '0x8e9187b49143e6071d8bdee63e34224a8e79fdaa6207d2d2ed54007c45936e0b';
-        
-        // Get AYA coins
-        const { data: coins } = await client.getCoins({
-          owner: wallet.account.address,
-          coinType: `${packageId}::aya::AYA`
-        });
-        
-        logger.log('Available AYA coins:', coins);
-        
-        if (coins.length === 0) throw new Error('No AYA coins found');
-        
-        // Find a coin with sufficient balance
-        const selectedCoin = coins.find(coin => BigInt(coin.balance) >= totalCost);
-        if (!selectedCoin) {
-          throw new Error(`Insufficient AYA balance. Need ${Number(totalCost) / 1000000} AYA`);
+      // Prepare transaction based on token type
+      const tx = {
+        kind: 'pay',
+        data: {
+          gasBudget: 10000000,
+          inputCoins: [], // Let wallet select coins
+          recipients: [config.getCurrentRecipients().primary],
+          amounts: [cost]
         }
-        
-        // Create transaction block
-        const txb = new TransactionBlock();
-        
-        // Calculate share amounts using the basis points from config
-        const shareAmounts = {
-          primary: (totalCost * BigInt(shares.primary)) / BigInt(10000),
-          secondary: (totalCost * BigInt(shares.secondary)) / BigInt(10000),
-          tertiary: (totalCost * BigInt(shares.tertiary)) / BigInt(10000),
-          rewards: (totalCost * BigInt(shares.rewards)) / BigInt(10000)
-        };
-        
-        // Split the coin into shares
-        const splitCoins = txb.splitCoins(txb.object(selectedCoin.coinObjectId), [
-          txb.pure.u64(shareAmounts.primary.toString()),
-          txb.pure.u64(shareAmounts.secondary.toString()),
-          txb.pure.u64(shareAmounts.tertiary.toString()),
-          txb.pure.u64(shareAmounts.rewards.toString())
-        ]);
-        
-        // Transfer each coin to its respective recipient
-        // In the Transaction Block API, splitCoins returns an array of coin objects
-        txb.transferObjects([splitCoins[0]], txb.pure.address(recipients.primary));
-        txb.transferObjects([splitCoins[1]], txb.pure.address(recipients.secondary));
-        txb.transferObjects([splitCoins[2]], txb.pure.address(recipients.tertiary));
-        txb.transferObjects([splitCoins[3]], txb.pure.address(recipients.rewards));
-        
-        logger.log('Executing AYA transfer to multiple recipients:', {
-          from: wallet.account.address,
-          recipients,
-          shares,
-          shareAmounts: {
-            primary: shareAmounts.primary.toString(),
-            secondary: shareAmounts.secondary.toString(),
-            tertiary: shareAmounts.tertiary.toString(),
-            rewards: shareAmounts.rewards.toString()
-          },
-          totalAmount: Number(totalCost) / 1000000
-        });
-        
-        const response = await wallet.signAndExecuteTransactionBlock({
-          transactionBlock: txb,
-          options: {
-            showEffects: true,
-            showEvents: true
+      };
+      
+      logger.log('Purchase transaction payload:', tx);
+      
+      // Execute transaction
+      const response = await wallet.signAndExecuteTransactionBlock({
+        transaction: {
+          kind: 'pay',
+          data: tx.data
+        }
+      });
+      
+      logger.log('Purchase transaction response:', response);
+      
+      if (response.digest) {
+        // Record purchase in backend
+        const purchaseResult = await playAttemptsService.purchasePlayAttempts(
+          plays,
+          {
+            tokenType: paymentToken,
+            transactionId: response.digest,
+            amount: cost,
+            purchaseTime: new Date().toISOString()
           }
-        });
+        );
         
-        logger.log('Purchase transaction response:', response);
+        logger.log('Play attempts purchase recorded:', purchaseResult);
         
-        if (response.digest) {
-          // Record purchase in backend
-          const purchaseResult = await playAttemptsService.purchasePlayAttempts(
-            wallet.account.address,
-            plays,
-            {
-              tokenType: paymentToken,
-              transactionId: response.digest,
-              amount: cost,
-              purchaseTime: new Date().toISOString()
-            }
-          );
-          
-          logger.log('Play attempts purchase recorded:', purchaseResult);
-          
-          // Update local state
-          setPlayAttempts(prev => prev + plays);
-          
-          // Close purchase modal
-          setShowPlayAttemptsPurchase(false);
-          
-          // Show success message
-          alert(`Successfully purchased ${plays} play attempt${plays > 1 ? 's' : ''}!`);
-        }
-      } else {
-        // SUI payment
-        const txb = new TransactionBlock();
+        // Update local state
+        setPlayAttempts(prev => prev + plays);
         
-        // Calculate share amounts using the basis points from config
-        const shareAmounts = {
-          primary: (totalCost * BigInt(shares.primary)) / BigInt(10000),
-          secondary: (totalCost * BigInt(shares.secondary)) / BigInt(10000),
-          tertiary: (totalCost * BigInt(shares.tertiary)) / BigInt(10000),
-          rewards: (totalCost * BigInt(shares.rewards)) / BigInt(10000)
-        };
+        // Close purchase modal
+        setShowPlayAttemptsPurchase(false);
         
-        // Split the coin for each recipient
-        const [primary, secondary, tertiary, rewards] = txb.splitCoins(txb.gas, [
-          txb.pure.u64(shareAmounts.primary.toString()),
-          txb.pure.u64(shareAmounts.secondary.toString()),
-          txb.pure.u64(shareAmounts.tertiary.toString()),
-          txb.pure.u64(shareAmounts.rewards.toString())
-        ]);
-        
-        // Transfer to each recipient
-        txb.transferObjects([primary], txb.pure.address(recipients.primary));
-        txb.transferObjects([secondary], txb.pure.address(recipients.secondary));
-        txb.transferObjects([tertiary], txb.pure.address(recipients.tertiary));
-        txb.transferObjects([rewards], txb.pure.address(recipients.rewards));
-        
-        logger.log('Executing SUI transfer to multiple recipients:', {
-          from: wallet.account.address,
-          recipients,
-          shares,
-          shareAmounts: {
-            primary: shareAmounts.primary.toString(),
-            secondary: shareAmounts.secondary.toString(),
-            tertiary: shareAmounts.tertiary.toString(),
-            rewards: shareAmounts.rewards.toString()
-          },
-          totalAmount: Number(totalCost) / 1000000000
-        });
-        
-        const response = await wallet.signAndExecuteTransactionBlock({
-          transactionBlock: txb,
-          options: {
-            showEffects: true,
-            showEvents: true
-          }
-        });
-        
-        logger.log('Purchase transaction response:', response);
-        
-        if (response.digest) {
-          // Record purchase in backend
-          const purchaseResult = await playAttemptsService.purchasePlayAttempts(
-            wallet.account.address,
-            plays,
-            {
-              tokenType: paymentToken,
-              transactionId: response.digest,
-              amount: cost,
-              purchaseTime: new Date().toISOString()
-            }
-          );
-          
-          logger.log('Play attempts purchase recorded:', purchaseResult);
-          
-          // Update local state
-          setPlayAttempts(prev => prev + plays);
-          
-          // Close purchase modal
-          setShowPlayAttemptsPurchase(false);
-          
-          // Show success message
-          alert(`Successfully purchased ${plays} play attempt${plays > 1 ? 's' : ''}!`);
-        }
+        // Show success message
+        alert(`Successfully purchased ${plays} play attempts!`);
       }
     } catch (error) {
       logger.error('Play attempts purchase error:', error);
@@ -3193,8 +3023,7 @@ const handleSuinsChange = (e) => {
 
   // Render play attempts in the user profile section
   const renderPlayAttemptsCounter = () => {
-    // Show in both free and paid mode to make it easier to test
-    if (!wallet.connected) return null;
+    if (!wallet.connected || gameMode !== 'paid') return null;
     
     return (
       <div className="play-attempts-counter">
@@ -3205,15 +3034,7 @@ const handleSuinsChange = (e) => {
         </div>
         <button
           className="buy-attempts-button"
-          onClick={() => {
-            console.log("Buy More button clicked!");
-            console.log("Before toggle, showPlayAttemptsPurchase =", showPlayAttemptsPurchase);
-            // Toggle the state instead of just setting to true
-            setShowPlayAttemptsPurchase(!showPlayAttemptsPurchase);
-            setTimeout(() => {
-              console.log("After toggle, showPlayAttemptsPurchase =", !showPlayAttemptsPurchase);
-            }, 100);
-          }}
+          onClick={() => setShowPlayAttemptsPurchase(true)}
           disabled={isLoadingAttempts}
         >
           Buy More
@@ -3260,7 +3081,6 @@ const handleSuinsChange = (e) => {
             )}
             <span>{playerName}</span>
           </span>
-          {renderPlayAttemptsCounter()}
         </div>
       )}
 
@@ -4013,22 +3833,15 @@ const handleSuinsChange = (e) => {
       )}
 
       {/* Play Attempts Purchase Modal */}
-      {console.log("Rendering PlayAttemptsPurchase with showPlayAttemptsPurchase =", showPlayAttemptsPurchase)}
-      {console.log("Current AYA balance:", ayaBalance.toString(), "- Type:", typeof ayaBalance)}
-      {console.log("Current SUI balance:", balance.toString(), "- Type:", typeof balance)}
       <PlayAttemptsPurchase
         isOpen={showPlayAttemptsPurchase}
-        onClose={() => {
-          console.log("Modal onClose triggered");
-          setShowPlayAttemptsPurchase(false);
-        }}
+        onClose={() => setShowPlayAttemptsPurchase(false)}
         onPurchase={handlePlayAttemptsPurchase}
         isNFTVerified={isNFTVerified}
         balance={balance}
         ayaBalance={ayaBalance}
         maxAllowedAttempts={1000}
         remainingAttempts={playAttempts}
-        tokenPrices={tokenPrices}
       />
     </div>
   );

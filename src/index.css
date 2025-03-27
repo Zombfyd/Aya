@@ -2295,3 +2295,268 @@ select.token-select {
 .error-message button:hover {
   background-color: #f8f9fa;
 }
+
+/* Play Attempts Purchase Modal Styles */
+.purchase-modal {
+  max-width: 500px;
+  width: 90%;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #2054c9;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.modal-body {
+  padding: 20px 0;
+}
+
+.payment-options {
+  margin-bottom: 20px;
+}
+
+.token-selection {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.token-button {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.token-button.selected {
+  background: #2054c9;
+  color: white;
+  border-color: #2054c9;
+}
+
+.slider-container {
+  margin-bottom: 20px;
+}
+
+.slider-container label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.play-count {
+  color: #2054c9;
+  font-size: 1.2rem;
+}
+
+.slider-with-labels {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.plays-slider {
+  flex: 1;
+  height: 5px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #ddd;
+  outline: none;
+  border-radius: 5px;
+}
+
+.plays-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #2054c9;
+  cursor: pointer;
+}
+
+.plays-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #2054c9;
+  cursor: pointer;
+  border: none;
+}
+
+.cost-display {
+  background: #f5f7fa;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.original-cost {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
+  color: #666;
+}
+
+.strikethrough {
+  text-decoration: line-through;
+}
+
+.discount-badge {
+  background: #ff6b6b;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.final-cost {
+  font-size: 1.2rem;
+  margin-bottom: 5px;
+}
+
+.discount-note {
+  color: #28a745;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.purchase-summary {
+  background: #f5f7fa;
+  padding: 15px;
+  border-radius: 5px;
+}
+
+.purchase-summary p {
+  margin: 5px 0;
+}
+
+.max-note {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.cancel-button {
+  padding: 10px 20px;
+  border: none;
+  background: #f1f1f1;
+  color: #666;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.purchase-button {
+  padding: 10px 20px;
+  border: none;
+  background: #2054c9;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.purchase-button:hover {
+  background: #1643a0;
+}
+
+.purchase-button:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Remaining play attempts display in user profile */
+.play-attempts-counter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.play-attempts-counter strong {
+  color: #ff9900;
+}
+
+.purchase-attempts-btn {
+  background: #ff9900;
+  color: #000;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.purchase-attempts-btn:hover {
+  background: #ffaa22;
+  transform: scale(1.05);
+}
+
+/* Add buy-attempts-button styles */
+.buy-attempts-button {
+  background: #ff9900;
+  color: #000;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.buy-attempts-button:hover {
+  background: #ffaa22;
+  transform: scale(1.05);
+}
+
+/* Loading spinner for play attempts */
+.attempts-loading {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #2054c9;
+  animation: attempts-spin 0.8s linear infinite;
+  margin-left: 5px;
+}
+
+@keyframes attempts-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -18,7 +18,11 @@ class GameManager {
     this.ctx = null;
     this.gameLoopId = null;
     this.gameActive = false;
-    this.score = 0;
+    this._score = 0; // Make score private
+    this._lastScoreUpdate = Date.now(); // Track last score update time
+    this._scoreUpdateCount = 0; // Track number of score updates
+    this._scoreUpdateInterval = 100; // Minimum time between score updates in ms
+    this._maxScorePerUpdate = 100; // Maximum score increase per update
     this.lives = 10;
     this.onGameOver = null;
     
@@ -149,7 +153,7 @@ class GameManager {
 
   initGame() {
     // Keep all your existing reset code
-    this.score = 0;
+    this._score = 0;
     this.lives = 10;
     this.speedMultiplier = 1;
     this.lastCheckpoint = 0;
@@ -187,7 +191,7 @@ class GameManager {
     
     this.gameActive = true;
     this.mode = mode;
-    this.score = 0;
+    this._score = 0;
     this.lives = 10;
     this.speedMultiplier = 1;
     this.lastCheckpoint = 0;
@@ -418,15 +422,15 @@ class GameManager {
       return splash.opacity > 0;
     });
 
-    if (this.score >= this.lastCheckpoint + 100) {
+    if (this.getScore() >= this.lastCheckpoint + 100) {
       this.speedMultiplier *= 1.1;
-      this.lastCheckpoint = this.score;
+      this.lastCheckpoint = this.getScore();
     }
 
     if (this.lives <= 0 && this.gameActive) {
       this.gameActive = false;
       if (this.onGameOver) {
-        this.onGameOver(this.score);
+        this.onGameOver(this.getScore());
       }
     }
 
@@ -497,7 +501,7 @@ class GameManager {
 
     if (isGold) {
       const points = this.lives >= this.healthBar.maxLives ? 75 : 15;
-      this.score += points;
+      this._updateScore(points);
       this.floatingTexts.push(new FloatingText(splashX, splashY, 
         this.lives >= this.healthBar.maxLives ? '75!' : '15', '#FFD700'));
       this.splashes.push(new GoldSplash(splashX, splashY));
@@ -507,7 +511,7 @@ class GameManager {
       this.splashes.push(new RedSplash(splashX, splashY));
     } else if (isBlack) {
       if (this.lives >= this.healthBar.maxLives) {
-        this.score += 25;
+        this._updateScore(25);
         this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
       } else {
         this.lives++;
@@ -516,7 +520,7 @@ class GameManager {
       this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
       const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
-      this.score += points;
+      this._updateScore(points);
       this.floatingTexts.push(new FloatingText(splashX, splashY, 
         this.lives >= this.healthBar.maxLives ? '5!' : '1', '#f9f9f9'));
       this.splashes.push(new BlueSplash(splashX, splashY));
@@ -606,7 +610,7 @@ drawUI() {
   // Draw score at original position
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
   this.ctx.fillStyle = "#f9f9f9";
-  this.ctx.fillText(`Score: ${this.score}`, 20, 30);  // Back to original position
+  this.ctx.fillText(`Score: ${this.getScore()}`, 20, 30);  // Use getter method
 
   // Draw speed
   this.ctx.fillStyle = "#2054c9";
@@ -672,7 +676,7 @@ drawUI() {
       console.error('Error in game loop:', error);
       this.gameActive = false;
       if (this.onGameOver) {
-        this.onGameOver(this.score);
+        this.onGameOver(this.getScore());
       }
     }
   }
@@ -737,6 +741,50 @@ drawUI() {
         bucketX: this.bucket.x
       });
     }
+  }
+
+  // Add secure score methods
+  getScore() {
+    return this._score;
+  }
+
+  _validateScoreChange(points) {
+    const now = Date.now();
+    const timeSinceLastUpdate = now - this._lastScoreUpdate;
+
+    // Check for rapid score updates
+    if (timeSinceLastUpdate < this._scoreUpdateInterval) {
+      this._scoreUpdateCount++;
+      // If too many rapid updates, reject the change
+      if (this._scoreUpdateCount > 10) {
+        console.warn('Too many rapid score updates detected');
+        return false;
+      }
+    } else {
+      // Reset counter if enough time has passed
+      this._scoreUpdateCount = 0;
+    }
+
+    // Validate score change amount
+    if (points > this._maxScorePerUpdate) {
+      console.warn('Score increase too large');
+      return false;
+    }
+
+    // Update tracking variables
+    this._lastScoreUpdate = now;
+    return true;
+  }
+
+  _updateScore(points) {
+    // Validate score change
+    if (!this._validateScoreChange(points)) {
+      return false;
+    }
+
+    // Update score
+    this._score = Math.max(0, Math.min(this._score + points, 999999));
+    return true;
   }
 }
 
