@@ -207,14 +207,9 @@ export const purchasePlayAttempts = async (playerWallet, quantity, paymentData) 
  */
 export const grantPlayAttempts = async (playerWallet, quantity) => {
   try {
-    // When in dev mode, use the local server instead of production API
-    const isLocalDev = import.meta.env.DEV;
-    // Use local API for development
-    const apiUrl = isLocalDev ? 'http://localhost:6969' : API_BASE_URL;
+    console.log(`Using API at: ${API_BASE_URL}`);
     
-    console.log(`Using API at: ${apiUrl} (Development mode: ${isLocalDev ? 'Yes' : 'No'})`);
-    
-    const response = await fetch(`${apiUrl}/api/plays/grant`, {
+    const response = await fetch(`${API_BASE_URL}/api/plays/grant`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -241,9 +236,6 @@ export const localGrantPlayAttempts = async (wallet, quantity) => {
   console.log(`Granting ${quantity} play attempts to wallet: ${wallet}`);
   
   try {
-    // Check if we're in development mode
-    const isLocalDev = import.meta.env.DEV;
-    
     // Use the real grantPlayAttempts API instead of localStorage
     const result = await grantPlayAttempts(wallet, parseInt(quantity, 10));
     

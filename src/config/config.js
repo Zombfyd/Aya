@@ -30,8 +30,20 @@ console.log('Has PRIMARY_RECIPIENT:', !!import.meta.env.VITE_APP_TESTNET_PRIMARY
 console.log('Primary recipient value:', import.meta.env.VITE_APP_TESTNET_PRIMARY_RECIPIENT);
 console.log('All ENV Variables:', import.meta.env);
 
-// Default API URL
-const API_BASE_URL = import.meta.env.VITE_APP_API_URL || 'https://ayagame.onrender.com';
+// Default API URL - Use window.location.origin in production for same-origin API calls
+const API_BASE_URL = (() => {
+    // In browser context, use window.location.origin in production
+    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+        // In development, still use the environment variable if available
+        if (import.meta.env.DEV && import.meta.env.VITE_APP_API_URL) {
+            return import.meta.env.VITE_APP_API_URL;
+        }
+        // In production, use the same origin as the site
+        return window.location.origin;
+    }
+    // Fallback to the environment variable or default
+    return import.meta.env.VITE_APP_API_URL || 'https://ayagame.onrender.com';
+})();
 
 const config = {
     apiBaseUrl: API_BASE_URL,
