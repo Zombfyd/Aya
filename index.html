@@ -10,49 +10,130 @@
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
     
-    <!-- Prevent right-click on game canvas and handle touch events -->
+    <!-- Anti-tampering protection -->
     <script>
-      // Prevent right-click on canvas
-      document.addEventListener('contextmenu', (e) => {
-        if (e.target.tagName === 'CANVAS') {
-          e.preventDefault();
+      (function() {
+        // Environment checks
+        const getEnvVar = (name) => {
+          // Check for env variable in various formats
+          const viteEnv = window.__VITE_ENV__ || {};
+          return viteEnv[name] || 
+                 window[name] || 
+                 window['import_meta_env_' + name] || 
+                 '';
+        };
+        
+        const isProduction = getEnvVar('VITE_APP_ENVIRONMENT') === 'production';
+        const debugEnabled = localStorage.getItem('aya_admin_debug') === 'true';
+        const testProtectionsEnabled = localStorage.getItem('aya_test_protections') === 'true';
+        
+        // Admin bypass check
+        const isAdminMode = isProduction ? debugEnabled : !testProtectionsEnabled;
+        const shouldEnableProtections = isProduction || testProtectionsEnabled;
+        
+        // Log current state
+        console.log('Protection Status (HTML):', {
+          isProduction,
+          debugEnabled,
+          testProtectionsEnabled,
+          isAdminMode,
+          shouldEnableProtections
+        });
+        
+        // Skip all protections in admin/dev mode
+        if (isAdminMode) {
+          console.info('Running in admin/development mode - security protections disabled');
+          return;
         }
-      });
-      
-      // Track if the game is active
-      let gameActive = false;
-      window.addEventListener('message', (e) => {
-        if (e.data && typeof e.data === 'object') {
-          if (e.data.type === 'gameStateChange') {
-            gameActive = e.data.active;
+        
+        // Prevent right-click
+        document.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          return false;
+        });
+
+        // Disable common keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+          if (
+            // Prevent F12 key
+            e.keyCode === 123 || 
+            // Prevent Ctrl+Shift+I
+            (e.ctrlKey && e.shiftKey && e.keyCode === 73) ||
+            // Prevent Ctrl+Shift+J
+            (e.ctrlKey && e.shiftKey && e.keyCode === 74) ||
+            // Prevent Ctrl+U
+            (e.ctrlKey && e.keyCode === 85)
+          ) {
+            e.preventDefault();
+            return false;
           }
-        }
-      });
-      
-      // More selective touch handling
-      document.addEventListener('touchmove', function(e) {
-        // Only prevent default on the canvas and only when the game is active
-        const isCanvas = e.target && e.target.tagName === 'CANVAS';
-        if (isCanvas) {
-          e.preventDefault();
-        }
-      }, { passive: false });
-      
-      // Prevent double-tap zoom on mobile
-      document.addEventListener('touchend', function(e) {
-        const isCanvas = e.target && e.target.tagName === 'CANVAS';
-        if (isCanvas) {
-          e.preventDefault();
-          // Prevent ghost click
-          const now = Date.now();
-          if (now - lastTouchEnd < 300) {
+        });
+
+        // Prevent copy/paste
+        ['copy', 'cut', 'paste'].forEach(event => {
+          document.addEventListener(event, (e) => {
+            e.preventDefault();
+            return false;
+          });
+        });
+
+        // Track if the game is active
+        let gameActive = false;
+        window.addEventListener('message', (e) => {
+          if (e.data && typeof e.data === 'object') {
+            if (e.data.type === 'gameStateChange') {
+              gameActive = e.data.active;
+            }
+          }
+        });
+
+        // More selective touch handling
+        document.addEventListener('touchmove', function(e) {
+          const isCanvas = e.target && e.target.tagName === 'CANVAS';
+          if (isCanvas) {
             e.preventDefault();
           }
-          lastTouchEnd = now;
-        }
-      }, { passive: false });
-      
-      let lastTouchEnd = 0;
+        }, { passive: false });
+
+        // Prevent double-tap zoom on mobile
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+          const isCanvas = e.target && e.target.tagName === 'CANVAS';
+          if (isCanvas) {
+            e.preventDefault();
+            const now = Date.now();
+            if (now - lastTouchEnd < 300) {
+              e.preventDefault();
+            }
+            lastTouchEnd = now;
+          }
+        }, { passive: false });
+
+        // Create global admin toggle functions
+        window.__toggleAyaAdmin = function(key) {
+          const validKey = 'aya_admin_access';
+          if (key === validKey) {
+            const currentState = localStorage.getItem('aya_admin_debug') === 'true';
+            localStorage.setItem('aya_admin_debug', (!currentState).toString());
+            alert(`Admin mode ${!currentState ? 'enabled' : 'disabled'}. The page will reload.`);
+            location.reload();
+            return true;
+          }
+          return false;
+        };
+        
+        window.__toggleTestProtections = function(enable) {
+          // If enable is not provided, toggle the current state
+          if (enable === undefined) {
+            enable = localStorage.getItem('aya_test_protections') !== 'true';
+          }
+          
+          localStorage.setItem('aya_test_protections', enable.toString());
+          alert(`Test protections ${enable ? 'enabled' : 'disabled'}. The page will reload.`);
+          location.reload();
+          return true;
+        };
+      })();
     </script>
 
     <title>Tears of Aya</title>
@@ -67,6 +148,9 @@
         font-family: 'Inconsolata', monospace;
         overscroll-behavior: none;
         overflow-x: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
       }
 
       #root {

@@ -30,7 +30,7 @@ app.use(cors({
     'https://aya-3i9c.onrender.com', 
     'https://www.tears-of-aya.webflow.io',
     'https://aya-1.onrender.com',
-    'https://aya-test-server.onrender.com',
+    'https://aya-test-server6.onrender.com',
     'http://localhost:6969'
   ],
   credentials: true,
@@ -156,12 +156,57 @@ const generateWeb3Signature = (playerName, playerWallet, score, timestamp, type,
   return signature;
 };
 
-// Proxy endpoints to the database server with enhanced security
+// Add these validation helpers at the top with other security verification helpers
+const validateScoreSubmission = (score, playerName, game) => {
+  // When SKIP_SCORE_SUBMIT is true, bypass validation
+  if (SKIP_SCORE_SUBMIT) {
+    console.log(`SKIP_SCORE_SUBMIT is true, bypassing score validation.`);
+    return true;
+  }
+
+  // Check for unrealistic score changes
+  const MAX_POSSIBLE_SCORE = 100000; // Adjust based on your game's mechanics
+  if (score > MAX_POSSIBLE_SCORE) {
+    console.log(`Score ${score} exceeds maximum possible score of ${MAX_POSSIBLE_SCORE}`);
+    return false;
+  }
+
+  // Add rate limiting per player
+  const playerKey = `${playerName}:${game}`;
+  const now = Date.now();
+  const recentSubmissions = playerSubmissions.get(playerKey) || [];
+  
+  // Clean up old submissions (older than 1 minute)
+  const recentValidSubmissions = recentSubmissions.filter(time => now - time < 60000);
+  
+  // Check submission frequency (max 1 submission per 3 seconds)
+  if (recentValidSubmissions.length > 0 && 
+      now - recentValidSubmissions[recentValidSubmissions.length - 1] < 3000) {
+    console.log(`Too many submissions from ${playerName} in short time period`);
+    return false;
+  }
+
+  // Update submissions record
+  recentValidSubmissions.push(now);
+  playerSubmissions.set(playerKey, recentValidSubmissions);
+
+  return true;
+};
+
+// Add this after the existing imports
+const playerSubmissions = new Map();
+
+// Modify the Web2 score submission endpoint
 app.post('/api/web2/scores', async (req, res) => {
   try {
     const { playerName, score, game, timestamp, signature, submissionTime } = req.body;
-    const requestReceivedTime = Date.now(); // Record when we received this request
-    
+    const requestReceivedTime = Date.now();
+
+    // Add validation check
+    if (!validateScoreSubmission(score, playerName, game)) {
+      return res.status(400).json({ error: 'Invalid score submission detected' });
+    }
+
     console.log('Received Web2 score submission:', {
       playerName,
       score,
@@ -278,8 +323,13 @@ app.post('/api/scores/:mode', async (req, res) => {
   try {
     const { mode } = req.params;
     const { playerName, playerWallet, score, type, game, timestamp, signature, submissionTime } = req.body;
-    const requestReceivedTime = Date.now(); // Record when we received this request
-    
+    const requestReceivedTime = Date.now();
+
+    // Add validation check
+    if (!validateScoreSubmission(score, playerName, game)) {
+      return res.status(400).json({ error: 'Invalid score submission detected' });
+    }
+
     console.log('Received Web3 score submission:', {
       mode,
       playerName,

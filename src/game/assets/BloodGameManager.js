@@ -1,5 +1,6 @@
 // BloodGameManager.js - Second game type game controller class
 import AudioManager from '../AudioManager';
+import { scoreManager } from '../gameProtection';
 
 class BloodGameManager {
     constructor() {
@@ -131,39 +132,37 @@ class BloodGameManager {
     }
   
     initGame() {
-      // Keep all your existing reset code
+      // Reset protected score in scoreManager
+      scoreManager.resetScore();
+      
+      // Reset game state
       this.score = 0;
       this.lives = 10;
-      this.speedMultiplier = 5;
+      this.speedMultiplier = 1;
       this.lastCheckpoint = 0;
       this.gameActive = true;
-  
-      // Replace the bucket initialization with this:
+      this.shieldActive = false;
+      this.shield = null;
+      if (this.shieldTimer) clearTimeout(this.shieldTimer);
+      
+      // Initialize bucket
       this.bucket = {
         x: this.canvas.width / 2 - this.UI_SIZES.BUCKET_WIDTH / 2,
         y: this.canvas.height - this.UI_SIZES.BUCKET_HEIGHT - 10,
         width: this.UI_SIZES.BUCKET_WIDTH,
         height: this.UI_SIZES.BUCKET_HEIGHT,
-        speed: 3
+        speed: 0
       };
-  
-      // Keep all your existing array initializations
+      
+      // Initialize entity arrays
       this.teardrops = [];
       this.goldtears = [];
       this.redtears = [];
       this.blacktears = [];
       this.splashes = [];
-      this.floatingTexts = []; // Initialize floating texts array
-  
-      // Reset shield state
-      this.shield = null;
-      this.shieldActive = false;
-      if (this.shieldTimer) {
-        clearTimeout(this.shieldTimer);
-        this.shieldTimer = null;
-      }
-  
-      // Keep your existing timer clearing code
+      this.floatingTexts = [];
+      
+      // Clear any existing timers
       Object.values(this.spawnTimers).forEach(timer => {
         if (timer) clearTimeout(timer);
       });
@@ -401,15 +400,15 @@ class BloodGameManager {
       // Update floating texts
       this.floatingTexts = this.floatingTexts.filter(text => text.update());
   
-      if (this.score >= this.lastCheckpoint + 100) {
+      if (this.getScore() >= this.lastCheckpoint + 100) {
         this.speedMultiplier *= 1.1;
-        this.lastCheckpoint = this.score;
+        this.lastCheckpoint = this.getScore();
       }
   
       if (this.lives <= 0 && this.gameActive) {
         this.gameActive = false;
         if (this.onGameOver) {
-          this.onGameOver(this.score);
+          this.onGameOver(this.getScore());
         }
       }
   
@@ -508,15 +507,15 @@ class BloodGameManager {
       const splashY = this.bucket.y;
 
       if (isGold) {
-        const points = this.lives >= this.healthBar.maxLives ? 125 : 25;
-        this.score += points;
+        const points = this.lives >= this.healthBar.maxLives ? 75 : 15;
+        this.updateScore(points);
         this.floatingTexts.push(new FloatingText(splashX, splashY, 
-          this.lives >= this.healthBar.maxLives ? '125!' : '25', '#FFD700'));
+          this.lives >= this.healthBar.maxLives ? '75!' : '15', '#FFD700'));
         this.splashes.push(new GoldSplash(splashX, splashY));
       } else if (isRed) {
         if (this.shieldActive) {
           const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
-          this.score += points;
+          this.updateScore(points);
           this.floatingTexts.push(new FloatingText(splashX, splashY, 
             this.lives >= this.healthBar.maxLives ? '5!' : '1', '#FFC0CB'));
         } else {
@@ -526,7 +525,7 @@ class BloodGameManager {
         this.splashes.push(new RedSplash(splashX, splashY));
       } else if (isBlack) {
         if (this.lives >= this.healthBar.maxLives) {
-          this.score += 25;
+          this.updateScore(25);
           this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
         } else {
           this.lives++;
@@ -535,7 +534,7 @@ class BloodGameManager {
         this.splashes.push(new GreenSplash(splashX, splashY));
       } else {
         const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
-        this.score += points;
+        this.updateScore(points);
         this.floatingTexts.push(new FloatingText(splashX, splashY, 
           this.lives >= this.healthBar.maxLives ? '5!' : '1', '#2054c9'));
         this.splashes.push(new BlueSplash(splashX, splashY));
@@ -634,34 +633,22 @@ class BloodGameManager {
   
     // Draw score
     this.ctx.font = this.UI_SIZES.SCORE_FONT;
-    this.ctx.fillStyle = "#2054c9";
-    this.ctx.fillText(`Score: ${this.score}`, 20, 30);
+    this.ctx.fillStyle = "#FFC0CB"; // Light pink
+    this.ctx.textAlign = "right";
+    this.ctx.fillText(`Score: ${this.getScore()}`, this.canvas.width - 15, 30);
   
-    // Draw lives (centered in bucket)
-       
-      // Draw warning message when lives are low
-      if (this.lives <= 5) {
-        this.ctx.fillStyle = "#FF4D6D"; // Red warning color
-        
-        // Draw warning text
-        this.ctx.font = this.UI_SIZES.SCORE_FONT;
-        const warningText = "Lives remaining!";
-        const warningMetrics = this.ctx.measureText(warningText);
-        const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-        this.ctx.fillText(warningText, warningX, 140);
-        
-        // Draw lives number bigger below
-        this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
-        const livesCountText = `${this.lives}`;
-        const livesMetrics = this.ctx.measureText(livesCountText);
-        const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
-        this.ctx.fillText(livesCountText, livesX, 190);
-      }
-    
-    // Draw speed
-    this.ctx.fillStyle = "#2054c9";
-    this.ctx.font = this.UI_SIZES.SCORE_FONT;
-    this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+    // Draw lives
+    this.ctx.font = this.UI_SIZES.LIVES_FONT;
+    this.ctx.textAlign = "left";
+    this.ctx.fillText(`Lives: ${this.lives}`, 15, 30);
+  
+    // Draw shield status if active
+    if (this.shieldActive) {
+      this.ctx.font = this.UI_SIZES.LIVES_FONT;
+      this.ctx.textAlign = "center";
+      this.ctx.fillStyle = "#FFC0CB";
+      this.ctx.fillText(`Shield: ${Math.ceil(this.shieldTimeLeft / 1000)}s`, this.canvas.width / 2, 30);
+    }
   
     this.drawLegend();
   }
@@ -695,12 +682,12 @@ class BloodGameManager {
       try {
         this.updateGame();
         this.drawGame();
-        this.gameLoopId = requestAnimationFrame(this.gameLoop);
+        this.gameLoopId = requestAnimationFrame(this.gameLoop.bind(this));
       } catch (error) {
         console.error('Error in game loop:', error);
         this.gameActive = false;
         if (this.onGameOver) {
-          this.onGameOver(this.score);
+          this.onGameOver(this.getScore());
         }
       }
     }
@@ -869,6 +856,21 @@ class BloodGameManager {
           bucketX: this.bucket.x
         });
       }
+    }
+
+    // Add secure score methods
+    getScore() {
+        // Use protected score from scoreManager
+        return scoreManager.getScore();
+    }
+    
+    // Method to update score securely
+    updateScore(points) {
+        // Update local score variable
+        this.score = Math.max(0, Math.min(this.score + points, 999999));
+        
+        // Update the protected score through scoreManager
+        return scoreManager.updateScore(this.score);
     }
   }
   

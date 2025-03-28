@@ -1,5 +1,6 @@
 // GameManager.js - Main game controller class
 import AudioManager from './AudioManager';
+import { scoreManager, setupAntiDebug } from './gameProtection';
 
 class GameManager {
   constructor() {
@@ -97,6 +98,9 @@ class GameManager {
 
     // Debug mode for touch events
     this.debugMode = false;
+
+    // Set up protection
+    setupAntiDebug();
   }
 
   // Image Loading Method
@@ -152,6 +156,9 @@ class GameManager {
   }
 
   initGame() {
+    // Reset protected score in scoreManager
+    scoreManager.resetScore();
+    
     // Keep all your existing reset code
     this._score = 0;
     this.lives = 10;
@@ -179,7 +186,7 @@ class GameManager {
     Object.values(this.spawnTimers).forEach(timer => {
       if (timer) clearTimeout(timer);
     });
-}
+  }
 
   // Game Control Methods
   startGame(mode = 'free') {
@@ -362,7 +369,7 @@ class GameManager {
             this.bucket.x = Math.min(this.bucket.x, this.canvas.width - this.bucket.width);
         }
     }
-}
+  }
 
 
   // Spawn Methods
@@ -607,36 +614,18 @@ drawUI() {
   // Reset transform for UI elements
   this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Draw score at original position
+  // Draw score
+  this.ctx.fillStyle = "#ffffff";
   this.ctx.font = this.UI_SIZES.SCORE_FONT;
-  this.ctx.fillStyle = "#f9f9f9";
-  this.ctx.fillText(`Score: ${this.getScore()}`, 20, 30);  // Use getter method
+  this.ctx.textAlign = "right";
+  this.ctx.fillText(`Score: ${this.getScore()}`, this.canvas.width - 15, 30);
 
-  // Draw speed
-  this.ctx.fillStyle = "#2054c9";
-  this.ctx.font = this.UI_SIZES.SCORE_FONT;
-  this.ctx.fillText(`Speed ${Math.round(this.speedMultiplier * 10) - 10}`, this.canvas.width - 120, 30);
+  // Draw lives
+  this.ctx.font = this.UI_SIZES.LIVES_FONT;
+  this.ctx.textAlign = "left";
+  this.ctx.fillText(`Lives: ${this.lives}`, 15, 30);
 
-  // Draw warning message when lives are low
-  if (this.lives <= 5) {
-    this.ctx.fillStyle = "#FF4D6D"; // Red warning color
-    
-    // Draw warning text
-    this.ctx.font = this.UI_SIZES.SCORE_FONT;
-    const warningText = "Lives remaining!";
-    const warningMetrics = this.ctx.measureText(warningText);
-    const warningX = (this.canvas.width / 2) - (warningMetrics.width / 2);
-    this.ctx.fillText(warningText, warningX, 140);
-    
-    // Draw lives number bigger below
-    this.ctx.font = "bold 48px Inconsolata"; // Larger font for the number
-    const livesCountText = `${this.lives}`;
-    const livesMetrics = this.ctx.measureText(livesCountText);
-    const livesX = (this.canvas.width / 2) - (livesMetrics.width / 2);
-    this.ctx.fillText(livesCountText, livesX, 190);
-  }
-
-  // Draw legend at original position
+  // Draw legend
   this.drawLegend();
 
   // Restore canvas state before drawing health bar
@@ -745,7 +734,8 @@ drawUI() {
 
   // Add secure score methods
   getScore() {
-    return this._score;
+    // Use protected score from scoreManager
+    return scoreManager.getScore();
   }
 
   _validateScoreChange(points) {
@@ -777,14 +767,16 @@ drawUI() {
   }
 
   _updateScore(points) {
-    // Validate score change
+    // Validate score change using our internal validation first
     if (!this._validateScoreChange(points)) {
       return false;
     }
 
-    // Update score
+    // Update internal score first
     this._score = Math.max(0, Math.min(this._score + points, 999999));
-    return true;
+    
+    // Then update the protected score through scoreManager
+    return scoreManager.updateScore(this._score);
   }
 }
 
