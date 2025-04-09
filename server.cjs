@@ -30,7 +30,7 @@ app.use(cors({
     'https://aya-3i9c.onrender.com', 
     'https://www.tears-of-aya.webflow.io',
     'https://aya-1.onrender.com',
-    'https://aya-test-server6.onrender.com',
+    'https://aya-test-server.onrender.com',
     'http://localhost:6969'
   ],
   credentials: true,
@@ -156,57 +156,12 @@ const generateWeb3Signature = (playerName, playerWallet, score, timestamp, type,
   return signature;
 };
 
-// Add these validation helpers at the top with other security verification helpers
-const validateScoreSubmission = (score, playerName, game) => {
-  // When SKIP_SCORE_SUBMIT is true, bypass validation
-  if (SKIP_SCORE_SUBMIT) {
-    console.log(`SKIP_SCORE_SUBMIT is true, bypassing score validation.`);
-    return true;
-  }
-
-  // Check for unrealistic score changes
-  const MAX_POSSIBLE_SCORE = 100000; // Adjust based on your game's mechanics
-  if (score > MAX_POSSIBLE_SCORE) {
-    console.log(`Score ${score} exceeds maximum possible score of ${MAX_POSSIBLE_SCORE}`);
-    return false;
-  }
-
-  // Add rate limiting per player
-  const playerKey = `${playerName}:${game}`;
-  const now = Date.now();
-  const recentSubmissions = playerSubmissions.get(playerKey) || [];
-  
-  // Clean up old submissions (older than 1 minute)
-  const recentValidSubmissions = recentSubmissions.filter(time => now - time < 60000);
-  
-  // Check submission frequency (max 1 submission per 3 seconds)
-  if (recentValidSubmissions.length > 0 && 
-      now - recentValidSubmissions[recentValidSubmissions.length - 1] < 3000) {
-    console.log(`Too many submissions from ${playerName} in short time period`);
-    return false;
-  }
-
-  // Update submissions record
-  recentValidSubmissions.push(now);
-  playerSubmissions.set(playerKey, recentValidSubmissions);
-
-  return true;
-};
-
-// Add this after the existing imports
-const playerSubmissions = new Map();
-
-// Modify the Web2 score submission endpoint
+// Proxy endpoints to the database server with enhanced security
 app.post('/api/web2/scores', async (req, res) => {
   try {
     const { playerName, score, game, timestamp, signature, submissionTime } = req.body;
-    const requestReceivedTime = Date.now();
-
-    // Add validation check
-    if (!validateScoreSubmission(score, playerName, game)) {
-      return res.status(400).json({ error: 'Invalid score submission detected' });
-    }
-
+    const requestReceivedTime = Date.now(); // Record when we received this request
+    
     console.log('Received Web2 score submission:', {
       playerName,
       score,
@@ -323,13 +278,8 @@ app.post('/api/scores/:mode', async (req, res) => {
   try {
     const { mode } = req.params;
     const { playerName, playerWallet, score, type, game, timestamp, signature, submissionTime } = req.body;
-    const requestReceivedTime = Date.now();
-
-    // Add validation check
-    if (!validateScoreSubmission(score, playerName, game)) {
-      return res.status(400).json({ error: 'Invalid score submission detected' });
-    }
-
+    const requestReceivedTime = Date.now(); // Record when we received this request
+    
     console.log('Received Web3 score submission:', {
       mode,
       playerName,
@@ -659,86 +609,32 @@ app.post('/api/plays/grant', async (req, res) => {
   }
 });
 
-// Endpoint to purchase play attempts
-app.post('/api/plays/purchase', async (req, res) => {
+// NFT Collection Endpoints
+app.get('/api/sui/collections/active', async (req, res) => {
   try {
-    const { playerWallet, quantity, payment } = req.body;
-    
-    // Input validation
-    if (!playerWallet || !playerWallet.startsWith('0x')) {
-      return res.status(400).json({ error: 'Invalid wallet address' });
-    }
-    
-    if (!quantity || isNaN(parseInt(quantity)) || parseInt(quantity) <= 0) {
-      return res.status(400).json({ error: 'Quantity must be a positive number' });
-    }
-    
-    if (!payment || !payment.tokenType || !payment.transactionId) {
-      return res.status(400).json({ error: 'Invalid payment information' });
-    }
-    
-    console.log(`Received purchase request for ${quantity} play attempts for wallet: ${playerWallet}`);
-    console.log('Payment details:', payment);
-    
-    // Skip database submission if configured
-    if (SKIP_SCORE_SUBMIT) {
-      console.log('Play attempts purchase skipped due to SKIP_SCORE_SUBMIT=true');
-      return res.json({ 
-        success: true,
-        wallet: playerWallet,
-        purchased: parseInt(quantity),
-        totalAttempts: parseInt(quantity),
-        message: `Successfully purchased ${quantity} play attempts (database skipped)`
-      });
-    }
-    
-    try {
-      // Try to forward to database server
-      console.log('Attempting to forward to database at:', `${DATABASE_URL}/api/plays/purchase`);
-      
-      const response = await fetchWithRetry(`${DATABASE_URL}/api/plays/purchase`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          playerWallet,
-          quantity,
-          payment
-        })
-      });
-      
-      const data = await response.json();
-      console.log('Purchase response from database:', data);
-      return res.json(data);
-    } catch (dbError) {
-      console.error('Error forwarding to database, using local mock implementation:', dbError);
-      
-      // If database endpoint doesn't exist or has an error, use a mock implementation
-      // In production, we would want to track these in a local database to sync later
-      console.log(`[MOCK] Processing purchase of ${quantity} play attempts for wallet: ${playerWallet}`);
-      console.log(`[MOCK] Payment: ${payment.tokenType} transaction ${payment.transactionId}`);
-      
-      // Return a mock successful response
-      return res.json({
-        success: true,
-        wallet: playerWallet,
-        purchased: parseInt(quantity),
-        totalAttempts: parseInt(quantity), // In a real implementation, we would add to existing total
-        message: `Successfully purchased ${quantity} play attempts (mock implementation)`,
-        payment: {
-          confirmed: true,
-          tokenType: payment.tokenType,
-          transactionId: payment.transactionId
-        }
-      });
-    }
+    const response = await fetchWithRetry(`${DATABASE_URL}/api/sui/collections/active`);
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
-    console.error('Error purchasing play attempts:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to purchase play attempts',
-      details: error.message
+    console.error('Active collections fetch error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch active collections',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/sui/collections/verify/:collectionType', async (req, res) => {
+  try {
+    const { collectionType } = req.params;
+    const response = await fetchWithRetry(`${DATABASE_URL}/api/sui/collections/verify/${collectionType}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Collection verification error:', error);
+    res.status(500).json({ 
+      error: 'Failed to verify collection',
+      details: error.message 
     });
   }
 });

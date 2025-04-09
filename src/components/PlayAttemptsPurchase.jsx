@@ -98,12 +98,31 @@ const PlayAttemptsPurchase = ({
     console.log("Purchase button clicked, selectedPlays =", selectedPlays);
     if (selectedPlays <= 0) return;
 
-    const purchaseDetails = {
-      plays: selectedPlays,
-      paymentToken,
-      isAyaPayment: paymentToken === 'AYA',
-      cost: cost.totalCostMist
-    };
+    // Check if we're using AYA payment
+    const isAyaPayment = paymentToken === 'AYA';
+    
+    // Prepare purchase details based on payment type
+    let purchaseDetails;
+    
+    if (isAyaPayment) {
+      // For AYA, include both cost and distribution
+      purchaseDetails = {
+        plays: selectedPlays,
+        paymentToken,
+        isAyaPayment: true,
+        cost: cost.totalCostMist,
+        // Also include pre-calculated distribution amounts
+        distribution: cost.distribution
+      };
+    } else {
+      // For SUI, just include the cost
+      purchaseDetails = {
+        plays: selectedPlays,
+        paymentToken,
+        isAyaPayment: false,
+        cost: cost.totalCostMist
+      };
+    }
     
     console.log("Sending purchase details:", purchaseDetails);
     onPurchase(purchaseDetails);

@@ -178,23 +178,46 @@ export const getPlayerAttempts = async (playerWallet, options = {}) => {
  */
 export const purchasePlayAttempts = async (playerWallet, quantity, paymentData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/plays/purchase`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerWallet,
-        quantity,
-        payment: paymentData
-      })
-    });
+    console.log(`Recording purchase of ${quantity} play attempts for wallet ${playerWallet}`);
     
-    if (!response.ok) {
-      throw new Error(`Failed to purchase play attempts: ${response.status}`);
+    // Since there's no dedicated purchase endpoint, we'll use a workaround
+    // We'll start a play attempt with special session data to indicate it's a purchase
+    // This will indirectly update the player's play attempt count
+    const purchaseAttempts = [];
+    
+    for (let i = 0; i < quantity; i++) {
+      const attempt = await startPlayAttempt(playerWallet, {
+        game: 'TOA',
+        gameType: 'main',
+        gameMode: 'paid',
+        sessionData: {
+          isPurchase: true,
+          paymentData: paymentData,
+          purchaseIndex: i + 1,
+          totalPurchased: quantity
+        }
+      });
+      
+      if (attempt) {
+        purchaseAttempts.push(attempt);
+      }
     }
     
-    return response.json();
+    // Get the updated player stats to confirm the new total
+    const playerStats = await getPlayerStats(playerWallet);
+    
+    console.log(`Successfully recorded purchase. New total: ${playerStats.totalAttempts}`);
+    
+    return {
+      success: true,
+      playerWallet,
+      quantity,
+      totalAttempts: playerStats.totalAttempts,
+      payment: paymentData,
+      purchaseAttempts
+    };
   } catch (error) {
-    console.error('Error purchasing play attempts:', error);
+    console.error('Error recording play attempt purchase:', error);
     throw error;
   }
 };
@@ -207,9 +230,14 @@ export const purchasePlayAttempts = async (playerWallet, quantity, paymentData) 
  */
 export const grantPlayAttempts = async (playerWallet, quantity) => {
   try {
-    console.log(`Using API at: ${API_BASE_URL}`);
+    // When in dev mode, use the local server instead of production API
+    const isLocalDev = import.meta.env.DEV;
+    // Use local API for development
+    const apiUrl = isLocalDev ? 'http://localhost:6969' : API_BASE_URL;
     
-    const response = await fetch(`${API_BASE_URL}/api/plays/grant`, {
+    console.log(`Using API at: ${apiUrl} (Development mode: ${isLocalDev ? 'Yes' : 'No'})`);
+    
+    const response = await fetch(`${apiUrl}/api/plays/grant`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -236,6 +264,9 @@ export const localGrantPlayAttempts = async (wallet, quantity) => {
   console.log(`Granting ${quantity} play attempts to wallet: ${wallet}`);
   
   try {
+    // Check if we're in development mode
+    const isLocalDev = import.meta.env.DEV;
+    
     // Use the real grantPlayAttempts API instead of localStorage
     const result = await grantPlayAttempts(wallet, parseInt(quantity, 10));
     
