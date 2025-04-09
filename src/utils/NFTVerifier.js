@@ -8,11 +8,11 @@
 import axios from 'axios';
 
 // Constants with environment variables
-const INDEXER_API_ENDPOINT = import.meta.env.VITE_INDEXER_API_URL;
+const INDEXER_API_ENDPOINT = import.meta.env.VITE_INDEXER_API_URL || import.meta.env.VITE_APP_INDEXER_API_ENDPOINT;
 const INDEXER_HEADERS = {
   'Content-Type': 'application/json',
-  'x-api-user': import.meta.env.VITE_INDEXER_API_USER,
-  'x-api-key': import.meta.env.VITE_INDEXER_API_KEY
+  'x-api-user': import.meta.env.VITE_INDEXER_API_USER || import.meta.env.VITE_APP_INDEXER_API_USER,
+  'x-api-key': import.meta.env.VITE_INDEXER_API_KEY || import.meta.env.VITE_APP_INDEXER_API_KEY
 };
 const AYA_API_ENDPOINT = import.meta.env.VITE_APP_API_URL;
 
