@@ -46,37 +46,6 @@
           return;
         }
         
-        // Prevent right-click
-        document.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          return false;
-        });
-
-        // Disable common keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-          if (
-            // Prevent F12 key
-            e.keyCode === 123 || 
-            // Prevent Ctrl+Shift+I
-            (e.ctrlKey && e.shiftKey && e.keyCode === 73) ||
-            // Prevent Ctrl+Shift+J
-            (e.ctrlKey && e.shiftKey && e.keyCode === 74) ||
-            // Prevent Ctrl+U
-            (e.ctrlKey && e.keyCode === 85)
-          ) {
-            e.preventDefault();
-            return false;
-          }
-        });
-
-        // Prevent copy/paste
-        ['copy', 'cut', 'paste'].forEach(event => {
-          document.addEventListener(event, (e) => {
-            e.preventDefault();
-            return false;
-          });
-        });
-
         // Track if the game is active
         let gameActive = false;
         window.addEventListener('message', (e) => {
@@ -85,6 +54,126 @@
               gameActive = e.data.active;
             }
           }
+        });
+
+        // Prevent right-click (cross-browser)
+        document.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          return false;
+        }, { capture: true });
+
+        // Stop drag and drop
+        document.addEventListener('dragstart', (e) => {
+          e.preventDefault();
+          return false;
+        }, { capture: true });
+
+        // Disable selection
+        document.addEventListener('selectstart', (e) => {
+          e.preventDefault();
+          return false;
+        }, { capture: true });
+
+        // Enhanced keyboard shortcut prevention
+        document.addEventListener('keydown', (e) => {
+          // Normalized key detection for cross-browser compatibility
+          const key = e.key || e.keyCode;
+          const ctrlKey = e.ctrlKey || e.metaKey; // metaKey for Mac
+          const shiftKey = e.shiftKey;
+          const altKey = e.altKey;
+          
+          // Block common developer tools shortcuts
+          if (
+            // F12
+            key === 'F12' || key === 123 ||
+            // Ctrl+Shift+I (Inspect Element)
+            (ctrlKey && shiftKey && (key === 'I' || key === 'i' || key === 73)) ||
+            // Ctrl+Shift+J (Console)
+            (ctrlKey && shiftKey && (key === 'J' || key === 'j' || key === 74)) ||
+            // Ctrl+Shift+C (Inspector)
+            (ctrlKey && shiftKey && (key === 'C' || key === 'c' || key === 67)) ||
+            // Ctrl+U (View Source)
+            (ctrlKey && (key === 'U' || key === 'u' || key === 85)) ||
+            // Ctrl+S (Save)
+            (ctrlKey && (key === 'S' || key === 's' || key === 83)) ||
+            // Alt+F4
+            (altKey && (key === 'F4' || key === 115)) ||
+            // Ctrl+Shift+E (Network)
+            (ctrlKey && shiftKey && (key === 'E' || key === 'e' || key === 69)) ||
+            // Ctrl+P (Print/Search)
+            (ctrlKey && (key === 'P' || key === 'p' || key === 80)) ||
+            // Ctrl+Shift+K (Browser Console)
+            (ctrlKey && shiftKey && (key === 'K' || key === 'k' || key === 75)) ||
+            // Alt+Cmd+I (Safari Inspector)
+            (altKey && ctrlKey && (key === 'I' || key === 'i' || key === 73)) ||
+            // Cmd+Option+J (Safari Console)
+            (altKey && ctrlKey && (key === 'J' || key === 'j' || key === 74))
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }, { capture: true });
+
+        // Detect Developer Tools
+        // Method 1: Size check
+        const devtoolsDetector = () => {
+          const threshold = 160;
+          const checkDevTools = () => {
+            const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+            const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+            
+            if (widthThreshold || heightThreshold) {
+              document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; padding: 50px;">Game paused for security reasons. Please refresh the page.</div>';
+            }
+          };
+          
+          window.addEventListener('resize', checkDevTools);
+          setInterval(checkDevTools, 1000);
+        };
+        
+        // Method 2: Console object detection
+        const consoleDetector = () => {
+          const div = document.createElement('div');
+          let counter = 0;
+          let hasThrown = false;
+          
+          Object.defineProperty(div, 'id', {
+            get: function() {
+              counter++;
+              if (counter > 1) {
+                if (!hasThrown) {
+                  hasThrown = true;
+                  document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; padding: 50px;">Game paused for security reasons. Please refresh the page.</div>';
+                }
+              }
+              return 'devtools-check';
+            }
+          });
+          
+          // Run checks periodically
+          setInterval(() => {
+            counter = 0;
+            console.log(div);
+            console.clear();
+          }, 1000);
+        };
+        
+        // Initialize dev tools detection
+        if (shouldEnableProtections) {
+          devtoolsDetector();
+          // Only activate console detector in production to avoid dev issues
+          if (isProduction) {
+            consoleDetector();
+          }
+        }
+
+        // Prevent copy/paste
+        ['copy', 'cut', 'paste'].forEach(event => {
+          document.addEventListener(event, (e) => {
+            e.preventDefault();
+            return false;
+          }, { capture: true });
         });
 
         // More selective touch handling
@@ -150,6 +239,8 @@
         overflow-x: hidden;
         user-select: none;
         -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
         -webkit-touch-callout: none;
       }
 
