@@ -224,7 +224,7 @@ async function fetchActiveCollections() {
   
   try {
     // Use the API endpoint from environment variables
-    const url = `${AYA_API_ENDPOINT}/sui/collections/active`;
+    const url = `${AYA_API_ENDPOINT}api/sui/collections/active`;
     console.log(`Attempting to fetch collections from ${url}`);
     
     const response = await axios.get(url, { timeout: 10000 });
