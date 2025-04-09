@@ -115,54 +115,39 @@
           }
         }, { capture: true });
 
-        // Detect Developer Tools
-        // Method 1: Size check
-        const devtoolsDetector = () => {
-          const threshold = 160;
-          const checkDevTools = () => {
-            const widthThreshold = window.outerWidth - window.innerWidth > threshold;
-            const heightThreshold = window.outerHeight - window.innerHeight > threshold;
-            
-            if (widthThreshold || heightThreshold) {
-              document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; padding: 50px;">Game paused for security reasons. Please refresh the page.</div>';
-            }
-          };
-          
-          window.addEventListener('resize', checkDevTools);
-          setInterval(checkDevTools, 1000);
-        };
-        
-        // Method 2: Console object detection
+        // Method for console object detection
         const consoleDetector = () => {
-          const div = document.createElement('div');
-          let counter = 0;
-          let hasThrown = false;
+          if (!isProduction) return; // Only run in production
           
-          Object.defineProperty(div, 'id', {
+          // We define a property that will get logged to console
+          const detectObj = document.createElement('div');
+          let counter = 0;
+          let hasTriggered = false;
+          
+          Object.defineProperty(detectObj, 'id', {
             get: function() {
               counter++;
-              if (counter > 1) {
-                if (!hasThrown) {
-                  hasThrown = true;
-                  document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; padding: 50px;">Game paused for security reasons. Please refresh the page.</div>';
-                }
+              if (counter > 1 && !hasTriggered) {
+                hasTriggered = true;
+                // Optional response if console is inspected
+                // document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; padding: 50px;">Game paused for security reasons. Please refresh the page.</div>';
               }
-              return 'devtools-check';
+              return 'console-detector';
             }
           });
           
-          // Run checks periodically
-          setInterval(() => {
-            counter = 0;
-            console.log(div);
-            console.clear();
-          }, 1000);
+          // Leave this commented out in actual production, uncomment for testing
+          // Periodically attempts to check if console is open
+          // setInterval(() => {
+          //   counter = 0;
+          //   console.log(detectObj);
+          //   console.clear();
+          // }, 2000);
         };
         
-        // Initialize dev tools detection
+        // Initialize limited protection methods
         if (shouldEnableProtections) {
-          devtoolsDetector();
-          // Only activate console detector in production to avoid dev issues
+          // Only use more aggressive methods in production
           if (isProduction) {
             consoleDetector();
           }
