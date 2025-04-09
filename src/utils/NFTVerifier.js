@@ -7,14 +7,14 @@
 
 import axios from 'axios';
 
-// Constants
-const INDEXER_API_ENDPOINT = 'https://api.indexer.xyz/graphql';
+// Constants with environment variables
+const INDEXER_API_ENDPOINT = import.meta.env.VITE_INDEXER_API_URL;
 const INDEXER_HEADERS = {
   'Content-Type': 'application/json',
-  'x-api-user': 'ayastudios',
-  'x-api-key': 'SInxZyO.2a750dc7c138defad149a45e7f9abbf3'
+  'x-api-user': import.meta.env.VITE_INDEXER_API_USER,
+  'x-api-key': import.meta.env.VITE_INDEXER_API_KEY
 };
-const AYA_API_ENDPOINT = 'https://ayagame.onrender.com/api';
+const AYA_API_ENDPOINT = import.meta.env.VITE_APP_API_URL;
 
 // Cache implementation
 class NFTCache {
@@ -223,8 +223,8 @@ async function fetchActiveCollections() {
   }
   
   try {
-    // Use the production API endpoint
-    const url = "https://ayagame.onrender.com/api/sui/collections/active";
+    // Use the API endpoint from environment variables
+    const url = `${AYA_API_ENDPOINT}/sui/collections/active`;
     console.log(`Attempting to fetch collections from ${url}`);
     
     const response = await axios.get(url, { timeout: 10000 });
