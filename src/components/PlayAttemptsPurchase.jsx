@@ -237,12 +237,59 @@ const PlayAttemptsPurchase = ({
               }}>
                 Select Play Attempts: <span className="play-count" style={{ color: '#0066cc' }}>{selectedPlays}</span>
               </label>
-              <div className="slider-with-labels" style={{ 
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px'
-              }}>
-                <span style={{ fontWeight: 'bold' }}>1</span>
+              <div 
+                className="custom-slider" 
+                style={{ 
+                  flex: 1,
+                  position: 'relative',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  touchAction: 'none' // Prevent default touch actions
+                }}
+                onClick={(e) => {
+                  // Calculate position click relative to slider width
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const clickX = e.clientX - rect.left;
+                  const percentPosition = clickX / rect.width;
+                  const newValue = Math.max(1, Math.min(maxPlays, Math.round(percentPosition * maxPlays)));
+                  setSelectedPlays(newValue);
+                }}
+              >
+                {/* Slider track */}
+                <div style={{ 
+                  position: 'absolute',
+                  width: '100%',
+                  height: '8px',
+                  backgroundColor: '#e0e0e0',
+                  borderRadius: '4px'
+                }}></div>
+                
+                {/* Filled part */}
+                <div style={{
+                  position: 'absolute',
+                  width: `${(selectedPlays / maxPlays) * 100}%`,
+                  height: '8px',
+                  backgroundColor: '#0066cc',
+                  borderRadius: '4px'
+                }}></div>
+                
+                {/* Thumb */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    left: `calc(${(selectedPlays / maxPlays) * 100}% - 12px)`,
+                    width: '24px',
+                    height: '24px',
+                    backgroundColor: 'white',
+                    border: '2px solid #0066cc',
+                    borderRadius: '50%',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    cursor: 'pointer'
+                  }}
+                ></div>
+                
+                {/* Hidden native input for accessibility */}
                 <input
                   type="range"
                   min="1"
@@ -250,44 +297,16 @@ const PlayAttemptsPurchase = ({
                   value={selectedPlays}
                   onChange={(e) => {
                     const newValue = parseInt(e.target.value);
-                    console.log("Slider changed to:", newValue);
                     setSelectedPlays(newValue);
-                  }}
-                  onTouchStart={(e) => {
-                    // Prevent any default handling that might interfere
-                    e.stopPropagation();
-                  }}
-                  onTouchMove={(e) => {
-                    // Update value during touch movement
-                    const newValue = parseInt(e.target.value);
-                    setSelectedPlays(newValue);
-                  }}
-                  onTouchEnd={(e) => {
-                    // Ensure the event doesn't propagate and cause issues
-                    e.stopPropagation();
-                    e.preventDefault();
-                    
-                    // This ensures the value "sticks" after touch is released
-                    const input = e.target;
-                    const newValue = parseInt(input.value);
-                    console.log("Touch ended with value:", newValue);
-                    setSelectedPlays(newValue);
-                    
-                    // Force blur to release focus
-                    input.blur();
                   }}
                   style={{ 
-                    flex: 1,
-                    height: '8px',
-                    accentColor: '#0066cc',
-                    // Improve touch target size for mobile
-                    padding: '12px 0',
-                    margin: '-12px 0',
-                    cursor: 'pointer',
-                    WebkitAppearance: 'none' // For better iOS compatibility
+                    position: 'absolute',
+                    width: '100%',
+                    opacity: 0,
+                    height: '30px',
+                    cursor: 'pointer'
                   }}
                 />
-                <span style={{ fontWeight: 'bold' }}>{maxPlays}</span>
               </div>
             </div>
             
