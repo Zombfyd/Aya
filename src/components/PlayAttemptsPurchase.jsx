@@ -253,18 +253,38 @@ const PlayAttemptsPurchase = ({
                     console.log("Slider changed to:", newValue);
                     setSelectedPlays(newValue);
                   }}
-                  onTouchEnd={(e) => {
-                    // This ensures the value "sticks" after touch is released
+                  onTouchStart={(e) => {
+                    // Prevent any default handling that might interfere
+                    e.stopPropagation();
+                  }}
+                  onTouchMove={(e) => {
+                    // Update value during touch movement
                     const newValue = parseInt(e.target.value);
                     setSelectedPlays(newValue);
+                  }}
+                  onTouchEnd={(e) => {
+                    // Ensure the event doesn't propagate and cause issues
+                    e.stopPropagation();
+                    e.preventDefault();
+                    
+                    // This ensures the value "sticks" after touch is released
+                    const input = e.target;
+                    const newValue = parseInt(input.value);
+                    console.log("Touch ended with value:", newValue);
+                    setSelectedPlays(newValue);
+                    
+                    // Force blur to release focus
+                    input.blur();
                   }}
                   style={{ 
                     flex: 1,
                     height: '8px',
                     accentColor: '#0066cc',
                     // Improve touch target size for mobile
-                    padding: '10px 0',
-                    margin: '-10px 0'
+                    padding: '12px 0',
+                    margin: '-12px 0',
+                    cursor: 'pointer',
+                    WebkitAppearance: 'none' // For better iOS compatibility
                   }}
                 />
                 <span style={{ fontWeight: 'bold' }}>{maxPlays}</span>
