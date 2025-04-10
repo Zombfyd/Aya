@@ -253,10 +253,18 @@ const PlayAttemptsPurchase = ({
                     console.log("Slider changed to:", newValue);
                     setSelectedPlays(newValue);
                   }}
+                  onTouchEnd={(e) => {
+                    // This ensures the value "sticks" after touch is released
+                    const newValue = parseInt(e.target.value);
+                    setSelectedPlays(newValue);
+                  }}
                   style={{ 
                     flex: 1,
                     height: '8px',
-                    accentColor: '#0066cc'
+                    accentColor: '#0066cc',
+                    // Improve touch target size for mobile
+                    padding: '10px 0',
+                    margin: '-10px 0'
                   }}
                 />
                 <span style={{ fontWeight: 'bold' }}>{maxPlays}</span>
