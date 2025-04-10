@@ -245,9 +245,13 @@ const PlayAttemptsPurchase = ({
                   height: '30px',
                   display: 'flex',
                   alignItems: 'center',
-                  touchAction: 'none' // Prevent default touch actions
+                  touchAction: 'none', // Prevent default touch actions
+                  zIndex: 10 // Ensure slider is above other elements
                 }}
                 onClick={(e) => {
+                  e.stopPropagation(); // Prevent event bubbling
+                  e.preventDefault();
+                  
                   // Calculate position click relative to slider width
                   const rect = e.currentTarget.getBoundingClientRect();
                   const clickX = e.clientX - rect.left;
@@ -255,6 +259,9 @@ const PlayAttemptsPurchase = ({
                   const newValue = Math.max(1, Math.min(maxPlays, Math.round(percentPosition * maxPlays)));
                   setSelectedPlays(newValue);
                 }}
+                onTouchStart={(e) => e.stopPropagation()} // Stop propagation for all touch events
+                onTouchMove={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
               >
                 {/* Slider track */}
                 <div style={{ 
