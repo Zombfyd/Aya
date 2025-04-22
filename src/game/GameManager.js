@@ -19,12 +19,36 @@ class GameManager {
     this.ctx = null;
     this.gameLoopId = null;
     this.gameActive = false;
-    this._score = 0; // Make score private
-    this._lastScoreUpdate = Date.now(); // Track last score update time
-    this._scoreUpdateCount = 0; // Track number of score updates
-    this._scoreUpdateInterval = 100; // Minimum time between score updates in ms
-    this._maxScorePerUpdate = 100; // Maximum score increase per update
+    
+    // Encryption key (unique per session)
+    this._stateKey = Math.floor(Math.random() * 1000000);
+    
+    // Obfuscated game state
+    this._obfLives = {
+      a: (10 ^ this._stateKey), // Initial lives value
+      b: ~(10 ^ this._stateKey), // Inverted value as verification
+      modifier: Math.floor(Math.random() * 100)
+    };
+    
+    // Additional score protection
+    this._scoreComponents = {
+      base: 0,
+      multiplier: 1,
+      offset: Math.floor(Math.random() * 1000),
+      key: this._stateKey
+    };
+    
+    // Regular score tracking variables - keep for compatibility
+    this._score = 0;
+    this._lastScoreUpdate = Date.now();
+    this._scoreUpdateCount = 0;
+    this._scoreUpdateInterval = 100;
+    this._maxScorePerUpdate = 100;
     this.lives = 10;
+    
+    // Set up proxy for game state - this is the secure way to access state
+    this.secureState = this._createGameStateProxy();
+    
     this.onGameOver = null;
     
     // Initialize arrays for game entities
@@ -46,6 +70,16 @@ class GameManager {
       redtear: null,
       blacktear: null
     };
+
+    // Game state validation
+    this.lastServerCheckpoint = Date.now();
+    this.checkpointInterval = 5000;
+    this.gameEvents = [];
+    this.sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    this.gameStartTime = 0;
+    this.tearsCaught = 0;
+    this.tearsMissed = 0;
+    this.scoreTimestamps = [];
 
     // Load and manage game images - using direct URLs for now
     // In production, these should be moved to your CDN or static hosting
@@ -198,10 +232,21 @@ class GameManager {
     
     this.gameActive = true;
     this.mode = mode;
-    this._score = 0;
-    this.lives = 10;
+    
+    // Reset obfuscated state
+    this._setObfuscatedScore(0); // This updates both obfuscated and regular scores
+    this._setObfuscatedLives(10); // This updates both obfuscated and regular lives
+    
     this.speedMultiplier = 1;
     this.lastCheckpoint = 0;
+    
+    // Reset game state tracking
+    this.gameStartTime = Date.now();
+    this.tearsCaught = 0;
+    this.tearsMissed = 0;
+    this.gameEvents = [];
+    this.lastServerCheckpoint = Date.now();
+    this.scoreTimestamps = [{time: Date.now(), score: 0}];
     
     // Try to start audio only if context is unlocked
     if (AudioManager.audioUnlocked) {
@@ -434,7 +479,8 @@ class GameManager {
       this.lastCheckpoint = this.getScore();
     }
 
-    if (this.lives <= 0 && this.gameActive) {
+    // Use secure state for lives check
+    if (this.secureState.lives <= 0 && this.gameActive) {
       this.gameActive = false;
       if (this.onGameOver) {
         this.onGameOver(this.getScore());
@@ -463,6 +509,17 @@ class GameManager {
         const splashX = entity.x + entity.width / 2;
         const splashY = this.canvas.height;
         
+        // Track this event for server validation
+        this.tearsMissed++;
+        this.gameEvents.push({
+          type: 'miss',
+          tearType: isGold ? 'gold' : isRed ? 'red' : isBlack ? 'black' : 'blue',
+          timestamp: Date.now(),
+          score: this.getScore(),
+          lives: this.secureState.lives,
+          position: { x: entity.x, y: entity.y }
+        });
+        
         if (isGold) {
           this.splashes.push(new GoldSplash(splashX, splashY));
         } else if (isRed) {
@@ -475,7 +532,8 @@ class GameManager {
         
         // Handle life reduction for non-red tears
         if (!isRed) {
-          this.lives--;
+          // Use secure state to update lives
+          this.secureState.lives--;
         }
       }
     }
@@ -506,30 +564,44 @@ class GameManager {
     const splashX = entity.x + entity.width / 2;
     const splashY = this.bucket.y;
 
+    // Track this event for server validation
+    this.tearsCaught++;
+    this.gameEvents.push({
+      type: 'catch',
+      tearType: isGold ? 'gold' : isRed ? 'red' : isBlack ? 'black' : 'blue',
+      timestamp: Date.now(),
+      score: this.getScore(),
+      lives: this.secureState.lives,
+      position: { x: entity.x, y: entity.y }
+    });
+
     if (isGold) {
-      const points = this.lives >= this.healthBar.maxLives ? 75 : 15;
-      this._updateScore(points);
+      // Use secureState for consistent maximum lives check
+      const points = this.secureState.lives >= this.healthBar.maxLives ? 75 : 15;
+      this._setObfuscatedScore(this.secureState.score + points);
       this.floatingTexts.push(new FloatingText(splashX, splashY, 
-        this.lives >= this.healthBar.maxLives ? '75!' : '15', '#FFD700'));
+        this.secureState.lives >= this.healthBar.maxLives ? '75!' : '15', '#FFD700'));
       this.splashes.push(new GoldSplash(splashX, splashY));
     } else if (isRed) {
-      this.lives--;
+      // Decrement lives using secure state
+      this.secureState.lives--;
       this.floatingTexts.push(new FloatingText(splashX, splashY, '💀', '#FF4D6D'));
       this.splashes.push(new RedSplash(splashX, splashY));
     } else if (isBlack) {
-      if (this.lives >= this.healthBar.maxLives) {
-        this._updateScore(25);
+      if (this.secureState.lives >= this.healthBar.maxLives) {
+        this._setObfuscatedScore(this.secureState.score + 25);
         this.floatingTexts.push(new FloatingText(splashX, splashY, '+25', '#39B037'));
       } else {
-        this.lives++;
+        // Increment lives using secure state
+        this.secureState.lives++;
         this.floatingTexts.push(new FloatingText(splashX, splashY, '🍄', '#39B037'));
       }
       this.splashes.push(new GreenSplash(splashX, splashY));
     } else {
-      const points = this.lives >= this.healthBar.maxLives ? 5 : 1;
-      this._updateScore(points);
+      const points = this.secureState.lives >= this.healthBar.maxLives ? 5 : 1;
+      this._setObfuscatedScore(this.secureState.score + points);
       this.floatingTexts.push(new FloatingText(splashX, splashY, 
-        this.lives >= this.healthBar.maxLives ? '5!' : '1', '#f9f9f9'));
+        this.secureState.lives >= this.healthBar.maxLives ? '5!' : '1', '#f9f9f9'));
       this.splashes.push(new BlueSplash(splashX, splashY));
     }
   }
@@ -660,6 +732,10 @@ drawUI() {
     try {
       this.updateGame();
       this.drawGame();
+      
+      // Add state validation call
+      this.validateGameState();
+      
       this.gameLoopId = requestAnimationFrame(this.gameLoop);
     } catch (error) {
       console.error('Error in game loop:', error);
@@ -777,6 +853,175 @@ drawUI() {
     
     // Then update the protected score through scoreManager
     return scoreManager.updateScore(this._score);
+  }
+
+  // Add validate game state method
+  async validateGameState() {
+    if (!this.gameActive) return;
+    
+    const now = Date.now();
+    if (now - this.lastServerCheckpoint >= this.checkpointInterval) {
+      this.lastServerCheckpoint = now;
+      
+      // Prepare game state data
+      const gameState = {
+        sessionId: this.sessionId,
+        timestamp: now,
+        score: this.secureState.score,
+        lives: this.secureState.lives,
+        gameTime: now - this.gameStartTime,
+        tearsCaught: this.tearsCaught,
+        tearsMissed: this.tearsMissed,
+        events: this.gameEvents.slice(), // Copy events
+        speedMultiplier: this.speedMultiplier
+      };
+      
+      // Clear events queue after sending
+      this.gameEvents = [];
+      
+      try {
+        const response = await fetch('/api/validate-game-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(gameState)
+        });
+        
+        if (response.ok) {
+          const validation = await response.json();
+          
+          // Handle validation result
+          if (!validation.valid) {
+            console.warn('Game state validation failed:', validation.reason);
+            
+            // Take action based on failure reason
+            if (validation.action === 'reset') {
+              this._setObfuscatedScore(validation.correctedScore || 0);
+              this._setObfuscatedLives(validation.correctedLives || 0);
+            } else if (validation.action === 'terminate') {
+              this.gameActive = false;
+              if (this.onGameOver) {
+                this.onGameOver(this.getScore(), 'validation_failed');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Game state validation error:', error);
+      }
+      
+      // Track score progression for local validation
+      this.scoreTimestamps.push({
+        time: now,
+        score: this.secureState.score
+      });
+      
+      // Keep only last 10 timestamps
+      if (this.scoreTimestamps.length > 10) {
+        this.scoreTimestamps.shift();
+      }
+    }
+  }
+
+  // Create a protected proxy for game state
+  _createGameStateProxy() {
+    const self = this;
+    
+    return new Proxy({
+      score: 0,
+      lives: 10,
+      lastAccess: Date.now()
+    }, {
+      get(target, prop) {
+        // Track when properties are accessed
+        target.lastAccess = Date.now();
+        
+        if (prop === 'score') {
+          return self._getObfuscatedScore();
+        } else if (prop === 'lives') {
+          return self._getObfuscatedLives();
+        }
+        
+        return target[prop];
+      },
+      set(target, prop, value) {
+        if (prop === 'score') {
+          self._setObfuscatedScore(value);
+          return true;
+        } else if (prop === 'lives') {
+          self._setObfuscatedLives(value);
+          return true;
+        }
+        
+        target[prop] = value;
+        return true;
+      }
+    });
+  }
+  
+  // Methods to handle obfuscated score
+  _getObfuscatedScore() {
+    // Verify score integrity
+    const encScore = this._scoreComponents.base ^ this._scoreComponents.key;
+    const calculatedScore = (encScore * this._scoreComponents.multiplier) - this._scoreComponents.offset;
+    
+    const scoreFromManager = scoreManager.getScore();
+    
+    // If there's a mismatch, someone might be tampering
+    if (Math.abs(calculatedScore - scoreFromManager) > 1) {
+      console.warn('Score integrity check failed');
+      // Reset to the score from the score manager
+      this._setObfuscatedScore(scoreFromManager);
+      return scoreFromManager;
+    }
+    
+    return calculatedScore;
+  }
+  
+  _setObfuscatedScore(value) {
+    // Apply our encoding
+    this._scoreComponents.base = (value + this._scoreComponents.offset) ^ this._scoreComponents.key;
+    
+    // Also update regular score variables for compatibility
+    this._score = value;
+    
+    // Also update score manager
+    scoreManager.updateScore(value);
+    
+    return true;
+  }
+  
+  // Methods to handle obfuscated lives
+  _getObfuscatedLives() {
+    // Get both components and check consistency
+    const livesA = this._obfLives.a ^ this._stateKey;
+    const livesB = ~(this._obfLives.b ^ this._stateKey);
+    
+    // Verify lives integrity - both values should match
+    if (livesA !== livesB) {
+      console.warn('Lives integrity check failed');
+      
+      // If inconsistent, reset to a safe value (lower of the two)
+      const safeValue = Math.min(livesA, livesB);
+      this._setObfuscatedLives(safeValue);
+      return safeValue;
+    }
+    
+    return livesA;
+  }
+  
+  _setObfuscatedLives(value) {
+    // Clamp value to valid range (0-25)
+    value = Math.max(0, Math.min(value, 25));
+    
+    // Store with obfuscation
+    this._obfLives.a = value ^ this._stateKey;
+    this._obfLives.b = ~(value ^ this._stateKey);
+    this._obfLives.modifier = (value * 7) % 100;
+    
+    // Update regular lives variable for compatibility
+    this.lives = value;
+    
+    return true;
   }
 }
 

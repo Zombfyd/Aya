@@ -793,7 +793,7 @@ const GameApp = () => {
     }
   };
   // Modify handleGameStart
-  const handleGameStart = async () => {
+  const handleGameStart = async (type = 'aya') => {
     try {
         if (gameMode === 'paid') {
             // Check if player has play attempts
@@ -802,7 +802,7 @@ const GameApp = () => {
                 const attempt = await playAttemptsService.startPlayAttempt(
                     wallet.account.address,
                     {
-                        game: window.activeGameManager === window.gameManager1 ? 'TOA' : 'TOB',
+                        game: type === 'aya' ? 'TOA' : 'TOB',
                         gameType: 'main',
                         gameMode: 'paid',
                         sessionData: {
@@ -824,17 +824,17 @@ const GameApp = () => {
                 setPlayAttempts(prev => Math.max(0, prev - 1));
                 
                 // Start the game - don't set game state here, let startGame handle it
-                await startGame();
+                await startGame(type);
             } else if (!gameState.hasValidPayment) {
                 alert('Please make a payment or purchase play attempts to play in paid mode.');
                 return;
             } else {
                 // Start the game with existing payment
-                await startGame();
+                await startGame(type);
             }
         } else {
             // Free mode - just start the game
-            await startGame();
+            await startGame(type);
         }
     } catch (error) {
         console.error('Error starting game:', error);
@@ -2392,7 +2392,7 @@ const handleSuinsChange = (e) => {
     }
 
     if (gameMode === 'free' || gameState.hasValidPayment || playAttempts > 0) {
-        handleGameStart();
+        handleGameStart(type);
     } else {
         alert('Please complete payment or purchase play attempts to play in paid mode.');
         return;
