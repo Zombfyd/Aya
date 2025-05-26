@@ -54,6 +54,7 @@ app.use((req, res, next) => {
     'https://www.tears-of-aya.webflow.io',
     'https://aya-1.onrender.com',
     'https://aya-test-server.onrender.com',
+    'https://ayastudios.wal.app',
     'http://localhost:6969'
   ];
   
