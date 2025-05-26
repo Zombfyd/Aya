@@ -15,7 +15,7 @@ services:
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
-        value: https://www.ayaonsui.xyz
+        value: https://www.ayaonsui.xyz, https://ayastudios.wal.app
       - path: /*
         name: Access-Control-Allow-Methods
         value: "GET, POST, OPTIONS"
