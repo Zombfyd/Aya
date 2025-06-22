@@ -40,6 +40,13 @@ if (import.meta.env.DEV) {
   console.log('Play attempts utilities loaded. Use window.grantPlayAttempts(walletAddress, quantity) to grant play attempts.');
 }
 
+// Expose NFTVerifier to global scope for debugging
+if (import.meta.env.DEV) {
+  window.NFTVerifier = NFTVerifier;
+  console.log('🔧 NFTVerifier exposed to global scope for debugging');
+  console.log('📋 Available methods:', Object.keys(NFTVerifier || {}));
+}
+
 // Initialize both game managers
 const gameManager1 = gameManager;
 const gameManager2 = new BloodGameManager();
@@ -238,6 +245,7 @@ const GameApp = () => {
     timestamp: null,
     recipient: null
   });
+  
   // Add new state for paid game attempts
   const [paidGameAttempts, setPaidGameAttempts] = useState(0);
   const [maxAttempts, setMaxAttempts] = useState(0);
@@ -352,6 +360,11 @@ const GameApp = () => {
   
   // Add state for active collections
   const [activeCollections, setActiveCollections] = useState([]);
+  
+  const [nftCheckProgress, setNftCheckProgress] = useState({ current: 0, total: 0, message: '' });
+  
+  // Add state for assets found counter
+  const [assetsFound, setAssetsFound] = useState(0);
   
   // Add this near your other state declarations
   const [selectedPaymentToken, setSelectedPaymentToken] = useState('SUI');
@@ -613,25 +626,6 @@ const GameApp = () => {
     initializeGame();
   }, []);
 
-  // Add periodic NFT checking
-  useEffect(() => {
-    console.log('WALLET CONNECTED EFFECT:', wallet?.connected);
-    if (wallet?.connected) {
-      // Initial check
-      console.log('RUNNING INITIAL NFT CHECK');
-      checkUserNFTs();
-      
-      // Set up periodic check every 30 seconds
-      const nftCheckInterval = setInterval(() => {
-        console.log('RUNNING PERIODIC NFT CHECK');
-        checkUserNFTs();
-      }, 30000);
-
-      // Cleanup on unmount or wallet disconnect
-      return () => clearInterval(nftCheckInterval);
-    }
-  }, [wallet?.connected]);
-
   // Modify payment status monitoring
   useEffect(() => {
     if (transactionInProgress) {
@@ -699,7 +693,7 @@ const GameApp = () => {
         window.currentWalletAddress = wallet.account.address;
         setWalletInitialized(true);
         
-        // Check NFTs whenever wallet connects
+        // Check NFTs with a forced refresh when wallet connects
         logger.log('Checking NFTs after wallet connection...');
         checkUserNFTs(true);
         
@@ -2552,37 +2546,93 @@ const handleSuinsChange = (e) => {
     if (wallet?.connected && wallet?.account?.address && (forceRefresh || verifiedNFTs.length === 0)) {
       console.log('STARTING NFT CHECK PROCESS');
       setIsCheckingNFTs(true);
+      setNftCheckProgress({ current: 0, total: 0, message: 'Initializing...' });
+      setAssetsFound(0);
+      
+      // Clear existing NFTs at the start
+      setVerifiedNFTs([]);
+      setIsNFTVerified(false);
       
       try {
-        if (!NFTVerifier || !NFTVerifier.checkUserNFTs) {
-          throw new Error('NFTVerifier or checkUserNFTs method is not available');
+        // Check if NFTVerifier is available
+        if (!NFTVerifier) {
+          throw new Error('NFTVerifier is not available - module not loaded');
         }
         
-        // Call our new NFT verifier
-        const result = await NFTVerifier.checkUserNFTs(wallet.account.address, forceRefresh);
-        console.log('NFT VERIFICATION RESULT:', result);
-        logger.log('NFT verification result:', result);
-        
-        if (result.verifiedNFTs && result.verifiedNFTs.length > 0) {
-          console.log('Found verified NFTs:', result.verifiedNFTs);
-          console.log('First NFT details:', result.verifiedNFTs[0]);
-        } else {
-          console.log('No verified NFTs found');
+        if (!NFTVerifier.checkUserNFTs) {
+          throw new Error('NFTVerifier.checkUserNFTs method is not available');
         }
         
-        // Set state with the results
-        setVerifiedNFTs(result.verifiedNFTs || []);
-        setIsNFTVerified(result.isNFTVerified || false);
-        setActiveCollections(result.activeCollections || []);
+        console.log('✅ NFTVerifier is available, calling checkUserNFTs...');
+        
+        const onProgress = (progress) => {
+          console.log('NFT Check Progress:', progress);
+          setNftCheckProgress(progress);
+          
+          // Update assets found counter if provided
+          if (progress.assetsFound !== undefined) {
+            setAssetsFound(progress.assetsFound);
+          }
+        };
+        
+        const onNFTFound = (verifiedNFT) => {
+          console.log('✅ Verified NFT found:', verifiedNFT);
+          // Immediately update the UI with the new NFT
+          setVerifiedNFTs(prev => [...prev, verifiedNFT]);
+          setIsNFTVerified(true);
+          
+          // Show a quick notification to the user
+          console.log(`✅ Found verified NFT: ${verifiedNFT.name} from ${verifiedNFT.collectionName}`);
+        };
+        
+        // Call our new NFT verifier with real-time feedback - DON'T AWAIT IT
+        // This allows the UI to update immediately as NFTs are found
+        NFTVerifier.checkUserNFTs(wallet.account.address, forceRefresh, onProgress, onNFTFound)
+          .then(result => {
+            console.log('NFT VERIFICATION RESULT:', result);
+            logger.log('NFT verification result:', result);
+            
+            if (result && result.verifiedNFTs && result.verifiedNFTs.length > 0) {
+              console.log('Found verified NFTs:', result.verifiedNFTs);
+              console.log('First NFT details:', result.verifiedNFTs[0]);
+            } else {
+              console.log('No verified NFTs found');
+            }
+            
+            // Set active collections from the result
+            setActiveCollections(result?.activeCollections || []);
+          })
+          .catch(error => {
+            console.error('ERROR CHECKING NFTS:', error);
+            logger.error('Error checking NFTs:', error);
+            
+            // Show user-friendly error message
+            alert(`NFT verification failed: ${error.message}. Please try again.`);
+            
+            setVerifiedNFTs([]);
+            setIsNFTVerified(false);
+            setActiveCollections([]);
+          })
+          .finally(() => {
+            console.log('NFT CHECK PROCESS COMPLETED');
+            setIsCheckingNFTs(false);
+            setNftCheckProgress({ current: 0, total: 0, message: '' });
+            setAssetsFound(0);
+          });
+        
       } catch (error) {
-        console.error('ERROR CHECKING NFTS:', error);
-        logger.error('Error checking NFTs:', error);
+        console.error('ERROR SETTING UP NFT CHECK:', error);
+        logger.error('Error setting up NFT check:', error);
+        
+        // Show user-friendly error message
+        alert(`NFT verification setup failed: ${error.message}. Please try again.`);
+        
         setVerifiedNFTs([]);
         setIsNFTVerified(false);
         setActiveCollections([]);
-      } finally {
-        console.log('NFT CHECK PROCESS COMPLETED');
         setIsCheckingNFTs(false);
+        setNftCheckProgress({ current: 0, total: 0, message: '' });
+        setAssetsFound(0);
       }
     } else {
       console.log('SKIPPING NFT CHECK - Conditions not met:', {
@@ -2594,22 +2644,39 @@ const handleSuinsChange = (e) => {
     }
   };
 
-  // Update the refresh function to use our new NFTVerifier
+  // Update the refresh function with better error handling
   const refreshNFTs = () => {
-    if (wallet?.connected && wallet?.account?.address) {
-      logger.log('Manually refreshing NFTs for wallet:', wallet.account.address);
-      console.log('Manually refreshing NFTs for wallet:', wallet.account.address);
-      // Clear any cached NFTs first
-      if (NFTVerifier && NFTVerifier.clearNFTCacheForWallet) {
-        NFTVerifier.clearNFTCacheForWallet(wallet.account.address);
-        console.log('Cleared NFT cache for wallet:', wallet.account.address);
-      }
-      // Force refresh by passing true
-      checkUserNFTs(true);
-    } else {
-      logger.error('Cannot refresh NFTs - wallet not connected');
+    console.log('🔄 Refresh NFTs button clicked');
+    
+    if (!wallet?.connected) {
       console.error('Cannot refresh NFTs - wallet not connected');
+      alert('Please connect your wallet first');
+      return;
     }
+    
+    if (!wallet?.account?.address) {
+      console.error('Cannot refresh NFTs - no wallet address');
+      alert('Wallet address not available');
+      return;
+    }
+    
+    if (!NFTVerifier) {
+      console.error('Cannot refresh NFTs - NFTVerifier not available');
+      alert('NFT verification service not available. Please refresh the page.');
+      return;
+    }
+    
+    logger.log('Manually refreshing NFTs for wallet:', wallet.account.address);
+    console.log('Manually refreshing NFTs for wallet:', wallet.account.address);
+    
+    // Clear any cached NFTs first
+    if (NFTVerifier.clearNFTCacheForWallet) {
+      NFTVerifier.clearNFTCacheForWallet(wallet.account.address);
+      console.log('Cleared NFT cache for wallet:', wallet.account.address);
+    }
+    
+    // Force refresh by passing true
+    checkUserNFTs(true);
   };
 
   // Replace queryChillCatsNFTs function with call to nftUtils
@@ -3458,7 +3525,39 @@ const handleSuinsChange = (e) => {
                     </button>
                   )}
                   {isCheckingNFTs ? (
-                    <div className="nft-status">Checking NFTs...</div>
+                    <div className="nft-status-checking">
+                      <div className="nft-patience-note">
+                        <p><strong>Please be patient while we verify your wallet.</strong></p>
+                        <p>If you have a lot of NFTs, this may take a while. For faster results, consider using a wallet with just your Aya Passes and $AYA tokens.</p>
+                        <p>Thank you for your patience!</p>
+                      </div>
+                      
+                      {/* Assets Found Counter */}
+                      {assetsFound > 0 && (
+                        <div className="assets-found-counter" style={{ 
+                          marginBottom: '1rem', 
+                          padding: '0.5rem', 
+                          background: 'rgba(32, 84, 201, 0.1)', 
+                          borderRadius: '4px',
+                          textAlign: 'center',
+                          fontWeight: 'bold'
+                        }}>
+                          Assets Found: {assetsFound}
+                        </div>
+                      )}
+                      
+                      {/* Progress Bar */}
+                      <div className="progress-bar-container" style={{ margin: '1rem 0' }}>
+                        <progress 
+                          value={nftCheckProgress.current} 
+                          max={nftCheckProgress.total > 0 ? nftCheckProgress.total : 1}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <div className="progress-status-message" style={{ textAlign: 'center', fontStyle: 'italic' }}>
+                        {nftCheckProgress.message}
+                      </div>
+                    </div>
                   ) : isNFTVerified ? (
                     <div className="nft-status success">
                       <p>✅ NFT Verified - 50% Discount Applied!</p>

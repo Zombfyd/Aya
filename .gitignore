@@ -144,3 +144,6 @@ test-database.js
 scoreSubmitter.js
 test-web3-submission.js
 
+# Analysis and development scripts
+/scripts/
+

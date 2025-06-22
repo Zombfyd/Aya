@@ -1,20 +1,21 @@
 // Game protection mechanisms
 // Environment check - only enable in production
 const isProduction = import.meta.env.VITE_APP_ENVIRONMENT === 'production';
-const debugEnabled = localStorage.getItem('aya_admin_debug') === 'true';
-// New flag for testing protections in dev mode
-const testProtectionsEnabled = localStorage.getItem('aya_test_protections') === 'true';
+
+// Make these functions instead of static variables so they read from localStorage each time
+const getDebugEnabled = () => localStorage.getItem('aya_admin_debug') === 'true';
+const getTestProtectionsEnabled = () => localStorage.getItem('aya_test_protections') === 'true';
 
 // Admin bypass check - updated to consider test protections
 const isAdminMode = () => {
   // In production, admin mode is only enabled with the debug flag
   if (isProduction) {
-    return debugEnabled;
+    return getDebugEnabled();
   }
   
   // In development, admin mode is enabled by default
   // AND test protections are not enabled
-  return !testProtectionsEnabled;
+  return !getTestProtectionsEnabled();
 };
 
 // Should enable protections - more selective
@@ -25,7 +26,7 @@ const shouldEnableProtections = () => {
   }
   
   // In development, only enable protections if explicitly requested
-  return testProtectionsEnabled === true;
+  return getTestProtectionsEnabled() === true;
 };
 
 // Score protection
@@ -227,10 +228,20 @@ const toggleAdminMode = (key) => {
   const validKey = 'aya_admin_access';
   
   if (key === validKey) {
-    const currentState = localStorage.getItem('aya_admin_debug') === 'true';
+    const currentState = getDebugEnabled();
     localStorage.setItem('aya_admin_debug', (!currentState).toString());
     console.log(`Admin debug mode ${!currentState ? 'enabled' : 'disabled'}`);
-    return `Admin mode ${!currentState ? 'enabled' : 'disabled'}. Reload the page for changes to take effect.`;
+    
+    // Log the current protection status immediately
+    console.log('Updated Protection Status:', {
+      isProduction,
+      debugEnabled: getDebugEnabled(),
+      testProtectionsEnabled: getTestProtectionsEnabled(),
+      adminModeActive: isAdminMode(),
+      protectionsEnabled: shouldEnableProtections()
+    });
+    
+    return `Admin mode ${!currentState ? 'enabled' : 'disabled'}. Changes applied immediately.`;
   } else {
     console.error('Invalid admin key');
     return 'Invalid admin key';
@@ -241,13 +252,23 @@ const toggleAdminMode = (key) => {
 const toggleTestProtections = (enable = null) => {
   // If enable is not provided, toggle the current state
   if (enable === null) {
-    const currentState = localStorage.getItem('aya_test_protections') === 'true';
+    const currentState = getTestProtectionsEnabled();
     enable = !currentState;
   }
   
   localStorage.setItem('aya_test_protections', enable.toString());
   console.log(`Test protections ${enable ? 'enabled' : 'disabled'}`);
-  return `Test protections ${enable ? 'enabled' : 'disabled'}. Reload the page for changes to take effect.`;
+  
+  // Log the current protection status immediately
+  console.log('Updated Protection Status:', {
+    isProduction,
+    debugEnabled: getDebugEnabled(),
+    testProtectionsEnabled: getTestProtectionsEnabled(),
+    adminModeActive: isAdminMode(),
+    protectionsEnabled: shouldEnableProtections()
+  });
+  
+  return `Test protections ${enable ? 'enabled' : 'disabled'}. Changes applied immediately.`;
 };
 
 // Make the toggle functions globally available
@@ -257,8 +278,8 @@ window.__toggleTestProtections = toggleTestProtections;
 // Log the current state of protections for debugging
 console.log('Protection Status:', {
   isProduction,
-  debugEnabled,
-  testProtectionsEnabled,
+  debugEnabled: getDebugEnabled(),
+  testProtectionsEnabled: getTestProtectionsEnabled(),
   adminModeActive: isAdminMode(),
   protectionsEnabled: shouldEnableProtections()
 });

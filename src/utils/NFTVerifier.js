@@ -1,443 +1,736 @@
 /**
- * NFT Verifier Module
- * 
- * This module provides functions to verify a wallet's NFTs against active collections.
- * It uses the Indexer API and the ayagame.onrender.com server to fetch and verify NFTs.
+ * NFT Verifier: Browser-Compatible JavaScript Version
+ *
+ * - Caches active collections on load for performance.
+ * - Reports progress via a callback function.
+ * - Uses Sui RPC API to find kiosks owned by a wallet
+ * - Extracts NFTs from kiosks using dynamic fields
+ * - Matches NFTs to active collections with detailed debug logging
+ * - Outputs data in the format expected by GameApp.jsx
  */
 
 import axios from 'axios';
 
-// Constants with environment variables
-const INDEXER_API_ENDPOINT = import.meta.env.VITE_INDEXER_API_URL || import.meta.env.VITE_APP_INDEXER_API_ENDPOINT;
-const INDEXER_HEADERS = {
-  'Content-Type': 'application/json',
-  'x-api-user': import.meta.env.VITE_INDEXER_API_USER || import.meta.env.VITE_APP_INDEXER_API_USER,
-  'x-api-key': import.meta.env.VITE_INDEXER_API_KEY || import.meta.env.VITE_APP_INDEXER_API_KEY
-};
-const AYA_API_ENDPOINT = import.meta.env.VITE_APP_API_URL;
+// ============================================================================
+// CONSTANTS AND CONFIGURATION
+// ============================================================================
 
-// Cache implementation
-class NFTCache {
-  constructor() {
-    this.collections = {
-      data: null,
-      lastFetched: 0,
-      ttl: 24 * 60 * 60 * 1000 // 24 hours TTL for collections
-    };
-    this.walletNFTs = {};
-    this.ttl = 5 * 60 * 1000; // 5 minutes TTL for NFTs
-  }
+const AYA_API_ENDPOINT = import.meta.env.VITE_APP_API_URL || 'https://ayagame.onrender.com';
+const SUI_RPC_ENDPOINT = 'https://fullnode.mainnet.sui.io:443';
 
-  getCollections() {
-    const now = Date.now();
-    if (this.collections.data && (now - this.collections.lastFetched < this.collections.ttl)) {
-      console.log(`Using ${this.collections.data.length} cached active collections`);
-      return this.collections.data;
-    }
-    return null;
-  }
+// ============================================================================
+//  ACTIVE COLLECTIONS CACHING
+// ============================================================================
 
-  setCollections(data) {
-    this.collections.data = data;
-    this.collections.lastFetched = Date.now();
-    console.log(`Cached ${data.length} active collections`);
-  }
+let activeCollectionsPromise = null;
 
-  getWalletNFTs(walletAddress) {
-    if (walletAddress in this.walletNFTs) {
-      const cachedData = this.walletNFTs[walletAddress];
-      const now = Date.now();
-      if (now - cachedData.timestamp < this.ttl) {
-        console.log(`Using cached NFTs for wallet ${walletAddress}`);
-        return cachedData.data;
+/**
+ * Fetches collections from the backend or returns the cached promise.
+ * This is now an internal function controlled by checkUserNFTs.
+ * @param {boolean} forceRefresh - If true, re-fetches from the backend.
+ */
+function getActiveCollections(forceRefresh = false) {
+  if (forceRefresh || !activeCollectionsPromise) {
+    console.log(`[Cache] ${forceRefresh ? 'Forced refresh:' : 'Initial fetch:'} Fetching active collections...`);
+    activeCollectionsPromise = axios.get(`${AYA_API_ENDPOINT}/api/sui/collections/active`, {
+      timeout: 10000,
+      headers: { 'Content-Type': 'application/json' }
+    }).then(response => {
+      if (!response.data || !Array.isArray(response.data)) {
+        console.error(`[Cache] ❌ Invalid response format:`, response.data);
+        throw new Error('Invalid active collections response format');
       }
-    }
-    return null;
+      console.log(`[Cache] ✅ Fetched and cached ${response.data.length} active collections.`);
+      return response.data;
+    }).catch(error => {
+      console.error(`[Cache] ❌ Error fetching active collections:`, error);
+      activeCollectionsPromise = null; // Reset promise on error to allow retries
+      return []; // Return an empty array on error
+    });
+    } else {
+    console.log('[Cache] ✅ Using cached active collections.');
   }
-
-  setWalletNFTs(walletAddress, data) {
-    this.walletNFTs[walletAddress] = {
-      data: data,
-      timestamp: Date.now()
-    };
-    console.log(`Cached NFTs for wallet ${walletAddress}`);
-  }
-
-  clearCollections() {
-    this.collections.data = null;
-    console.log("Cleared collections cache");
-  }
-
-  clearAll() {
-    this.clearCollections();
-    this.walletNFTs = {};
-    console.log("Cleared all caches");
-  }
+  return activeCollectionsPromise;
 }
 
-// Initialize cache
-const nftCache = new NFTCache();
+// Trigger the initial fetch when the module first loads.
+getActiveCollections();
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
 /**
- * Calculate similarity between two strings
+ * Fetch object details from Sui RPC
  */
-function calculateSimilarity(a, b) {
-  if (!a || !b) return 0;
-  
-  // Convert to lowercase for case-insensitive comparison
-  const s1 = a.toLowerCase();
-  const s2 = b.toLowerCase();
-  
-  // Calculate Levenshtein distance
-  const track = Array(s2.length + 1).fill(null).map(() => 
-    Array(s1.length + 1).fill(null));
-  
-  for (let i = 0; i <= s1.length; i += 1) {
-    track[0][i] = i;
-  }
-  
-  for (let j = 0; j <= s2.length; j += 1) {
-    track[j][0] = j;
-  }
-  
-  for (let j = 1; j <= s2.length; j += 1) {
-    for (let i = 1; i <= s1.length; i += 1) {
-      const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
-      track[j][i] = Math.min(
-        track[j][i - 1] + 1, // deletion
-        track[j - 1][i] + 1, // insertion
-        track[j - 1][i - 1] + indicator, // substitution
-      );
-    }
-  }
-  
-  // Convert distance to similarity ratio
-  const maxLength = Math.max(s1.length, s2.length);
-  return maxLength === 0 ? 1 : 1 - (track[s2.length][s1.length] / maxLength);
-}
+async function fetchObjectDetails(objectId) {
+  const payload = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "sui_getObject",
+    params: [
+      objectId,
+      {
+        showType: true,
+        showContent: true,
+        showOwner: true,
+        showPreviousTransaction: true,
+        showDisplay: true
+      }
+    ]
+  };
 
-/**
- * Create an axios client with retry capability
- */
-function createAxiosClient() {
-  const client = axios.create({
-    timeout: 10000
+  const response = await axios.post(SUI_RPC_ENDPOINT, payload, {
+      timeout: 10000,
+    headers: { 'Content-Type': 'application/json' }
   });
-  
-  // Add response interceptor for retries
-  client.interceptors.response.use(null, async (error) => {
-    const { config } = error;
-    
-    // Only retry on network errors or 5xx errors
-    if (!error.response || (error.response.status >= 500 && error.response.status < 600)) {
-      config.__retryCount = config.__retryCount || 0;
-      
-      if (config.__retryCount < 3) {
-        config.__retryCount += 1;
-        const delay = config.__retryCount * 1000;
-        console.log(`Retrying request (${config.__retryCount}/3) after ${delay}ms`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return client(config);
-      }
-    }
-    
-    return Promise.reject(error);
-  });
-  
-  return client;
+
+  return response.data?.result?.data || {};
 }
 
-/**
- * Verify NFTs against active collections
- */
-function verifyNFTs(nfts, activeCollections) {
-  const verifiedNFTs = [];
-  
-  for (const nft of nfts) {
-    console.log("\nNFT Details:");
-    console.log(`- Token ID: ${nft.token_id || 'Unknown'}`);
-    console.log(`- Name: ${nft.name || 'Unknown'}`);
-    console.log(`- Collection ID: ${nft.collection_id || 'Unknown'}`);
-    console.log(`- Media URL: ${nft.media_url || ''}`);
-    console.log(`- NFT Type/Package: ${nft.type || 'Unknown'}`);
+// ============================================================================
+// BACKEND API FUNCTIONS (Now handled by caching logic)
+// ============================================================================
 
-    let matched = false;
-    for (const collection of activeCollections) {
-      console.log(`\nComparing against collection: ${collection.name}`);
-      console.log(`  - Collection type: ${collection.collectionType}`);
-      console.log(`  - NFT type: ${nft.type || ''}`);
-      
-      // Extract collection name without spaces and lowercase
-      const collectionNameNormalized = collection.name.toLowerCase().replace(/\s+/g, '');
-      const nftNameNormalized = (nft.name || '').toLowerCase().replace(/\s+/g, '');
-      
-      // Check if NFT name contains collection name or vice versa
-      let nameMatch = collectionNameNormalized.includes(nftNameNormalized) || 
-                     nftNameNormalized.includes(collectionNameNormalized);
-      
-      // Check for fuzzy match if exact match fails
-      if (!nameMatch) {
-        const similarity = calculateSimilarity(collectionNameNormalized, nftNameNormalized);
-        if (similarity > 0.8) {  // 80% similarity threshold
-          console.log(`  - Similarity score: ${similarity.toFixed(2)}`);
-          nameMatch = true;
-        }
-      }
-      
-      // Extract package IDs
-      const collectionPackage = collection.collectionType.split('::')[0].replace('0x', '').toLowerCase();
-      const nftPackage = (nft.type || '').replace('0x', '').toLowerCase();
-      
-      console.log(`  - Collection package: ${collectionPackage}`);
-      console.log(`  - NFT package: ${nftPackage}`);
-      
-      // Check for matches
-      if (nameMatch || collectionPackage === nftPackage) {
-        const matchType = nameMatch ? 'name' : 'package';
-        console.log(`  ✓ ${matchType.charAt(0).toUpperCase() + matchType.slice(1)} match!`);
-        matched = true;
-        verifiedNFTs.push({
-          nft: nft,
-          collection: collection,
-          match_type: matchType
-        });
-        break;
-      } else {
-        console.log("  × No match");
-      }
-    }
-  }
-  
-  console.log(`\nFound ${verifiedNFTs.length} verified NFTs from active collections`);
-  return verifiedNFTs;
-}
-
-/**
- * Fetch active collections from the local server
- */
+// This function is kept for structural clarity but the logic is now in the caching section
 async function fetchActiveCollections() {
-  // Check cache first
-  const cachedCollections = nftCache.getCollections();
-  if (cachedCollections) {
-    return cachedCollections;
-  }
+    return activeCollectionsPromise;
+}
+
+// ============================================================================
+// SUI RPC FUNCTIONS
+// ============================================================================
+
+/**
+ * Get total object count for a wallet by actually counting them
+ */
+async function getWalletObjectCount(walletAddress) {
+  console.log(`Getting total object count for wallet: ${walletAddress}`);
   
-  try {
-    // Use the API endpoint from environment variables
-    const url = `${AYA_API_ENDPOINT}/api/sui/collections/active`;
-    console.log(`Attempting to fetch collections from ${url}`);
+  let totalCount = 0;
+    let cursor = null;
+    let hasNextPage = true;
     
-    const response = await axios.get(url, { timeout: 10000 });
+    while (hasNextPage) {
+    const payload = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "suix_getOwnedObjects",
+      params: [walletAddress, {}, cursor, 50]
+    };
+
+    const response = await axios.post(SUI_RPC_ENDPOINT, payload, {
+      timeout: 10000,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = response.data?.result || {};
+    const objects = data.data || [];
+    hasNextPage = data.hasNextPage || false;
+    cursor = data.nextCursor;
+
+    totalCount += objects.length;
     
-    const collections = response.data;
-    console.log(`Found ${collections.length} collections`);
-    
-    // Cache the collections
-    nftCache.setCollections(collections);
-    
-    return collections;
-  } catch (error) {
-    console.error(`Error fetching collections: ${error}`);
-    return [];
+    // Add a small delay to avoid rate limiting
+    if (hasNextPage) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
   }
+
+  console.log(`Total objects found: ${totalCount}`);
+  return totalCount;
 }
 
 /**
- * Fetch NFTs owned by a specific wallet
+ * Get all kiosk addresses owned by a wallet and process them immediately
  */
-async function fetchWalletNFTs(walletAddress) {
-  // Check cache first
-  const cachedNFTs = nftCache.getWalletNFTs(walletAddress);
-  if (cachedNFTs) {
-    return cachedNFTs;
-  }
+async function getWalletKioskAddresses(walletAddress, activeCollections, onProgress = null, onNFTFound = null) {
+  console.log(`Finding kiosks for wallet: ${walletAddress}`);
   
-  try {
-    // Create an axios client with retry capability
-    const client = createAxiosClient();
+  onProgress?.({ 
+    stage: 'kiosk_discovery', 
+    message: `Finding kiosks in wallet...`, 
+    current: 0, 
+    total: 0,
+    assetsFound: 0
+  });
+  
+  const kioskAddresses = [];
+  const processedKiosks = [];
+    let cursor = null;
+    let hasNextPage = true;
+  let assetsFound = 0;
     
-    // Get all NFTs owned by the wallet using wallet_holdings
-    const query = `
-      query GetWalletNFTs($walletAddress: String!) {
-        sui {
-          wallet_holdings(
-            address: $walletAddress
-          ) {
-            nft {
-              token_id
-              collection_id
-              media_url
-              name
-            }
+    while (hasNextPage) {
+    const payload = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "suix_getOwnedObjects",
+      params: [walletAddress, {}, cursor, 50]
+    };
+
+    const response = await axios.post(SUI_RPC_ENDPOINT, payload, {
+      timeout: 10000,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = response.data?.result || {};
+    const objects = data.data || [];
+    hasNextPage = data.hasNextPage || false;
+    cursor = data.nextCursor;
+
+    // Process each object to find kiosk-related ones
+    for (const obj of objects) {
+      const objectId = obj.data?.objectId;
+      if (!objectId) continue;
+
+      try {
+        const objData = await fetchObjectDetails(objectId);
+        const objType = objData.type || '';
+
+        if (objType.includes('::kiosk::KioskOwnerCap')) {
+            // Standard KioskOwnerCap
+          const content = objData.content || {};
+          const kioskAddress = content.fields?.for;
+          if (kioskAddress) {
+            const kioskInfo = {
+              kiosk_address: kioskAddress,
+              cap_object_id: objectId,
+              cap_type: objType,
+              kiosk_type: 'standard'
+            };
+            kioskAddresses.push(kioskInfo);
+            console.log(`Found standard kiosk: ${kioskAddress}`);
+            
+            // Process this kiosk immediately in the background
+            processSingleKiosk(kioskInfo, onProgress).then(kioskResult => {
+              processedKiosks.push(kioskResult);
+              
+              // Process NFTs from this kiosk immediately
+              for (const nft of kioskResult.nfts) {
+                const collection = activeCollections.find(c => c.collectionType.trim() === nft.nft_type.trim());
+                if (collection) {
+                  const verifiedNFT = {
+                    objectId: nft.nft_object_id,
+                    type: nft.nft_type,
+                    collectionName: collection.name,
+                    collectionType: collection.collectionType,
+                    discountPercentage: collection.discount,
+                    media_url: getNFTImageUrl(nft),
+                    image_url: getNFTImageUrl(nft),
+                    name: getNFTName(nft),
+                    kioskAddress: nft.kiosk_address,
+                    kioskType: nft.kiosk_type,
+                    nftContent: nft.nft_content,
+                    nftDisplay: nft.nft_display,
+                    extractionTimestamp: nft.extraction_timestamp,
+                    isActiveCollection: true,
+                    collectionMeta: collection,
+                    ownershipType: 'kiosk'
+                  };
+                  onNFTFound?.(verifiedNFT);
+                }
+              }
+            }).catch(error => {
+              console.error('Error in kiosk processing:', error);
+            });
+          }
+        } else if (objType.includes('PersonalKioskCap')) {
+            // PersonalKioskCap
+          const content = objData.content || {};
+          const cap = content.fields?.cap;
+          const kioskAddress = cap?.fields?.for;
+          if (kioskAddress) {
+            const kioskInfo = {
+              kiosk_address: kioskAddress,
+              cap_object_id: objectId,
+              cap_type: objType,
+              kiosk_type: 'personal'
+            };
+            kioskAddresses.push(kioskInfo);
+            console.log(`Found personal kiosk: ${kioskAddress}`);
+            
+            // Process this kiosk immediately in the background
+            processSingleKiosk(kioskInfo, onProgress).then(kioskResult => {
+              processedKiosks.push(kioskResult);
+              
+              // Process NFTs from this kiosk immediately
+              for (const nft of kioskResult.nfts) {
+                const collection = activeCollections.find(c => c.collectionType.trim() === nft.nft_type.trim());
+                if (collection) {
+                  const verifiedNFT = {
+                    objectId: nft.nft_object_id,
+                    type: nft.nft_type,
+                    collectionName: collection.name,
+                    collectionType: collection.collectionType,
+                    discountPercentage: collection.discount,
+                    media_url: getNFTImageUrl(nft),
+                    image_url: getNFTImageUrl(nft),
+                    name: getNFTName(nft),
+                    kioskAddress: nft.kiosk_address,
+                    kioskType: nft.kiosk_type,
+                    nftContent: nft.nft_content,
+                    nftDisplay: nft.nft_display,
+                    extractionTimestamp: nft.extraction_timestamp,
+                    isActiveCollection: true,
+                    collectionMeta: collection,
+                    ownershipType: 'kiosk'
+                  };
+                  onNFTFound?.(verifiedNFT);
+                }
+              }
+            }).catch(error => {
+              console.error('Error in kiosk processing:', error);
+            });
           }
         }
-      }
-    `;
 
-    console.log(`Fetching NFTs for wallet ${walletAddress}`);
-    const response = await client.post(
-      INDEXER_API_ENDPOINT,
-      {
-        query: query,
-        variables: {
-          walletAddress: walletAddress
-        }
-      },
-      { 
-        headers: INDEXER_HEADERS,
-        timeout: 10000
-      }
-    );
+        // Count all assets found (not just kiosks)
+        assetsFound++;
+        onProgress?.({ 
+          stage: 'kiosk_discovery', 
+          message: `Scanning wallet objects...`, 
+          current: 0, 
+          total: 0,
+          assetsFound: assetsFound
+        });
 
-    const result = response.data;
-    
-    if (!result || !result.data || !result.data.sui || !result.data.sui.wallet_holdings) {
-      console.error("Error fetching wallet NFTs: Invalid response format");
-      return [];
+        // Add rate limiting delay between object fetches
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error(`Error processing object ${objectId}:`, error);
+        // Still count it as found even if it failed
+        assetsFound++;
+        onProgress?.({ 
+          stage: 'kiosk_discovery', 
+          message: `Scanning wallet objects...`, 
+          current: 0, 
+          total: 0,
+          assetsFound: assetsFound
+        });
+      }
     }
-    
-    const walletHoldings = result.data.sui.wallet_holdings;
-    console.log(`Found ${walletHoldings.length} NFTs in wallet ${walletAddress}`);
 
-    // Helper function to format IPFS URLs
-    const formatUrl = (url) => {
-      if (!url) return '';
-      
-      // If it's already a full URL that's not IPFS, return it
-      if (url.startsWith('http') && !url.includes('ipfs')) {
-        return url;
-      }
-      
-      // Extract CID from various IPFS URL formats
-      let cid = url;
-      
-      if (url.startsWith('ipfs://')) {
-        cid = url.replace('ipfs://', '');
-      } else if (url.includes('ipfs.io/ipfs/')) {
-        cid = url.split('ipfs.io/ipfs/')[1];
-      } else if (url.includes('/ipfs/')) {
-        cid = url.split('/ipfs/')[1];
-      }
-      
-      // Return URL from public gateway
-      return `https://ipfs.io/ipfs/${cid}`;
-    };
-
-    // Format wallet NFTs
-    const formattedWalletNFTs = walletHoldings
-      .filter(holding => holding.nft)
-      .map(holding => {
-        const nft = holding.nft;
-        const formattedMediaUrl = formatUrl(nft.media_url);
-        
-        // Use token_id as the type since it contains the package ID
-        return {
-          token_id: nft.token_id,
-          collection_id: nft.collection_id,
-          name: nft.name || 'Unknown NFT',
-          media_url: formattedMediaUrl,
-          type: nft.token_id || '',  // Use token_id as the type
-          image_url: formattedMediaUrl // Add image_url for UI display
-        };
-      });
-
-    console.log(`Found ${formattedWalletNFTs.length} total NFTs in wallet`);
-    
-    // Cache the results
-    nftCache.setWalletNFTs(walletAddress, formattedWalletNFTs);
-    
-    return formattedWalletNFTs;
-  } catch (error) {
-    console.error(`Error fetching wallet NFTs: ${error}`);
-    return [];
+    // Add rate limiting delay between pages
+    if (hasNextPage) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
   }
+
+  // Remove duplicates from kioskAddresses (for return value)
+  const uniqueKiosks = [];
+  const seenAddresses = new Set();
+  for (const kiosk of kioskAddresses) {
+    if (!seenAddresses.has(kiosk.kiosk_address)) {
+      seenAddresses.add(kiosk.kiosk_address);
+      uniqueKiosks.push(kiosk);
+    }
+  }
+
+  console.log(`Found ${uniqueKiosks.length} unique kiosks`);
+  return { kioskAddresses: uniqueKiosks, processedKiosks };
 }
 
 /**
- * Main function to check user NFTs against active collections
+ * Get directly owned NFTs from a wallet and process them immediately
  */
-export async function checkUserNFTs(walletAddress, forceRefresh = false) {
-  console.log(`=== CHECKING USER NFTS FOR ${walletAddress} ===`);
+async function getDirectlyOwnedNFTs(walletAddress, activeCollections, onProgress = null, onNFTFound = null) {
+  console.log(`Finding directly owned NFTs for wallet: ${walletAddress}`);
   
-  if (!walletAddress) {
-    console.log("No wallet address provided");
-    return { verifiedNFTs: [], isNFTVerified: false, activeCollections: [] };
+  const directlyOwnedNFTs = [];
+  let cursor = null;
+  let hasNextPage = true;
+  let totalObjectsProcessed = 0;
+    
+  while (hasNextPage) {
+    const payload = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "suix_getOwnedObjects",
+      params: [walletAddress, {}, cursor, 50]
+    };
+
+    const response = await axios.post(SUI_RPC_ENDPOINT, payload, {
+      timeout: 10000,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = response.data?.result || {};
+    const objects = data.data || [];
+    hasNextPage = data.hasNextPage || false;
+    cursor = data.nextCursor;
+
+    console.log(`Processing ${objects.length} objects from wallet...`);
+
+    // Process each object to find directly owned NFTs
+    for (const obj of objects) {
+      const objectId = obj.data?.objectId;
+      if (!objectId) continue;
+
+      try {
+        const objData = await fetchObjectDetails(objectId);
+        const objType = objData.type || '';
+
+        // Skip coins and kiosk-related objects
+        if (objType.includes('0x2::coin::Coin') || 
+            objType.includes('::kiosk::KioskOwnerCap') ||
+            objType.includes('PersonalKioskCap') ||
+            objType.includes('::kiosk::Kiosk')) {
+          continue;
+        }
+
+        // Check if this object has an image/media URL (indicating it's likely an NFT)
+        const hasImageUrl = (
+          objData.display?.image_url ||
+          objData.display?.fields?.image_url ||
+          objData.display?.fields?.media_url ||
+          objData.display?.fields?.url ||
+          objData.content?.fields?.image_url ||
+          objData.content?.fields?.media_url ||
+          objData.content?.fields?.url ||
+          objData.content?.image_url ||
+          objData.content?.media_url ||
+          objData.content?.url
+        );
+
+        if (hasImageUrl) {
+          console.log(`Found object with image URL: ${objectId} (${objType})`);
+          
+          const nft = {
+            nft_object_id: objectId,
+            nft_type: objType,
+            kiosk_address: null,
+            kiosk_type: 'direct',
+            nft_content: objData.content || {},
+            nft_display: objData.display || {},
+            extraction_timestamp: new Date().toISOString()
+          };
+          
+          directlyOwnedNFTs.push(nft);
+          
+          // Process this NFT immediately
+          const collection = activeCollections.find(c => c.collectionType.trim() === objType.trim());
+          if (collection) {
+            console.log(`✅ Verified NFT found: ${objectId} matches collection ${collection.name}`);
+            const verifiedNFT = {
+              objectId: nft.nft_object_id,
+              type: nft.nft_type,
+              collectionName: collection.name,
+              collectionType: collection.collectionType,
+              discountPercentage: collection.discount,
+              media_url: getNFTImageUrl(nft),
+              image_url: getNFTImageUrl(nft),
+              name: getNFTName(nft),
+              kioskAddress: nft.kiosk_address,
+              kioskType: nft.kiosk_type,
+              nftContent: nft.nft_content,
+              nftDisplay: nft.nft_display,
+              extractionTimestamp: nft.extraction_timestamp,
+              isActiveCollection: true,
+              collectionMeta: collection,
+              ownershipType: 'direct'
+            };
+            onNFTFound?.(verifiedNFT);
+          }
+        }
+
+        totalObjectsProcessed++;
+        onProgress?.({ 
+          stage: 'direct_nft_discovery', 
+          message: `Scanned ${totalObjectsProcessed} objects for direct NFTs...`, 
+          current: totalObjectsProcessed, 
+          total: 0,
+          assetsFound: totalObjectsProcessed
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+      } catch (error) {
+        console.error(`Error processing object ${objectId}:`, error);
+        totalObjectsProcessed++;
+        onProgress?.({ 
+          stage: 'direct_nft_discovery', 
+          message: `Scanned ${totalObjectsProcessed} objects for direct NFTs...`, 
+          current: totalObjectsProcessed, 
+          total: 0,
+          assetsFound: totalObjectsProcessed
+        });
+      }
+    }
+
+    if (hasNextPage) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
   }
+
+  console.log(`Found ${directlyOwnedNFTs.length} directly owned NFTs`);
+  return directlyOwnedNFTs;
+}
+
+/**
+ * Get all NFTs from a kiosk using dynamic fields
+ */
+async function getKioskNFTsViaDynamicFields(kioskAddress, kioskType) {
+  console.log(`  Examining kiosk: ${kioskAddress}`);
   
-  // If force refresh is requested, clear the cache for this wallet
-  if (forceRefresh && walletAddress in nftCache.walletNFTs) {
-    delete nftCache.walletNFTs[walletAddress];
-    console.log(`Cleared cache for wallet ${walletAddress} due to force refresh`);
-  }
+  const nfts = [];
   
   try {
-    // First get all NFTs owned by the wallet
-    console.log("Fetching all NFTs owned by wallet...");
-    const walletNFTs = await fetchWalletNFTs(walletAddress);
-    console.log(`Found ${walletNFTs.length} total NFTs owned by wallet`);
-    
-    // Fetch active collections
-    const activeCollections = await fetchActiveCollections();
-    console.log(`Checking against ${activeCollections.length} active collections`);
-    
-    // Verify NFTs against active collections
-    const verifiedNFTs = verifyNFTs(walletNFTs, activeCollections);
-    
-    // Format the results for UI display
-    const formattedVerifiedNFTs = verifiedNFTs.map(item => {
-      // Ensure we have all required fields with proper fallbacks
-      return {
-        ...item.nft,
-        token_id: item.nft.token_id || 'unknown',
-        collection: item.collection,
-        collectionName: item.collection.name,
-        collectionType: item.collection.collectionType,
-        discountPercentage: item.collection.discount,
-        verified: true,
-        match_type: item.match_type,
-        // Ensure required UI display fields exist
-        name: item.nft.name || item.collection.name || 'Unnamed NFT',
-        media_url: item.nft.media_url || '/placeholder.png',
-        image_url: item.nft.image_url || item.nft.media_url || '/placeholder.png',
-        in_kiosk: item.nft.in_kiosk || false,
-        // Add collection-specific info
-        collectionId: item.collection.collectionType ? item.collection.collectionType.split('::')[0] : null
-      };
+    // Get dynamic fields from the kiosk
+    const payload = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "suix_getDynamicFields",
+      params: [kioskAddress, null, 100]
+    };
+
+    const response = await axios.post(SUI_RPC_ENDPOINT, payload, {
+      timeout: 10000,
+      headers: { 'Content-Type': 'application/json' }
     });
+
+    const data = response.data?.result || {};
+    const fields = data.data || [];
     
-    console.log(`Found ${formattedVerifiedNFTs.length} verified NFTs from active collections`);
-    console.log('Formatted verified NFTs:', formattedVerifiedNFTs);
+    console.log(`    Found ${fields.length} dynamic fields`);
     
+    for (const field of fields) {
+      const fieldId = field.objectId;
+      if (!fieldId) continue;
+
+      try {
+        // Get the actual object
+        const objData = await fetchObjectDetails(fieldId);
+        const objType = objData.type || '';
+        
+        // Skip kiosk locks and the kiosk itself
+        if (objType.includes('::kiosk::Lock') || 
+            objType.includes('::kiosk::Kiosk') ||
+            objType.includes('Field<0x2::kiosk::Lock')) {
+          continue;
+        }
+        
+        // This is an actual NFT
+        console.log(`    Found NFT: ${fieldId} (${objType})`);
+        console.log(`    Raw NFT data from Sui RPC:`, {
+          content: objData.content,
+          display: objData.display,
+          type: objData.type
+        });
+        
+        nfts.push({
+          nft_object_id: fieldId,
+          nft_type: objType,
+          kiosk_address: kioskAddress,
+          kiosk_type: kioskType,
+          nft_content: objData.content || {},
+          nft_display: objData.display || {},
+          extraction_timestamp: new Date().toISOString()
+        });
+        
+        // Add rate limiting delay between NFT fetches
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        console.error(`    Error getting object ${fieldId}:`, error);
+      }
+    }
+    
+    console.log(`    Total NFTs found in kiosk: ${nfts.length}`);
+    return nfts;
+    
+  } catch (error) {
+    console.error(`    Error examining kiosk ${kioskAddress}:`, error);
+    return nfts;
+  }
+}
+
+// ============================================================================
+// NFT METADATA EXTRACTION FUNCTIONS
+// ============================================================================
+
+/**
+ * Extract NFT image URL from NFT metadata (content/display)
+ */
+function getNFTImageUrl(nft) {
+  // Helper function to convert IPFS URLs to gateway format
+  const convertIpfsUrl = (url) => {
+    if (!url) return null;
+    
+    // If it's already a full URL, return as is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // If it's an IPFS URL with ipfs:// prefix
+    if (url.startsWith('ipfs://')) {
+      const ipfsHash = url.replace('ipfs://', '');
+      return `https://ipfs.io/ipfs/${ipfsHash}`;
+    }
+    
+    // If it's just an IPFS hash (like "bafybeign3mei274odlrwh6j5yb3ggi6lsx6pn2zhw6cahhm36kjjfvhl6a")
+    if (url.match(/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafy[a-z2-7]{55})$/)) {
+      return `https://ipfs.io/ipfs/${url}`;
+    }
+    
+    // If it's not an IPFS URL, return it as is.
+    return url;
+  };
+
+  // Try multiple possible locations for image URLs
+  const possibleImageFields = [
+    // Display fields
+    nft.nft_display?.image_url,
+    nft.nft_display?.fields?.image_url,
+    nft.nft_display?.fields?.media_url,
+    nft.nft_display?.fields?.url,
+    
+    // Content fields
+    nft.nft_content?.fields?.image_url,
+    nft.nft_content?.fields?.media_url,
+    nft.nft_content?.fields?.url,
+    
+    // Direct content fields
+    nft.nft_content?.image_url,
+    nft.nft_content?.media_url,
+    nft.nft_content?.url,
+  ];
+
+  for (const field of possibleImageFields) {
+    if (field) {
+      const imageUrl = convertIpfsUrl(field);
+      if (imageUrl) {
+        return imageUrl;
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract NFT name from NFT metadata (content/display)
+ */
+function getNFTName(nft) {
+  console.log(`🔍 Extracting name for NFT: ${nft.nft_object_id}`);
+  console.log(`   NFT display data:`, nft.nft_display);
+  console.log(`   NFT content data:`, nft.nft_content);
+  console.log(`   NFT content fields:`, nft.nft_content?.fields);
+  console.log(`   NFT display fields:`, nft.nft_display?.fields);
+  
+  // Try multiple possible locations for names
+  const possibleNameFields = [
+    // Display fields
+    nft.nft_display?.name,
+    nft.nft_display?.fields?.name,
+    
+    // Content fields
+    nft.nft_content?.fields?.name,
+    nft.nft_content?.name,
+    
+    // Display data fields
+    nft.nft_display?.data?.name,
+  ];
+
+  for (const field of possibleNameFields) {
+    if (field) {
+      console.log(`   ✅ Found name: ${field}`);
+      return field;
+    }
+  }
+  
+  const fallbackName = `NFT ${nft.nft_object_id?.slice(0, 8) || nft.address?.slice(0, 8)}...`;
+  console.log(`   ❌ No name found, using fallback: ${fallbackName}`);
+  return fallbackName;
+}
+
+// ============================================================================
+// MAIN ORCHESTRATION FUNCTIONS
+// ============================================================================
+
+/**
+ * Process a single kiosk and return its NFTs
+ */
+async function processSingleKiosk(kioskInfo, onProgress = null) {
+  const kioskAddress = kioskInfo.kiosk_address;
+  const kioskType = kioskInfo.kiosk_type;
+  
+  console.log(`Processing kiosk: ${kioskAddress} (${kioskType})`);
+  
+  const nfts = await getKioskNFTsViaDynamicFields(kioskAddress, kioskType);
+  
+      return {
+    kiosk_address: kioskAddress,
+    kiosk_type: kioskType,
+    nfts: nfts,
+    total_nfts: nfts.length,
+    extraction_timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Main function: verify user's NFTs with real-time feedback - NON-BLOCKING VERSION
+ * @param {string} walletAddress
+ * @param {boolean} forceRefresh - If true, will also refresh the active collections cache.
+ * @param {function} onProgress - Callback function for progress updates
+ * @param {function} onNFTFound - Callback function when a verified NFT is found
+ * @returns {Promise<{success: boolean, verifiedNFTs: Array, isNFTVerified: boolean, activeCollections: Array, error?: string}>}
+ */
+async function checkUserNFTs(walletAddress, forceRefresh = false, onProgress = null, onNFTFound = null) {
+  try {
+    onProgress?.({ stage: 'starting', message: 'Starting verification...', current: 0, total: 1 });
+
+    // 1. Get collections first
+    const activeCollections = await getActiveCollections(forceRefresh);
+    
+    // 2. Start the real-time analysis in the background
+    // Don't await it - let it run and call callbacks
+    startRealTimeNFTAnalysis(walletAddress, activeCollections, onProgress, onNFTFound);
+    
+    // 3. Return immediately - the analysis will continue in background
     return {
-      verifiedNFTs: formattedVerifiedNFTs,
-      isNFTVerified: formattedVerifiedNFTs.length > 0,
+      success: true,
+      verifiedNFTs: [], // Will be populated via onNFTFound callback
+      isNFTVerified: false, // Will be updated via onNFTFound callback
       activeCollections: activeCollections
     };
+
   } catch (error) {
-    console.error(`Error checking user NFTs: ${error}`);
-    return { verifiedNFTs: [], isNFTVerified: false, activeCollections: [] };
+    console.error("Error during checkUserNFTs:", error);
+    return {
+      success: false,
+      verifiedNFTs: [],
+      isNFTVerified: false,
+      activeCollections: await getActiveCollections(),
+      error: error.message 
+    };
   }
 }
 
 /**
- * Clear all NFT caches
+ * Start real-time NFT analysis - completely non-blocking
  */
-export function clearAllNFTCaches() {
-  nftCache.clearAll();
+function startRealTimeNFTAnalysis(walletAddress, activeCollections, onProgress = null, onNFTFound = null) {
+  console.log(`Starting real-time NFT analysis for wallet: ${walletAddress}`);
+  
+  // Start kiosk discovery immediately
+  getWalletKioskAddresses(walletAddress, activeCollections, onProgress, onNFTFound)
+    .catch(error => console.error('Error in kiosk discovery:', error));
+  
+  // Start direct NFT discovery immediately  
+  getDirectlyOwnedNFTs(walletAddress, activeCollections, onProgress, onNFTFound)
+    .catch(error => console.error('Error in direct NFT discovery:', error));
+  
+  console.log('Both discovery processes started - NFTs will appear in real-time');
 }
 
-/**
- * Clear NFT cache for a specific wallet
- */
-export function clearNFTCacheForWallet(address) {
-  if (address in nftCache.walletNFTs) {
-    delete nftCache.walletNFTs[address];
-    console.log(`Cleared cache for wallet ${address}`);
-  }
-}
+// ============================================================================
+// EXPORTS
+// ============================================================================
 
-export default {
+const NFTVerifier = {
   checkUserNFTs,
-  clearAllNFTCaches,
-  clearNFTCacheForWallet
-}; 
+  getNFTImageUrl,
+  getNFTName,
+  startRealTimeNFTAnalysis
+};
+export default NFTVerifier; 
