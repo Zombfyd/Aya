@@ -3587,10 +3587,9 @@ const handleSuinsChange = (e) => {
                             />
                             <div className="nft-info">
                               <span className="nft-name">{nft.name || 'Unnamed NFT'}</span>
-                              {nft.collectionName && <span className="nft-collection">{nft.collectionName}</span>}
                               {nft.in_kiosk && <span className="nft-badge kiosk-badge">In Kiosk</span>}
                               {nft.isUnverifiedNFT && <span className="nft-badge unverified-badge">Unverified</span>}
-                              <span className="nft-discount">{nft.discountPercentage || 0}% off</span>
+                              <span className=" nft-discount">{nft.discountPercentage || 0}% off</span>
                             </div>
                           </div>
                           );
