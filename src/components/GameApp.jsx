@@ -4174,29 +4174,28 @@ const handleSuinsChange = (e) => {
 
 // ShowHeaderButton component: only shows on desktop/tablet, hides after use
 function ShowHeaderButton() {
-  const [visible, setVisible] = useState(() => window.innerWidth > 767);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Hide button on resize to mobile
-    const handleResize = () => {
-      if (window.innerWidth <= 767) {
-        setVisible(false);
-      } else {
-        setVisible(true);
-      }
+    function checkHeader() {
+      const header = document.getElementById('Header');
+      setVisible(header && header.classList.contains('header-hidden'));
+    }
+    checkHeader();
+    window.addEventListener('resize', checkHeader);
+    window.addEventListener('show-header-btn-should-show', checkHeader);
+    return () => {
+      window.removeEventListener('resize', checkHeader);
+      window.removeEventListener('show-header-btn-should-show', checkHeader);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleClick = () => {
     const header = document.getElementById('Header');
     if (header) {
-      header.classList.add('header-hidden');
-      // Dispatch the event to show the ShowHeaderButton
-      window.dispatchEvent(new Event('show-header-btn-should-show'));
+      header.classList.remove('header-hidden');
     }
-    setVisible(false); // Hide the button after showing the header
+    setVisible(false);
   };
 
   if (!visible) return null;
@@ -4216,5 +4215,20 @@ function ShowHeaderButton() {
     </button>
   );
 }
+
+useEffect(() => {
+  function updateHeaderVisibility() {
+    const header = document.getElementById('Header');
+    if (!header) return;
+    if (window.innerWidth <= 767) {
+      header.classList.add('header-hidden');
+    } else {
+      header.classList.remove('header-hidden');
+    }
+  }
+  updateHeaderVisibility();
+  window.addEventListener('resize', updateHeaderVisibility);
+  return () => window.removeEventListener('resize', updateHeaderVisibility);
+}, []);
 
 export default GameApp;
