@@ -4192,7 +4192,9 @@ function ShowHeaderButton() {
   const handleClick = () => {
     const header = document.getElementById('Header');
     if (header) {
-      header.classList.remove('header-hidden');
+      header.classList.add('header-hidden');
+      // Dispatch the event to show the ShowHeaderButton
+      window.dispatchEvent(new Event('show-header-btn-should-show'));
     }
     setVisible(false); // Hide the button after showing the header
   };
