@@ -3329,6 +3329,65 @@ const handleSuinsChange = (e) => {
     );
   };
 
+  // ShowHeaderButton component: only shows on desktop/tablet, hides after use
+function ShowHeaderButton() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    function checkHeader() {
+      const header = document.getElementById('Header');
+      setVisible(header && header.classList.contains('header-hidden'));
+    }
+    checkHeader();
+    window.addEventListener('resize', checkHeader);
+    window.addEventListener('show-header-btn-should-show', checkHeader);
+    return () => {
+      window.removeEventListener('resize', checkHeader);
+      window.removeEventListener('show-header-btn-should-show', checkHeader);
+    };
+  }, []);
+
+  const handleClick = () => {
+    const header = document.getElementById('Header');
+    if (header) {
+      header.classList.remove('header-hidden');
+    }
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <button
+      className="show-header-btn"
+      style={{
+        position: 'fixed',
+        top: '10px',
+        left: '10px',
+        zIndex: 1000
+      }}
+      onClick={handleClick}
+    >
+      Show Header
+    </button>
+  );
+}
+
+useEffect(() => {
+  function updateHeaderVisibility() {
+    const header = document.getElementById('Header');
+    if (!header) return;
+    if (window.innerWidth <= 767) {
+      header.classList.add('header-hidden');
+    } else {
+      header.classList.remove('header-hidden');
+    }
+  }
+  updateHeaderVisibility();
+  window.addEventListener('resize', updateHeaderVisibility);
+  return () => window.removeEventListener('resize', updateHeaderVisibility);
+}, []);
+  
   // Then in the return statement, find the username-controls div and add the renderPlayAttemptsCounter() below the h4
   return (
     <div className={`game-container ${gameState.gameStarted ? 'active' : ''}`}>
@@ -4171,64 +4230,4 @@ const handleSuinsChange = (e) => {
     </div>
   );
 };
-
-// ShowHeaderButton component: only shows on desktop/tablet, hides after use
-function ShowHeaderButton() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    function checkHeader() {
-      const header = document.getElementById('Header');
-      setVisible(header && header.classList.contains('header-hidden'));
-    }
-    checkHeader();
-    window.addEventListener('resize', checkHeader);
-    window.addEventListener('show-header-btn-should-show', checkHeader);
-    return () => {
-      window.removeEventListener('resize', checkHeader);
-      window.removeEventListener('show-header-btn-should-show', checkHeader);
-    };
-  }, []);
-
-  const handleClick = () => {
-    const header = document.getElementById('Header');
-    if (header) {
-      header.classList.remove('header-hidden');
-    }
-    setVisible(false);
-  };
-
-  if (!visible) return null;
-
-  return (
-    <button
-      className="show-header-btn"
-      style={{
-        position: 'fixed',
-        top: '10px',
-        left: '10px',
-        zIndex: 1000
-      }}
-      onClick={handleClick}
-    >
-      Show Header
-    </button>
-  );
-}
-
-useEffect(() => {
-  function updateHeaderVisibility() {
-    const header = document.getElementById('Header');
-    if (!header) return;
-    if (window.innerWidth <= 767) {
-      header.classList.add('header-hidden');
-    } else {
-      header.classList.remove('header-hidden');
-    }
-  }
-  updateHeaderVisibility();
-  window.addEventListener('resize', updateHeaderVisibility);
-  return () => window.removeEventListener('resize', updateHeaderVisibility);
-}, []);
-
 export default GameApp;
