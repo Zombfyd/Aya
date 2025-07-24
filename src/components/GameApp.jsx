@@ -8,6 +8,7 @@ import PlayAttemptsPurchase from './PlayAttemptsPurchase';
 import * as paymentService from '../services/paymentService';
 // Import our new NFT verification module
 import NFTVerifier from '../utils/NFTVerifier';
+import { createPortal } from 'react-dom';
 
 // Check if NFTVerifier is loaded correctly
 console.log('NFTVerifier loaded:', NFTVerifier);
@@ -3328,7 +3329,42 @@ const handleSuinsChange = (e) => {
       </div>
     );
   };
-
+  function HeaderControlButton() {
+    const handleHideHeader = (e) => {
+      e.preventDefault();
+      const header = document.getElementById('Header');
+      if (header) {
+        header.classList.add('header-hidden');
+      }
+      // Optionally, trigger the ShowHeaderButton to appear
+      window.dispatchEvent(new Event('show-header-btn-should-show'));
+    };
+  
+    return (
+      <a
+        id="header-display"
+        href="#"
+        className="header-controller w-button"
+        style={{
+          WebkitTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0deg) rotateZ(0) skew(0, 0)',
+          MozTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0deg) rotateZ(0) skew(0, 0)',
+          msTransform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0deg) rotateZ(0) skew(0, 0)',
+          transform: 'translate3d(0, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0deg) rotateZ(0) skew(0, 0)',
+          transformStyle: 'preserve-3d',
+          color: 'rgb(0,0,0)'
+        }}
+        onClick={handleHideHeader}
+      >
+        ^
+      </a>
+    );
+  }
+  function HeaderControlButtonPortal() {
+    return createPortal(
+      <HeaderControlButton />,
+      document.getElementById('header-control-portal')
+    );
+  }
   // ShowHeaderButton component: only shows on desktop/tablet, hides after use
 function ShowHeaderButton() {
   const [visible, setVisible] = useState(false);
@@ -3776,6 +3812,7 @@ useEffect(() => {
           
           {/* Add a button to show the tutorial */}
           <ShowHeaderButton />
+          <HeaderControlButton />
 
           <p className="creator-credit">
             Created by <a 
@@ -4230,4 +4267,7 @@ useEffect(() => {
     </div>
   );
 };
+
+
+
 export default GameApp;
