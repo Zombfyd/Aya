@@ -3812,7 +3812,7 @@ useEffect(() => {
           
           {/* Add a button to show the tutorial */}
           <ShowHeaderButton />
-          <HeaderControlButton />
+          <HeaderControlButtonPortal /> {/* <-- This will render the ^ button inside your header */}
 
           <p className="creator-credit">
             Created by <a 
