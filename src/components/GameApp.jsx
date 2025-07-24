@@ -3716,42 +3716,7 @@ const handleSuinsChange = (e) => {
           </div>
           
           {/* Add a button to show the tutorial */}
-          <button 
-          className="show-header-btn" 
-          style={{ 
-          position: 'fixed', 
-          top: '10px', 
-          left: '10px', 
-          zIndex: 1000 
-        }} 
-        onClick={() => {
-          // Find the header section
-          const header = document.getElementById('Header');
-          if (header) {
-            header.classList.remove('header-hidden');
-          }
-          // Optionally hide the show-header-btn if it exists
-          const showBtn = document.getElementById('show-header-btn');
-          if (showBtn) {
-            showBtn.style.display = 'none';
-          }
-        }}
-      >
-        Show Header
-        </button>
-
-      <button 
-        className="view-tutorial-button" 
-        onClick={showTutorial}
-        style={{ 
-          position: 'fixed', 
-          top: '10px', 
-          right: '10px', 
-          zIndex: 1000 
-        }}
-      >
-        View Tutorial
-      </button>
+          <ShowHeaderButton />
 
           <p className="creator-credit">
             Created by <a 
@@ -4206,5 +4171,48 @@ const handleSuinsChange = (e) => {
     </div>
   );
 };
+
+// ShowHeaderButton component: only shows on desktop/tablet, hides after use
+function ShowHeaderButton() {
+  const [visible, setVisible] = useState(() => window.innerWidth > 767);
+
+  useEffect(() => {
+    // Hide button on resize to mobile
+    const handleResize = () => {
+      if (window.innerWidth <= 767) {
+        setVisible(false);
+      } else {
+        setVisible(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleClick = () => {
+    const header = document.getElementById('Header');
+    if (header) {
+      header.classList.remove('header-hidden');
+    }
+    setVisible(false); // Hide the button after showing the header
+  };
+
+  if (!visible) return null;
+
+  return (
+    <button
+      className="show-header-btn"
+      style={{
+        position: 'fixed',
+        top: '10px',
+        left: '10px',
+        zIndex: 1000
+      }}
+      onClick={handleClick}
+    >
+      Show Header
+    </button>
+  );
+}
 
 export default GameApp;
