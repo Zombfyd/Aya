@@ -3715,6 +3715,14 @@ const handleSuinsChange = (e) => {
           </div>
           
           {/* Add a button to show the tutorial */}
+          <button 
+          className="show-header-btn" 
+          style={{ 
+          position: 'fixed', 
+          top: '10px', 
+          left: '10px', 
+          zIndex: 1000 
+        }} class="w-button">Show Header</button>
       <button 
         className="view-tutorial-button" 
         onClick={showTutorial}

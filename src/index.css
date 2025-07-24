@@ -1287,6 +1287,17 @@ tr:nth-child(-n+3) .wallet-cell .wallet-tooltip::after {
   transition: background 0.3s ease;
   margin: 0 2px;
 }
+.show-header-btn {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 8px;
+  transition: background 0.3s ease;
+  margin: 0 2px;
+}
 
 .view-tutorial-button:hover {
   background: #357abd;
