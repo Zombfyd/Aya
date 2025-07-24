@@ -3717,13 +3717,29 @@ const handleSuinsChange = (e) => {
           
           {/* Add a button to show the tutorial */}
           <button 
-          className="show-header-button" 
+          className="show-header-btn" 
           style={{ 
           position: 'fixed', 
           top: '10px', 
           left: '10px', 
           zIndex: 1000 
-        }} class="w-button">Show Header</button>
+        }} 
+        onClick={() => {
+          // Find the header section
+          const header = document.getElementById('Header');
+          if (header) {
+            header.classList.remove('header-hidden');
+          }
+          // Optionally hide the show-header-btn if it exists
+          const showBtn = document.getElementById('show-header-btn');
+          if (showBtn) {
+            showBtn.style.display = 'none';
+          }
+        }}
+      >
+        Show Header
+        </button>
+
       <button 
         className="view-tutorial-button" 
         onClick={showTutorial}
